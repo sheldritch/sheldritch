@@ -1,0 +1,27 @@
+{
+	"beer": {
+		"channelName": "test-channel",
+		"messageTemplate": "### :beers: {message} :beers:",
+		"messages": [
+			"Good heavens, would you look at the time",
+			"Goodness gracious, is it that time already?",
+			"Please form an orderly line",
+			"Release the hounds!",
+			"Don't forget your timesheets"
+		],
+		"selectionType": "in order",
+		"schedule": "0 15 * * 5"
+	},
+	"standup": {
+		"channelName": "test-channel",
+		"messageTemplate": "### :clock9: {message} :clock9:",
+		"messages": [
+			"Standup time",
+			"Rise, my minions!",
+			"Use those legs of yours",
+			"On your feet!"
+		],
+		"selectionType": "random",
+		"schedule": "*/4 * * * * *"
+	}
+}
