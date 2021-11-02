@@ -1,0 +1,37 @@
+#! /bin/bash
+
+#  ----- General aliases -----
+
+# Lazy
+alias c="code"
+alias d="dotnet"
+
+# Linux
+alias gimme="sudo chown -R wm-admin"
+
+# ----- C#Bot -----
+alias src="cd serverside/src"
+alias dbreset="dotnet ef database drop -f && dotnet ef database update"
+alias dup="docker-compose up"
+
+# ----- LAMPBot -----
+
+# Site Admin
+alias sa="./site_admin.sh"
+
+# Minification
+alias m="./site_admin.sh minify"
+alias mm="./site_admin.sh minify -no-minification"
+
+# ----- Functions -----
+# These are functions that could technically go in their own file, but are small enough 
+# that they may as well be here.
+ipaddr() {
+	hostname -I | awk '{print $1}'
+}
+
+# Will try and cd directly into a repo folder from anywhere on the machine, defaulting to
+# the parent 'repos' folder if no suitable repo can be found (not provided or doesn't exist)
+repos() {
+	cd "$HOME/repos/${1:-.}" || cd "$HOME/repos" || return
+}
