@@ -21,7 +21,7 @@ for readme in **/README.md; do
 
 		for child in "$(dirname "$readme")"/*/; do
 			summary="$(basename "$child") -- $(sed -n '/^[^#]/{p; q}' $child/README.md)"
-			sed -i "/## Directory Structure/a $summary" "$readme"
+			sed -i "/## Directory Structure/a - $summary" "$readme"
 			
 		done
 		sed -i '/## Directory Structure/G' "$readme"
