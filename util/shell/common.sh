@@ -1,29 +1,9 @@
 #
-# Base script utilities
+# Common env/setup for use for other tool scripts
 #
 
-# Ensure the aliases created by this script are available
-shopt -s expand_aliases
-
-# temporarily unset aliases, so they don't interfere with this script
-existingAliases="$(alias)"
-for alias in $(alias | perl -ne "/alias (\w+)='*/ && print "'"$1\n"'); do
-	unalias "$alias"
-done
-
-alias script_is_sourced='[[ "${BASH_SOURCE[0]}" != "${0}" ]]'
-
-alias check_is_sourced="if ! script_is_sourced; then
-	echo \"You aren't sourcing ${BASH_SOURCE[0]}. Make sure you are to have its libs available to you.\"
-	exit 1
-fi"
-check_is_sourced
-
-# Store the current process, to compare when running certain functions
-UTIL_PID="$BASHPID"
-
-
-alias safe_quit="return 2> /dev/null || exit"
+source "$TOOLS"/util/shell/base.sh || return 1
+use_tool util/shell/json.sh
 
 # Shorthand structure for defining arguments
 alias '@ARGS=while [ $# -ne 0 ]; do case "$1" in'
@@ -48,17 +28,6 @@ alias '@ENDARGS=
 		;;
 esac; done'
 
-# Echo stderr debug line if turned on
-debug() {
-	if [ "$DEBUG" = true ]; then
-		echo >&2 -e "DEBUG:" "$@"
-	fi
-}
-
-enable_debug() {
-	set -u
-	export DEBUG=true
-}
 
 url_encode() {
 	python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus('$1'))"
