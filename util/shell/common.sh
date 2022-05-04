@@ -3,7 +3,6 @@
 #
 
 source "$TOOLS"/util/shell/base.sh || return 1
-use_tool util/shell/json.sh
 
 # Shorthand structure for defining arguments
 alias '@ARGS=while [ $# -ne 0 ]; do case "$1" in'
@@ -108,5 +107,4 @@ print_args() {
 	} >&2
 }
 
-# Final line: re-apply previous aliases
-eval "$existingAliases"
+use_tool util/shell/json.sh
