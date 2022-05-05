@@ -50,7 +50,7 @@ enable_previous_aliases() {
 }
 
 # The directory of the file currently being executed (or viewed, if looking at code)
-alias 'self_dir=( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )'
+alias 'self_dir=( cd "$(dirname $(realpath "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd )'
 
 if [ -z "$TOOLS" ]; then
 	export TOOLS="$(realpath $SELF_DIR/../../)"
