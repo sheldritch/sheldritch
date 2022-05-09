@@ -29,8 +29,7 @@ jqj() {
 #
 # Does not set or modify dynamic variables if no attribute is found, unless -f is set. outputVar is always set.
 json_pop() {
-	debug "helpers process: $helpersProcess, current process: $BASHPID"
-	if [ "$helpersProcess" -ne "$BASHPID" ]; then
+	if ! in_tools_base_context; then
 		echo >&2 "Warning: json_pop must not be run in a subshell or a pipe."
 		echo >&2 "       If you do this, you will not be able to retrieve the resulting values."
 	fi
