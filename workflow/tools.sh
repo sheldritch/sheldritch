@@ -2,7 +2,7 @@
 
 # Completion for files in $TOOLS
 _completion_tool_list() {
-    COMPREPLY=($(cd "$TOOLS"; compgen -f -- "${COMP_WORDS[1]}"))
+    COMPREPLY=($(cd "$TOOLS"; compgen -f -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
 tool_edit() {
