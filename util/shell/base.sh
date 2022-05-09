@@ -25,6 +25,12 @@ check_is_sourced
 export TOOLS_SOURCES
 source_once() {
 	path="$(realpath "$1")"
+
+	if [ -x "$path" ]; then
+		echo >&2 "Error: $path is an executable, presumably not a sourced file."
+		return 1
+	fi
+
 	if ! echo "$TOOLS_SOURCES" | grep -q "$path"; then
 		TOOLS_SOURCES+="$(echo -e "\n$path")" # before source to prevent dependency loops
 		source "$1"
@@ -32,7 +38,22 @@ source_once() {
 }
 
 use_tool() {
-	source_once "$TOOLS"/"$1"
+	local tool="$TOOLS/$1"
+	if [ -d "$tool" ]; then
+		if in_tools_root_context; then
+			echo >&2 "Error: refusing to mutate PATH for a sourced script"
+			return 1
+		fi
+		export PATH="$(find "$tool" -type d -printf "%p:")$PATH"
+	elif [ -x "$tool" ]; then
+		if in_tools_root_context; then
+			echo >&2 "Error: refusing to mutate aliases for a sourced script"
+			return 1
+		fi
+		alias "$(basename "$tool")=$tool"
+	else 
+		source_once "$TOOLS"/"$1"
+	fi
 }
 
 
@@ -60,7 +81,20 @@ fi
 mkdir -p /tmp/tools
 
 # Store the current process, to compare when running certain functions
-UTIL_PID="$BASHPID"
+export TOOLS_BASE_PID="$BASHPID"
+if [ -z "$TOOLS_ROOT_PID" ] || [[ $- == *i* ]]; then
+	export TOOLS_ROOT_PID="$BASHPID"
+fi
+
+in_tools_base_context() {
+	debug "tools base process: $TOOLS_BASE_PID, current process: $BASHPID"
+	test "$BASHPID" -eq "$TOOLS_BASE_PID"
+}
+
+in_tools_root_context() {
+	debug "tools root process: $TOOLS_BASE_PID, current process: $BASHPID"
+	test "$BASHPID" -eq "$TOOLS_ROOT_PID"
+}
 
 alias safe_quit="return 2> /dev/null || exit"
 
