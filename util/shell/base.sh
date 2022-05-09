@@ -2,6 +2,8 @@
 # Base script utilities
 #
 
+# Init
+
 if [ -z "$BASH_VERSION" ]; then
 	echo >&2 "Error: utils/base.sh: base currently requires Bash to execute."
 	echo >&2 "Sorry for the inconvenience."
@@ -21,6 +23,9 @@ alias check_is_sourced="if ! script_is_sourced; then
 	exit 1
 fi"
 check_is_sourced
+
+
+# Sourcing & Tools Library Access
 
 export TOOLS_SOURCES
 source_once() {
@@ -56,7 +61,6 @@ use_tool() {
 	fi
 }
 
-
 # temporarily unset aliases, so they don't interfere with a helper script
 disable_previous_aliases() {
 	PRE_UTIL_ALIASES="$(alias)"
@@ -70,6 +74,10 @@ enable_previous_aliases() {
 	eval "$PRE_UTIL_ALIASES"
 }
 
+
+# Directories/Environment
+
+
 # The directory of the file currently being executed (or viewed, if looking at code)
 alias 'self_dir=( cd "$(dirname $(realpath "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd )'
 
@@ -80,8 +88,20 @@ fi
 # /tmp/tools for tool-related temporary files
 mkdir -p /tmp/tools
 
+# Directories storing repos
+if [ -z "$REPOS" ]; then
+	# sensibly set REPO_DIR based on the first existing directory
+	# Feel free to add your own repo here
+	for dir in "$HOME/repos" /g/; do
+		if [ -d "$dir" ]; then
+			[ -z "$REPOS" ] && REPOS="$dir" || REPOS="$REPOS:$dir"
+		fi
+	done
+fi
+
 # Store the current process, to compare when running certain functions
 export TOOLS_BASE_PID="$BASHPID"
+# The root shell process for the given session
 if [ -z "$TOOLS_ROOT_PID" ] || [[ $- == *i* ]]; then
 	export TOOLS_ROOT_PID="$BASHPID"
 fi
@@ -96,8 +116,10 @@ in_tools_root_context() {
 	test "$BASHPID" -eq "$TOOLS_ROOT_PID"
 }
 
-alias safe_quit="return 2> /dev/null || exit"
 
+# Base Helpers
+
+alias safe_quit="return 2> /dev/null || exit"
 
 # Echo stderr debug line if turned on
 debug() {
