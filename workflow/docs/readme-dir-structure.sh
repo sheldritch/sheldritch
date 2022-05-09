@@ -74,7 +74,7 @@ for readme in $(getDirectoryReadmes "$directory"); do
 		elif typeis "directory"; then
 			summary="$name -- $(print-first-block.pl '^\w+' "$child/README.md")"
 
-		elif typeis "script"; then
+		elif typeis "script" || nameis "\.sh$"; then
 			summary="$name -- $(print-first-block.pl '^# \w+' "$child" | sed 's/# //')"
 
 		else
