@@ -43,6 +43,25 @@ source_once() {
 }
 
 use_tool() {
+	while [ $# -ne 0 ]; do
+		case "$1" in
+			-f | --force ) FORCE=true
+				shift
+				;;
+			-h | --help ) HELP=true
+				shift
+				break
+				;;
+			* ) break
+				;;
+		esac
+	done
+
+	if [ "$HELP" = true ]; then
+		echo >&2 "use_tool -- imports the given tool (relative to the tools repo)"
+		echo >&2 "Usage: use_tool [--force] <tool>"
+	fi
+
 	local tool="$TOOLS/$1"
 	if [ -d "$tool" ]; then
 		if in_tools_root_context; then
@@ -57,7 +76,11 @@ use_tool() {
 		fi
 		alias "$(basename "$tool")=$tool"
 	else 
-		source_once "$TOOLS"/"$1"
+		if [ "$FORCE" = true ]; then
+			source "$TOOLS"/"$1"
+		else 
+			source_once "$TOOLS"/"$1"
+		fi
 	fi
 }
 
