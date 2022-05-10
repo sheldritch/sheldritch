@@ -5,10 +5,40 @@ _completion_tool_list() {
     COMPREPLY=($(cd "$TOOLS"; compgen -f -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
+complete -o filenames -F _completion_tool_list use_tool
+
 tool_edit() {
-    $EDITOR "$TOOLS/$1" 
+    declare -a files
+    while [ $# -ne 0 ]; do
+        case "$1" in
+            --help ) HELP=true
+                shift
+                break
+                ;;
+            -- )
+                shift
+                break
+                ;;
+            * ) files+=("$TOOLS/$1")
+                shift
+                ;;
+        esac
+    done 
+
+    if [ "$HELP" = true ]; then
+        echo >&2 "Usage: tool_edit tools... [-- bare-args...]"
+    fi
+    $EDITOR "$@" "${files[@]}"
+
+    for file in "${files[@]}"; do
+        if ! [ -x "$file" ] && echo "$file" | grep -q "\.sh$"; then
+            source "$file"
+        fi
+    done
 }
+alias "tool_$EDITOR"=tool_edit
 complete -o filenames -F _completion_tool_list tool_edit
+complete -o filenames -F _completion_tool_list "tool_$EDITOR"
 
 tool_commit() {
     if [ $# -lt 2 ]; then
