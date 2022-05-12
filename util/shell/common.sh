@@ -73,13 +73,13 @@ print_args() {
 
 	local file="${1:-${BASH_SOURCE[1]}}" # [1] is the context that called this function.
 
-	if ! file "$file" | grep -q shell; then
+	if ! echo "$file" | grep -q '.sh$'; then
 		echo >&2 "Error: print_args: file '$file' is not a shell script."
 		return 1
 	fi
 
-	if [ "$file" -ef "$DEVOPS_ROOT/helpers/helpers-common.sh" -a -z "$function" ]; then
-		echo >&2 "Error: print_args: helpers-common.sh requires a -f function to be specified."
+	if echo "$file" | grep -q 'common.sh$' && [ -z "$function" ]; then
+		echo >&2 "Error: print_args: function libs requires a -f function to be specified."
 		return 1
 	fi
 
@@ -96,7 +96,7 @@ print_args() {
 	"
 
 	{
-	echo "Args:"
+	echo "Options:"
 	if [ -n "$function" ]; then
 		# Note this runs on to the next function if no match found.
 		# parsing the function end is tricky.
