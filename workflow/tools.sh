@@ -36,9 +36,12 @@ tool_edit() {
         fi
     done
 }
-alias "tool_$EDITOR"=tool_edit
 complete -o filenames -F _completion_tool_list tool_edit
-complete -o filenames -F _completion_tool_list "tool_$EDITOR"
+
+if [ "$EDITOR" ]; then
+    alias "tool_$EDITOR"=tool_edit
+    complete -o filenames -F _completion_tool_list "tool_$EDITOR"
+fi
 
 tool_commit() {
     if [ $# -lt 2 ]; then
