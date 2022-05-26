@@ -1,11 +1,29 @@
 # meta-utilities for dealing with the tools repo
 
 # Completion for files in $TOOLS
+# TODO: make a generic helper to list files in this format
 _completion_tool_list() {
-    COMPREPLY=($(cd "$TOOLS"; compgen -f -- "${COMP_WORDS[COMP_CWORD]}"))
+    local IFS=$'\n'
+
+    declare -a files=("$TOOLS/${COMP_WORDS[COMP_CWORD]}"*)
+    if ! [ "${#files[@]}" -eq 1 -a -f "${files[0]}" ]; then
+        compopt -o nospace
+    fi
+
+    COMPREPLY=($(
+        cd "$TOOLS"
+
+        for file in "${COMP_WORDS[COMP_CWORD]}"*; do
+            if [ -d "$file" ]; then
+                echo "$file/" 
+            elif [ -f "$file" ]; then
+                echo "$file"
+            fi
+        done
+    ))
 }
 
-complete -o filenames -F _completion_tool_list use_tool
+complete -o nospace -F _completion_tool_list use_tool
 
 tool_edit() {
     declare -a files
