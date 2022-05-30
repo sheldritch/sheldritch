@@ -61,26 +61,28 @@ use_tool() {
 		echo >&2 "Usage: use_tool [--force] <tool>"
 	fi
 
-	local tool="$TOOLS/$1"
-	if [ -d "$tool" ]; then
-		if in_tools_root_context; then
-			echo >&2 "Error: refusing to mutate PATH for a sourced script"
-			return 1
-		fi
-		export PATH="$(find "$tool" -type d -printf "%p:")$PATH"
-	elif [ -x "$tool" ]; then
-		if in_tools_root_context; then
-			echo >&2 "Error: refusing to mutate aliases for a sourced script"
-			return 1
-		fi
-		alias "$(basename "$tool")=$tool"
-	else 
-		if [ "$FORCE" = true ]; then
-			source "$TOOLS"/"$1"
+	for tool in $@; do
+		local file="$TOOLS/$tool"
+		if [ -d "$file" ]; then
+			if in_tools_root_context; then
+				echo >&2 "Error: refusing to mutate PATH for a sourced script"
+				return 1
+			fi
+			export PATH="$(find "$file" -type d -printf "%p:")$PATH"
+		elif [ -x "$file" ]; then
+			if in_tools_root_context; then
+				echo >&2 "Error: refusing to mutate aliases for a sourced script"
+				return 1
+			fi
+			alias "$(basename "$file")=$file"
 		else 
-			source_once "$TOOLS"/"$1"
+			if [ "$FORCE" = true ]; then
+				source "$TOOLS"/"$tool"
+			else 
+				source_once "$TOOLS"/"$tool"
+			fi
 		fi
-	fi
+	done
 }
 
 # temporarily unset aliases, so they don't interfere with a helper script
