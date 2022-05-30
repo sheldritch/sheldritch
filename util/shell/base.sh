@@ -27,7 +27,6 @@ check_is_sourced
 
 # Sourcing & Tools Library Access
 
-export TOOLS_SOURCES
 source_once() {
 	path="$(realpath "$1")"
 
