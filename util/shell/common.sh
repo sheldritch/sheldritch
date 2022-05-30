@@ -29,7 +29,7 @@ esac; done'
 
 
 url_encode() {
-	python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus('$1'))"
+	python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus('$*'))"
 }
 
 # Display the output of a diff, and ask the user if they want to continue with those changes
