@@ -61,6 +61,14 @@ if [ "$EDITOR" ]; then
     complete -F _completion_tool_list "tool_$EDITOR"
 fi
 
+tool_diff() {
+    (
+        cd "$TOOLS"
+        git diff "$1"
+    )
+}
+complete -F _completion_tool_list tool_diff
+
 tool_commit() {
     if [ $# -lt 2 ]; then
         echo >&2 "Usage: tool_commit: <tool> <commit message>"
