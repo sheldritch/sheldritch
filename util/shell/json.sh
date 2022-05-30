@@ -39,6 +39,7 @@ json_pop() {
 		-h | help | --help ) local HELP="true"
 			shift
 			;;
+		# Don't error if a field isn't found
 		-f | --force ) force="true"
 			shift
 			;;
