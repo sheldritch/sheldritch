@@ -27,7 +27,7 @@ keyset() {
     fi
 
     if command -v keyctl >/dev/null; then
-        keyctl add user "$1" "$2" $KEYCTL_SESSION
+        keyctl add user "$1" "$2" $KEYCTL_SESSION >/dev/null
 
         timeout="${timeout:-$((60 * 60 * 2))}"
         keyctl timeout "%user:$1" "$timeout"
