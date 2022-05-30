@@ -23,7 +23,7 @@ _completion_tool_list() {
     ))
 }
 
-complete -o nospace -F _completion_tool_list use_tool
+complete -F _completion_tool_list use_tool
 
 tool_edit() {
     declare -a files
@@ -54,11 +54,11 @@ tool_edit() {
         fi
     done
 }
-complete -o filenames -F _completion_tool_list tool_edit
+complete -F _completion_tool_list tool_edit
 
 if [ "$EDITOR" ]; then
     alias "tool_$EDITOR"=tool_edit
-    complete -o filenames -F _completion_tool_list "tool_$EDITOR"
+    complete -F _completion_tool_list "tool_$EDITOR"
 fi
 
 tool_commit() {
@@ -77,4 +77,4 @@ tool_commit() {
 
     git commit -m "$name: $message" "$TOOLS/$file" "$@"
 }
-complete -o filenames -F _completion_tool_list tool_commit
+complete -F _completion_tool_list tool_commit
