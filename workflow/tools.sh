@@ -25,6 +25,11 @@ _completion_tool_list() {
 
 complete -F _completion_tool_list use_tool
 
+tool_cd() {
+    cd "$TOOLS/$1"
+}
+complete -F _completion_tool_list tool_cd
+
 tool_edit() {
     declare -a files
     while [ $# -ne 0 ]; do

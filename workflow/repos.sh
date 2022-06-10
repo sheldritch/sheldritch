@@ -17,11 +17,10 @@ _completion_repo_list() {
 	COMPREPLY=($(compgen -W "$(repo_list)" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
-# Will try and cd directly into a repo folder from anywhere on the machine, defaulting to
-# the parent 'repos' folder if no suitable repo can be found (not provided or doesn't exist)
-repo() {
+# print the directory for a given repo
+repo_dir() {
 	local repo
-	repo=$(
+	repo="$(
 		IFS=:
 		for repoDir in $REPOS; do
 			if [ -d "$repoDir/$1" ]; then
@@ -29,10 +28,13 @@ repo() {
 				break
 			fi
 		done
-	)
+	)"
+	echo "$repo"
+}
 
-	repo="${repo:-$(echo "$REPOS" | cut -d: -f1)}"
-	cd "$repo"
+# Will try and cd directly into a repo folder from anywhere on the machine
+repo() {
+	cd "$(repo_dir "$1")"
 }
 
 complete -F _completion_repo_list repo

@@ -12,6 +12,7 @@ for file in $(find "$TOOLS" -name '*.sh' ! -perm /0111); do
 done
 
 add_tools_to_bin() {
-	ln -sf $(find "$TOOLS" -name '*.sh' -perm /0111) "$TOOLS/.bin"
+	ln -sf $(find "$TOOLS" -perm /0111) "$TOOLS/.bin"
 }
 (add_tools_to_bin &)
+PATH="$TOOLS/.bin:$PATH"
