@@ -12,6 +12,13 @@ alias '@ENDARGS=
 	-h | --help )
 		local HELP 2>/dev/null || :
 		HELP=true # excluding help for compatibility.
+
+		if [ $(type -t usage) = function ]; then
+			usage
+			funcname -q && print_args -f "$(funcname)" || print_args
+			return 0;
+		fi
+
 		shift;
 		;;
 	-- )
@@ -56,6 +63,29 @@ key() {
 # Returns the value for a given key value pair
 value() {
 	echo "$1" | cut -d = -f 2
+}
+
+funcname() {
+	local quiet
+	if [ "$1" = '-q' ]; then
+		quiet=true
+	fi
+
+	print() {
+		if [ "$quiet" != true ]; then
+			echo "$@"
+		fi
+	}
+
+	if [ "${FUNCNAME[1]}" ]; then
+		print "${FUNCNAME[1]}"
+		return 0
+	fi
+	return 1
+}
+
+print_usage() {
+	echo >&2 "Usage: $*"
 }
 
 # Output the args of a script file
