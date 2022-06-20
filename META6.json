@@ -1,0 +1,11 @@
+{
+    "perl" : "6.d",
+    "name" : "WorkingMouse::Tools",
+    "depends" : [
+		"JSON::Fast:ver<0.16>"
+	],
+    "source-url" : "git://gitlab.workingmouse.com.au/workingmouse/internal/tools.git",
+	"provides" : {
+        "Tools::Util::Shell" : "util/shell/Shell.rakumod"
+    }
+}

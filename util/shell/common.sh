@@ -48,6 +48,16 @@ diff_confirm() {
 	test "$confirm" = "y"
 }
 
+# Returns the key for a given key value pair
+key() {
+	echo "$1" | cut -d = -f 1
+}
+
+# Returns the value for a given key value pair
+value() {
+	echo "$1" | cut -d = -f 2
+}
+
 # Output the args of a script file
 #
 # given file must have a case block that parses args
