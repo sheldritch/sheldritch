@@ -15,7 +15,7 @@ random_word() {
 	
 	grep -v "[A-Z']" /usr/share/dict/words \
 		| shuf --random-source=/dev/urandom --repeat --head-count=$count \
-		| tr '\n' ' '
+		| tr '\n' ' ' | sed 's/ $//'
 }
 
 random_symbol() {
@@ -28,7 +28,7 @@ random_symbol() {
 
 	count="${count:-1}"
 
-	echo $(tr -dc '!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/urandom | head -c "$count")
+	echo "$(tr -dc '!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/urandom | head -c "$count")"
 }
 
 random_digit() {
@@ -41,7 +41,7 @@ random_digit() {
 
 	count="${count:-1}"
 
-	echo $(tr -dc '0-9' </dev/urandom | head -c "$count")
+	echo "$(tr -dc '0-9' </dev/urandom | head -c "$count")"
 }
 
 # insert a character at a random position
@@ -55,21 +55,21 @@ random_insert_char() {
 		@ARGS_ONLY_DEFAULT_ARGS )
 	@ENDARGS
 
-	local string char pos
+	local string char length pos
 	char="$1"
 
-	if [ "$#" -ge 2 ]; then
+	if [ "$#" -gt 1 ]; then
 		string="$2"
 	else
 		string="$(cat)"
 	fi
+	length="$(echo -n "$string" | wc -c)"
 
 	if [ "$char" = "symbol" ]; then
-		char=$(random_symbol)
+		char="$(random_symbol)"
 	elif [ "$char" = "digit" ]; then
-		char=$(random_digit)
+		char="$(random_digit)"
 	fi
 	pos=$(shuf -i 1-$length -n 1)
-	password="${password:0:$pos}$char${password:$pos}"
-	echo "$password"
+	echo "${string:0:$pos}$char${string:$pos}"
 }
