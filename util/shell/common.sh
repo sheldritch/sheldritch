@@ -39,6 +39,12 @@ url_encode() {
 	python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus('$*'))"
 }
 
+find_bin() {
+	for x in ${PATH//://*${1}* }*${1}*; do
+		[ -f "$x" ] && echo $x
+	done
+}
+
 # Display the output of a diff, and ask the user if they want to continue with those changes
 # returns 0 iff they say yes, otherwise return 1
 diff_confirm() {
