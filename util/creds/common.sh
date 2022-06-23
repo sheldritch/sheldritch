@@ -3,10 +3,12 @@
 source "$TOOLS"/util/shell/base.sh || return 1
 use_tool util/shell/common.sh
 
-KEYCTL_SESSION=@u
-
 # A shared frontend for secret management
 keyset() {
+	usage() {
+		echo >&2 "A shared frontend for secret management"
+		echo >&2 "Usage: keyset KEY SECRET"
+	}
 
     local timeout 
     @ARGS
@@ -17,7 +19,6 @@ keyset() {
     @ENDARGS
 
     if [ $# -eq 0 -o "$HELP" = true ]; then
-        echo >&2 "Usage: keyset key secret"
         return 0
     fi
 
@@ -27,7 +28,7 @@ keyset() {
     fi
 
     if command -v keyctl >/dev/null; then
-        keyctl add user "$1" "$2" $KEYCTL_SESSION >/dev/null
+        keyctl add user "$1" "$2" @u >/dev/null
 
         timeout="${timeout:-$((60 * 60 * 2))}"
         keyctl timeout "%user:$1" "$timeout"
@@ -46,7 +47,7 @@ keyget() {
     fi
 
     if command -v keyctl >/dev/null; then
-        keyctl print "%user:$1"
+        keyctl print "%user:$1" 2>/dev/null
     else
         echo >&2 "Error: system unsupported"
         return 1
