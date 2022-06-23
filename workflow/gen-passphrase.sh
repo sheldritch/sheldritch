@@ -2,38 +2,19 @@
 #
 # generate a good passphrase.
 # 4 dictionary words, with a random number/letter interspliced
-main() {
-    gen_password
-}
 
-# Insert random character into string
-# used for password generation
-insert_rand_char() {
-    local string char pos
-    char="$1"
-    string="$2"
+source "$TOOLS/util/shell/base.sh" || return 1
+check_is_sourced
 
-    if [ "$char" = "symbol" ]; then
-        char=$(tr -dc '!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/urandom | head -c 1)
-    elif [ "$char" = "digit" ]; then
-        char=$(tr -dc '0-9' </dev/urandom | head -c 1)
-    fi
-    pos=$(shuf -i 1-$length -n 1)
-    password="${password:0:$pos}$char${password:$pos}"
-    echo "$password"
-}
+use_tool util/shell/random.sh
 
-gen_password() {
-    local password length
-    while [[ "$length" -lt 20 ]]; do
-        password="$(shuf --random-source=/dev/urandom --repeat --head-count=4 /usr/share/dict/words)"
-        length="$(wc -c <<<"$password")"
-    done
+local password length
+while [[ "$length" -lt 20 ]]; do
+	password="$(random_word -c 4)"
+	length="$(wc -c <<<"$password")"
+done
 
-    password="$(insert_rand_char digit "$password")"
-    password="$(insert_rand_char symbol "$password")"
+password="$(random_insert_char digit "$password")"
+password="$(random_insert_char symbol "$password")"
 
-    echo $password # treat newlines as spaces
-}
-
-main
+echo $password # treat newlines as spaces

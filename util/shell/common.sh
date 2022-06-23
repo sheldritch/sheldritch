@@ -148,3 +148,4 @@ print_args() {
 }
 
 use_tool util/shell/json.sh
+use_tool util/shell/random.sh
