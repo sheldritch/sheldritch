@@ -13,7 +13,7 @@ alias '@ENDARGS=
 		local HELP 2>/dev/null || :
 		HELP=true # excluding help for compatibility.
 
-		if [ $(type -t usage) = function ]; then
+		if [ "$(type -t usage)" = function ]; then
 			usage
 			funcname -q && print_args -f "$(funcname)" || print_args
 			return 0;
