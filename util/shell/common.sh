@@ -34,6 +34,14 @@ alias '@ENDARGS=
 		;;
 esac; done'
 
+isTrue() {
+	if [ $# -eq 0 ]; then
+		return 2
+	fi
+	for bool in "$@"; do
+		test "$*" = "true" || return 1
+	done
+}
 
 url_encode() {
 	python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus('$*'))"

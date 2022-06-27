@@ -12,8 +12,14 @@ sub bash($cmd, :$proc, :$pipe, *%other) is export {
 sub prompt2($msg) is export {
 	my $err := $*ERR;
 	$err.print($msg);
+	$*OUT.flush();
 	$err.flush();
 	return $*IN.get;
+}
+
+# Map the given list of arguments to the given flag
+sub mapArgs(@args, $flag) is export {
+	@args.map({ qq{$flag "$_"} }).join(' ');
 }
 
 sub EXPORT {
