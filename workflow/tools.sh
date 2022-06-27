@@ -54,8 +54,11 @@ tool_edit() {
     $EDITOR "$@" "${files[@]}"
 
     for file in "${files[@]}"; do
-        if ! [ -x "$file" ] && echo "$file" | grep -q "\.sh$"; then
-            source "$file"
+        if ! [ -x "$file" ] \
+			&& grep -q check_is_sourced "$file" \
+			&& echo "$file" | grep -q "\.sh$"
+		then
+			source "$file"
         fi
     done
 }
