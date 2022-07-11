@@ -61,25 +61,24 @@ use_tool() {
 		echo >&2 "Usage: use_tool [--force] <tool>"
 	fi
 
-	for tool in $@; do
-		local file="$TOOLS/$tool"
-		if [ -d "$file" ]; then
+	for tool in $TOOLS/$@; do
+		if [ -d "$tool" ]; then
 			if in_tools_root_context; then
 				echo >&2 "Error: refusing to mutate PATH for a sourced script"
 				return 1
 			fi
-			export PATH="$(find "$file" -type d -printf "%p:")$PATH"
-		elif [ -x "$file" ]; then
+			export PATH="$(find "$tool" -type d -printf "%p:")$PATH"
+		elif [ -x "$tool" ]; then
 			if in_tools_root_context; then
 				echo >&2 "Error: refusing to mutate aliases for a sourced script"
 				return 1
 			fi
-			alias "$(basename "$file")=$file"
+			alias "$(basename "$tool")=$tool"
 		else 
 			if [ "$FORCE" = true ]; then
-				source "$TOOLS"/"$tool"
+				source "$tool"
 			else 
-				source_once "$TOOLS"/"$tool"
+				source_once "$tool"
 			fi
 		fi
 	done

@@ -16,7 +16,7 @@ alias '@ENDARGS=
 		if [ "$(type -t usage)" = function ]; then
 			usage
 			funcname -q && print_args -f "$(funcname)" || print_args
-			return 0;
+			return 0 2>/dev/null || exit 0;
 		fi
 
 		shift;
@@ -34,6 +34,14 @@ alias '@ENDARGS=
 		;;
 esac; done'
 
+isTrue() {
+	if [ $# -eq 0 ]; then
+		return 2
+	fi
+	for bool in "$@"; do
+		test "$*" = "true" || return 1
+	done
+}
 
 url_encode() {
 	python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus('$*'))"
@@ -72,10 +80,28 @@ value() {
 }
 
 funcname() {
-	local quiet
-	if [ "$1" = '-q' ]; then
-		quiet=true
+	local quiet parent
+	@ARGS
+		-q | --quiet) quiet=true
+			shift
+			;;
+		# The number of parents above this function you want to reference
+		# The function you call `funcname` from is -p 0, its caller is -p 1, etc
+		-p | --parent) parent="$2"
+			shift
+			shift
+	@ENDARGS
+
+	# done manually since @ARGS and print_usage use funcname internally
+	if isTrue $HELP; then
+		echo >&2 "funcname: print the function name of the caller, or a given parent function"
+		echo >&2 "Usage: funcname [options]"
+		print_args -f funcname
+		return 0
 	fi
+
+	parent="${parent:-0}"
+	parent="$(($parent + 1))" # add this current function as another layer down
 
 	print() {
 		if [ "$quiet" != true ]; then
@@ -83,15 +109,19 @@ funcname() {
 		fi
 	}
 
-	if [ "${FUNCNAME[1]}" ]; then
-		print "${FUNCNAME[1]}"
-		return 0
+	local parentFunc="${FUNCNAME[$parent]}"
+	if [ -z "$parentFunc" ] ||
+		# Happens when run in shell script
+		[ "$parentFunc" = main -a -z "${FUNCNAME[$(($parent + 1))]}" ]
+	then
+		echo >&2 "Error: funcname: no bash function found."
+		return 1
 	fi
-	return 1
+	print "$parentFunc"
 }
 
 print_usage() {
-	echo >&2 "Usage: $*"
+	echo >&2 "Usage: $(funcname -p 1)" "$@"
 }
 
 # Output the args of a script file
@@ -110,7 +140,7 @@ print_args() {
 			shift
 	@ENDARGS
 
-	if [ "$HELP" = true ]; then
+	if isTrue $HELP; then
 		echo >&2 "Usage: print_args [...args] [filename]"
 		HELP=false print_args -f print_args
 		debug "help is $HELP"
