@@ -3,9 +3,10 @@
 #
 
 source "$TOOLS"/util/shell/base.sh || return 1
+check_is_sourced
 
 # Shorthand structure for defining arguments
-alias '@ARGS=while [ $# -ne 0 ]; do case "$1" in'
+alias '@ARGS=local HELP; while [ $# -ne 0 ]; do case "$1" in'
 alias '@ENDARGS=
 	;;
 	# by specifying args before @ENDARGS, you can override the following values
@@ -130,9 +131,7 @@ print_usage() {
 # identified with an @ARGS comment at the top
 print_args() {
 
-	# need to be passed in explicitly, otherwise you can get bad loops.
 	local function HELP
-
 	@ARGS
 		# Print args for the given function within the file
 		-f | --function ) function="$2"
