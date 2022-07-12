@@ -132,7 +132,7 @@ funcname() {
 }
 
 print_usage() {
-	echo >&2 "Usage: $(funcname -p 1)" "$@"
+	echo >&2 "Usage: $(funcname -p 2)" "$@"
 }
 
 # Output the args of a script file
