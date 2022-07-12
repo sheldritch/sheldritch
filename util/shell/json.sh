@@ -31,7 +31,7 @@ jqj() {
 json_pop() {
 	if ! in_tools_base_context; then
 		echo >&2 "Warning: json_pop must not be run in a subshell or a pipe."
-		echo >&2 "       If you do this, you will not be able to retrieve the resulting values."
+		echo >&2 "	   If you do this, you will not be able to retrieve the resulting values."
 	fi
 
 	local force
@@ -64,7 +64,7 @@ json_pop() {
 
 	if [ -z "$json" ]; then
 		echo >&2 "Error: 'json_pop $*': No JSON provided."
-		echo >&2 "       Please specify with the -j flag"
+		echo >&2 "	   Please specify with the -j flag"
 		return 1
 	fi
 
@@ -106,7 +106,7 @@ json_pop() {
 
 		if [ "$JSON" != "${!outputVar}" ]; then
 			echo >&2 "ERROR: json_pop: \$$outputVar is set as a local variable in the scope above it."
-			echo >&2 "           This means that json_pop cannot modify the value of this variable."
+			echo >&2 "		   This means that json_pop cannot modify the value of this variable."
 			return 9
 		fi
 	fi
