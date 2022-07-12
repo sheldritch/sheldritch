@@ -44,6 +44,16 @@ isTrue() {
 	done
 }
 
+alias check_var_set='__check_var_set() {
+	for var in "$@"; do
+		if [ -z "${!var}" ]; then
+			echo >&2 "Error: $(funcname -p 1): option '\''$var'\'' not set"
+			return 1
+		fi
+	done
+}
+__check_var_set'
+
 url_encode() {
 	python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus('$*'))"
 }
