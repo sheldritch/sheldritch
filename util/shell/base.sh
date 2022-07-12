@@ -8,7 +8,7 @@ if [ -z "$BASH_VERSION" ]; then
 	echo >&2 "Error: utils/base.sh: base currently requires Bash to execute."
 	echo >&2 "Sorry for the inconvenience."
 
-	if [ "$1" != '--force' ]; then
+    if [ "$1" != '--force' ]; then
 		return 1
 	fi
 fi
@@ -42,6 +42,7 @@ source_once() {
 }
 
 use_tool() {
+	local HELP FORCE
 	while [ $# -ne 0 ]; do
 		case "$1" in
 			-f | --force ) FORCE=true
