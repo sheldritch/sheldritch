@@ -1,7 +1,7 @@
 # System management for Linux
 
 ipaddr() {
-	hostname -I | awk '{print $1}'
+	ip route get 1 | perl -ne ' /src (\S+)/ && print "$1\n" '
 }
 
 gimme() {
