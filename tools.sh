@@ -19,7 +19,7 @@ add_tools_to_bin() {
 	for file in $(find . -type f); do
 		echo "$file" | grep -q .bin && continue
 		[ -x "$file" ] || continue
-		ln -sf "$file" "$TOOLS/.bin"
+		ln -sf "$TOOLS/$file" "$TOOLS/.bin"
 	done
 	)
 }
