@@ -1,11 +1,12 @@
 unit module Tools::Util::Shell;
 
-sub bash($cmd, :$proc, :$pipe, *%other) is export {
-	my $process = run('/bin/bash', '-c', "source \$TOOLS/tools.sh; $cmd", :out, |%other);
+sub bash($cmd, :$stdout, :$proc, :$pipe, :$out = $stdout ?? '-' !! True, *%other) is export {
+	# See https://docs.raku.org/routine/run for other available args
+	my $process = run('/bin/bash', '-c', "source \$TOOLS/tools.sh; $cmd", :$out, |%other);
 
-	if $proc    { $process }
-	elsif $pipe { $process.out }
-	else        { $process.out.slurp }
+	if $proc || $out !=== True { $process }
+	elsif $pipe                { $process.out }
+	else                       { $process.out.slurp }
 }
 
 sub pwsh($cmd, :$proc, :$pipe, *%other) is export {
