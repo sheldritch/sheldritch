@@ -12,7 +12,7 @@ use_tool workflow/repos.sh
 doc() {
 	path="$*"
 
-	file="$(basename "$path").md"
+	file="$path/$(basename "$path").md"
 
 	(
 	cd "$(repo_dir knowledge)"
@@ -20,7 +20,7 @@ doc() {
 		mkdir -p "$path"
 		cp '! Article Template.md' "$file"
 	fi
-	$EDITOR "$path/$file"
+	$EDITOR "$file"
 	)
 }
 
