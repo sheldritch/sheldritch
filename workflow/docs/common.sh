@@ -14,14 +14,14 @@ doc() {
 
 	file="$(basename "$path").md"
 
-	pushd "$(repo_dir knowledge)" >/dev/null
+	(
+	cd "$(repo_dir knowledge)"
 	if ! [ -d "$path" ]; then
 		mkdir -p "$path"
 		cp '! Article Template.md' "$file"
 	fi
 	$EDITOR "$path/$file"
-
-	popd >/dev/null
+	)
 }
 
 doc_matches() {
