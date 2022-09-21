@@ -10,34 +10,47 @@ use_tool workflow/repos.sh
 
 # Create or modify a documentation article
 doc() {
-	@ARGS
-		-c | --category ) category="$1"
-			shift
-			shift
-	@ENDARGS
+	path="$*"
 
-	article="$*"
+	file="$(basename "$path").md"
 
-	dir="$category/$article"
-	file="$dir/$article.md"
-
-	pushd "%$(repo_dir knowledge)" >/dev/null
-	if ! [ -d "$dir" ]; then
-		mkdir "$dir"
+	pushd "$(repo_dir knowledge)" >/dev/null
+	if ! [ -d "$path" ]; then
+		mkdir -p "$path"
 		cp '! Article Template.md' "$file"
 	fi
-	$EDITOR "$path/article.md"
+	$EDITOR "$path/$file"
 
 	popd >/dev/null
 }
 
-_complete_knowledge_articles() {
+doc_matches() {
+
+	path="$*"
 
 	local IFS=$'\n'
-	COMPREPLY=($(complete_file_path $(repo_dir knowledge) ${COMP_WORDS[COMP_CWORD]}))
-
-	if ! [ "${#COMPREPLY[@]}" -eq 1 -a -f "${COMPREPLY[0]}" ]; then
-		compopt -o nospace
+	(
+	cd "$(repo_dir knowledge)"
+	if command -v fzf >/dev/null; then
+		# Weird hack: fzf wants escaped spaces (during tab-completion), but these don't work in later command.
+		# So, we're adding them in `-q $path` and removing them again in `--preview`
+		find * -type d | fzf --sync -q "$(echo $path | sed 's/ /\ /')" --preview 'cat "$(echo {}"/$(basename {}).md" | sed s/\\\\//)"'
+	else
+		find * -type d -path "$path*"
 	fi
+	)
+}
+
+_complete_doc() {
+
+	query="${COMP_WORDS[@]:1}"
+	COMP_WORDS=("${COMP_WORDS[0]}" "$query")
+
+	local IFS=$'\n'
+	COMPREPLY=($(doc_matches "$query"))
+
+	# if ! [ "${#COMPREPLY[@]}" -eq 1 -a -f "${COMPREPLY[0]}" ]; then
+	# 	compopt -o nospace
+	# fi
 }
 complete -F _complete_knowledge_articles doc
