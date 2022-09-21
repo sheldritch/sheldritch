@@ -12,13 +12,20 @@ use_tool workflow/repos.sh
 doc() {
 	path="$*"
 
-	file="$path/$(basename "$path").md"
+	title="$(basename "$path")"
+	file="$path/$title.md"
+
+	if echo "$title" | grep -q '\^'; then
+		echo >&2 "Error: article cannot have '^' in its name."
+		return 1
+	fi
 
 	(
 	cd "$(repo_dir knowledge)"
 	if ! [ -d "$path" ]; then
 		mkdir -p "$path"
 		cp '! Article Template.md' "$file"
+		sed -i "s^Article Title$^$title^" "$file"
 	fi
 	$EDITOR "$file"
 	)
