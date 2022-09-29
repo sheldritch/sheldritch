@@ -76,18 +76,26 @@ complete -F _completion_tool_list tool_diff
 
 tool_commit() {
 	if [ $# -lt 2 ]; then
-		echo >&2 "Usage: tool_commit: <tool> <commit message>"
+		echo >&2 "Usage: tool_commit: <tool> <commit message> [git_options...]"
+		return 1
 	fi
 
 	file="$1"
 	message="$2"
 	shift 2
 
+	(
+	cd "$TOOLS"
 	name="$(basename "$file")"
-	if [ $(find "$TOOLS" -name "$name" | wc -l) -gt 1 ]; then
-		name="$file"
-	fi
+	head="$(dirname "$file")"
+	# try and find the shortest unique path to use as a name
+	while [ $(find . -path "*/$name" | wc -l) -gt 1 ]; do
+		name="$(basename "$head")/$name"
+		head="$(dirname "$head")"
+	done
 
-	git commit -m "$name: $message" "$TOOLS/$file" "$@"
+	# TODO: Infer a ticket name from the branch and include as '[TIC-100]' at the start
+	git commit -m "$name: $message" "$file" "$@"
+	)
 }
 complete -F _completion_tool_list tool_commit
