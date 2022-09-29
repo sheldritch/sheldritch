@@ -1,7 +1,7 @@
 # Helpers for credential management
 
 source "$TOOLS"/util/shell/base.sh || return 1
-use_tool util/shell/common.sh
+use_tool util/shell/shell.sh
 
 # A shared frontend for secret management
 keyset() {

@@ -4,7 +4,7 @@ source "$TOOLS"/util/shell/base.sh || return 1
 check_is_sourced
 
 # NOTE: common imports this file, but use_tool prevents infinite loop
-use_tool util/shell/common.sh
+use_tool util/shell/shell.sh
 
 if ! command -v jq >/dev/null; then
 	echo >&2 "Error: util/json.sh: jq not installed."
