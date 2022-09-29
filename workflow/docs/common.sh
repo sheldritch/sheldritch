@@ -60,4 +60,4 @@ _complete_doc() {
 	# 	compopt -o nospace
 	# fi
 }
-complete -F _complete_knowledge_articles doc
+complete -F _complete_doc doc
