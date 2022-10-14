@@ -152,7 +152,8 @@ debug() {
 	fi
 }
 
-enable_debug() {
+debug_enable() {
 	set -u
 	export DEBUG=true
 }
+alias enable_debug=debug_enable
