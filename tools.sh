@@ -14,5 +14,11 @@ done
 add_tools_to_bin() {
 	ln -sf $(find "$TOOLS" -perm /0111) "$TOOLS/.bin"
 }
-(add_tools_to_bin &)
+
+if [ "$1" = "--sync" ]; then
+	add_tools_to_bin
+else 
+	(add_tools_to_bin &)
+fi
+
 PATH="$TOOLS/.bin:$PATH"
