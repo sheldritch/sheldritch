@@ -1,1 +1,2 @@
 *.raku gitlab-language=perl
+*.rakumod gitlab-language=perl
