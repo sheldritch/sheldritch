@@ -12,7 +12,7 @@ for file in $(find "$TOOLS" -name '*.sh' ! -perm /0111); do
 done
 
 add_tools_to_bin() {
-	ln -sf $(find "$TOOLS" -perm /0111) "$TOOLS/.bin"
+	ln -sf $(find "$TOOLS"/* -type f -perm /0111) "$TOOLS/.bin"
 }
 
 if [ "$1" = "--sync" ]; then
