@@ -34,7 +34,7 @@ keyset() {
 		keyctl timeout "%user:$1" "$timeout"
 
 	else
-		echo >&2 "Error: system unsupported"
+		echo >&2 "keyset failed: system unsupported for auto credential management."
 		return 1
 	fi
 }
@@ -49,7 +49,7 @@ keyget() {
 	if command -v keyctl >/dev/null; then
 		keyctl print "%user:$1" 2>/dev/null
 	else
-		echo >&2 "Error: system unsupported"
+		echo >&2 "keyget failed: system unsupported for auto credential management."
 		return 1
 	fi
 }
