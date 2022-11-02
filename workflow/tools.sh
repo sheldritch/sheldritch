@@ -1,5 +1,11 @@
 # meta-utilities for dealing with the tools repo
 
+
+source "$TOOLS/util/shell/base.sh" || return 1
+check_is_sourced
+
+use_tool util/shell/shell.sh
+
 # Completion for files in $TOOLS
 # TODO: make a generic helper to list files in this format
 _completion_tool_list() {
@@ -75,8 +81,17 @@ tool_diff() {
 complete -F _completion_tool_list tool_diff
 
 tool_commit() {
+	usage() {
+		print_usage "<tool> <commit message> [git_options...]"
+	}
+
+	@ARGS
+		-p | --push) push=true
+			shift
+	@ENDARGS
+
 	if [ $# -lt 2 ]; then
-		echo >&2 "Usage: tool_commit: <tool> <commit message> [git_options...]"
+		usage
 		return 1
 	fi
 
@@ -95,7 +110,20 @@ tool_commit() {
 	done
 
 	# TODO: Infer a ticket name from the branch and include as '[TIC-100]' at the start
+	if ! git diff --cached --exit-code >/dev/null; then
+		git add -i "$file"
+	fi
 	git commit -m "$name: $message" "$file" "$@"
+
+	if isTrue $push; then
+		git push
+	fi
+
 	)
+
 }
 complete -F _completion_tool_list tool_commit
+
+tool_push() {
+	( cd "$TOOLS"; git push )
+}
