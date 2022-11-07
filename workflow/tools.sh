@@ -110,7 +110,7 @@ tool_commit() {
 	done
 
 	# TODO: Infer a ticket name from the branch and include as '[TIC-100]' at the start
-	if ! git diff --cached --exit-code >/dev/null; then
+	if git diff --cached --exit-code >/dev/null; then
 		git add -i "$file"
 	fi
 	git commit -m "$name: $message" "$file" "$@"
