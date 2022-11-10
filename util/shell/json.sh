@@ -20,6 +20,38 @@ jqj() {
 	echo "$json" | jq "$@"
 }
 
+# Iterate over given JSON values
+json_it() {
+	local length
+	length="$(jqj "$1" length)"
+
+	seq 0 $(( $length - 1 ))
+}
+
+alias jq_extract_match=json_extract_match
+# For each object in a JSON array (STDIN),
+#    Find a substring in value of SOURCE_FIELD matching REGEX,
+#    and set DESTINATION_FIELD to that found value.
+json_extract_match() {
+
+	usage() {
+		print_usage "SOURCE_FIELD REGEX DESTINATION_FIELD"
+	}
+
+	sourceField="$1"
+	regex="$2"
+	destField="$3"
+
+	for arg in sourceField regex destField; do
+		if [ -z "${!arg}" ]; then
+			usage
+			return 1
+		fi
+	done
+
+	jq "map((.$sourceField | sub(\".*(?<m>$regex).*\"; .m)) as \$match | if (\$match | test(\"$regex\")) then .$destField=\$match else . end )"
+}
+
 # Pops an attribute/index from JSON and create a matching variable.
 #
 # Check if the given JSON contains attributes matching the args passed in.
@@ -77,6 +109,16 @@ json_pop() {
 
 	returnCode=0
 	for var in "$@"; do
+
+		if [ "$var" -eq 0 ]; then
+			echo >&2 "Deprecated: do not use json_pop for general array iteration."
+			echo >&2 "please replace usage in $(funcname -p 1) with 'json_it':"
+			echo >&2
+			echo >&2 'for i in $(json_it "$json"); do'
+			echo >&2 '	elem="$(jqj "$json" .[$i])"'
+			echo >&2 '	..."'
+		fi
+
 
 		local match="$var"
 		if grep -q '^[0-9]\+$' <<<"$var"; then
