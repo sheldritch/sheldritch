@@ -46,6 +46,16 @@ isTrue() {
 	done
 }
 
+isNull() {
+	if [ $# -eq 0 ]; then
+		return 2
+	fi
+	for val in "$@"; do
+		test "$*" = "null" || return 1
+	done
+}
+
+
 alias check_var_set='__check_var_set() {
 	for var in "$@"; do
 		if [ -z "${!var}" ]; then
