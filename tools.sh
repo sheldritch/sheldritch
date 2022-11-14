@@ -8,6 +8,7 @@ check_is_sourced
 # source all non-executable shell scripts
 for file in $(find "$TOOLS" -name '*.sh'); do
 	echo "$file" | grep -q .bin && continue
+	grep -q check_is_sourced "$file" || continue
 	[ -x "$file" ] && continue
 	[ "$file" = "$TOOLS/tools.sh" ] && continue
 	source_once "$file"
