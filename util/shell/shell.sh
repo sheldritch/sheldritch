@@ -37,6 +37,21 @@ alias '@ENDARGS=
 		;;
 esac; done'
 
+alias_print() {
+	alias "$1" | sed -e "s/^\s*alias $1='//" -e "s/'$//"
+}
+
+args_gen() {
+	echo "$(alias_print @ARGS)"
+	echo "$*"
+	echo "$(alias_print @ENDARGS)"
+}
+
+args_gen_tail() {
+	echo "$*"
+	echo "$(alias_print @ENDARGS)"
+}
+
 isTrue() {
 	if [ $# -eq 0 ]; then
 		return 2
