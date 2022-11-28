@@ -52,6 +52,8 @@ args_gen_tail() {
 	echo "$(alias_print @ENDARGS)"
 }
 
+alias "@DEFAULT_ARGS=$( args_gen "@ARGS_DEFAULT_ARGS_ONLY )" )"
+
 isTrue() {
 	if [ $# -eq 0 ]; then
 		return 2
