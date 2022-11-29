@@ -5,13 +5,19 @@
 source "$TOOLS"/util/shell/base.sh || return 1
 check_is_sourced
 
+# Print the contents of a given alias. Used for nested aliases.
+alias_print() {
+	alias "$1" | sed -e "s/^\s*alias $1='//" -e "s/'$//"
+}
+
 # Shorthand structure for defining arguments
 alias '@ARGS=local HELP 2>/dev/null || :
 while [ $# -ne 0 ]; do case "$1" in'
 
-alias '@ENDARGS=
-	;;
-	# by specifying args before @ENDARGS, you can override the following values
+
+alias '@ARGS_UTIL=
+;;
+# by specifying args before @ENDARGS, you can override the following values
 	-h | --help )
 		local HELP 2>/dev/null || :
 		HELP=true # excluding help for compatibility.
@@ -27,6 +33,9 @@ alias '@ENDARGS=
 	-- )
 		shift;
 		break;
+'
+
+alias '@ENDARGS='"$(alias_print @ARGS_UTIL)"'
 		;;
 	'-*' )
 		echo >&2 "Error: flag $1 not supported"
@@ -36,10 +45,6 @@ alias '@ENDARGS=
 	'*' ) break;
 		;;
 esac; done'
-
-alias_print() {
-	alias "$1" | sed -e "s/^\s*alias $1='//" -e "s/'$//"
-}
 
 args_gen() {
 	echo "$(alias_print @ARGS)"
