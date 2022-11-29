@@ -1,0 +1,41 @@
+
+include:
+  - project: "workingmouse/devops/gitlab-pipelines"
+    ref: "1.7.2.0"
+    file: "/shared/core/package-docker.yml"
+
+stages:
+  - package
+
+workflow:
+  rules:
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+
+variables:
+    DISABLE_PACKAGE: "true"
+
+tools:
+  extends:
+    - .package-docker
+
+package-bw:
+  extends:
+    - .package-docker
+  variables:
+    DOCKER_CONTEXT: ./services/bitwarden/
+    CONTAINER_IMAGE_PATH: bw
+  rules:
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+      changes:
+        - services/bitwarden/*
+
+mattermost-message-scheduler:
+  extends:
+    - .package-docker
+  variables:
+    DOCKER_CONTEXT: ./services/mattermost/message-scheduler/
+    CONTAINER_IMAGE_PATH: mattermost.message-scheduler
+  rules:
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+      changes:
+        - services/mattermost/message-scheduler/*
