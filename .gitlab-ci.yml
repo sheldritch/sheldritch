@@ -28,6 +28,7 @@ package-bw:
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
       changes:
         - services/bitwarden/*
+        - .gitlab-ci.yml
 
 mattermost-message-scheduler:
   extends:
@@ -39,3 +40,4 @@ mattermost-message-scheduler:
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
       changes:
         - services/mattermost/message-scheduler/*
+        - .gitlab-ci.yml
