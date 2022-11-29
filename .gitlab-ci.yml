@@ -14,7 +14,7 @@ workflow:
 variables:
     DISABLE_PACKAGE: "true"
 
-tools:
+package-tools:
   extends:
     - .package-docker
 
@@ -30,7 +30,7 @@ package-bw:
         - services/bitwarden/*
         - .gitlab-ci.yml
 
-mattermost-message-scheduler:
+package-mattermost-message-scheduler:
   extends:
     - .package-docker
   variables:
