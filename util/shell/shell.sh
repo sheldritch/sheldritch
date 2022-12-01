@@ -24,9 +24,11 @@ alias '@ARGS_UTIL=
 
 		if [ "$(type -t usage)" = function ]; then
 			usage
-			funcname -q && print_args -f "$(funcname)" || print_args
-			return 0 2>/dev/null || exit 0;
+		else
+			echo >&2 "No Usage line provided. However, here are the options:"
 		fi
+		funcname -q && print_args -f "$(funcname)" || print_args
+		return 0 2>/dev/null || exit 0;
 
 		shift;
 		;;
