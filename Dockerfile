@@ -1,18 +1,19 @@
-FROM ubuntu:20.04
+ARG DEPENDENCY_PROXY=""
+
+# Use debian rather than Ubuntu, as it's smaller and **much** faster to install everything!
+FROM ${DEPENDENCY_PROXY}debian:bullseye-slim
 
 ARG HOME=/root
 ARG REPOS=$HOME/repos
 ARG TOOLS=$HOME/tools
+ENV REPOS=$REPOS
+ENV TOOLS=$TOOLS
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR $HOME
 
-RUN mkdir -p $REPOS $TOOLS
-
-RUN echo 'source "$TOOLS/tools.sh"' >> $HOME/.bashrc
-
-ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt update && apt install -y \
+# Install anything we can get from apt
+RUN apt-get update && apt-get install -y \
 	atool \
 	curl \
 	jq \
@@ -20,7 +21,6 @@ RUN apt update && apt install -y \
 	libxml2-utils \
 	magic-wormhole \
 	net-tools \
-	nodejs \
 	openjdk-11-jre-headless \
 	p7zip \
 	postgresql \
@@ -33,25 +33,28 @@ RUN apt update && apt install -y \
 	vim \
 	wget \
 	zip
-	
-RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-RUN curl -LO https://dl.k8s.io/release/v1.23.0/bin/linux/amd64/kubectl \
+# Install NodeJS v16, npm, and Yarn
+RUN curl -sL https://deb.nodesource.com/setup_16.x | bash \
+	&& apt-get install -y nodejs \
+	&& npm install -g yarn \
+	&& yarn global add @bitwarden/cli@2022.6.2
+
+# Install Helm, Kubectl, and Rakubrew
+RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash \
+	&& curl -LO https://dl.k8s.io/release/v1.23.0/bin/linux/amd64/kubectl \
 	&& install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
-	&& rm kubectl
-
-RUN curl https://rakubrew.org/install-on-perl.sh | sh \
+	&& rm kubectl \
+	&& curl https://rakubrew.org/install-on-perl.sh | sh \
 	&& echo 'eval "$($HOME/.rakubrew/bin/rakubrew init Bash)"' >> ~/.bashrc \
 	&& echo 'eval "$($HOME/.rakubrew/bin/rakubrew init Bash)"' >> ~/.profile \
 	&& bash -c "$HOME/.rakubrew/bin/rakubrew init"
 
-RUN apt-get clean
-
+# Copy the tools and configure them in the bash profile
 COPY . tools/
-RUN bash -c 'source "$TOOLS/tools.sh" --sync && wait'
-RUN echo 'source "$TOOLS/tools.sh"' >> $HOME/.profile
-
-ENV REPOS=$REPOS
-ENV TOOLS=$TOOLS
+RUN mkdir -p $REPOS $TOOLS \
+	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.bashrc \
+	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.profile \
+	&& bash -c 'source "$TOOLS/tools.sh" --sync && wait'
 
 # ENTRYPOINT ["/bin/bash", "-c"]
