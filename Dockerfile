@@ -34,7 +34,8 @@ RUN apt-get update && apt-get install -y \
 	wget \
 	zip
 
-# Install NodeJS v16, npm, and Yarn
+# Install NodeJS v16, npm, and Yarn,
+# then install the bitwarden CLI
 RUN curl -sL https://deb.nodesource.com/setup_16.x | bash \
 	&& apt-get install -y nodejs \
 	&& npm install -g yarn \
