@@ -244,14 +244,14 @@ url_open() {
 
 fmtvar() {
 	@ARGS
-		-c | --case-sensitive ) caseSensitive=true
+		-u | --upper | --upper-case | --to-upper) upperCase=true
 			shift
 	@ENDARGS
 
 	# intermediate tr to '-' means existing _s are not squeezed into 1
 	var="$(echo -n $1 | tr --squeeze --complement 'A-Za-z0-9_' "-" | tr - _)"
 
-	if ! isTrue $caseSensitive; then
+	if isTrue $upperCase; then
 		var="$(echo -n $var | tr '[a-z]' '[A-Z]')"
 	fi
 
