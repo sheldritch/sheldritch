@@ -110,7 +110,7 @@ json_pop() {
 	returnCode=0
 	for var in "$@"; do
 
-		if [ "$var" -eq 0 ]; then
+		if [ "$var" = 0 ]; then
 			echo >&2 "Deprecated: do not use json_pop for general array iteration."
 			echo >&2 "please replace usage in $(funcname -p 1) with 'json_it':"
 			echo >&2

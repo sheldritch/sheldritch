@@ -242,5 +242,27 @@ url_open() {
 	fi
 }
 
+fmtvar() {
+	@ARGS
+		-u | --upper | --upper-case | --to-upper) upperCase=true
+			shift
+	@ENDARGS
+
+	# intermediate tr to '-' means existing _s are not squeezed into 1
+	var="$(echo -n $1 | tr --squeeze --complement 'A-Za-z0-9_' "-" | tr - _)"
+
+	if isTrue $upperCase; then
+		var="$(echo -n $var | tr '[a-z]' '[A-Z]')"
+	fi
+
+	echo "$var"
+}
+
+arg_bool() {
+	if isTrue ${!1}; then
+		echo --"$(echo "$1" | sed 's/[A-Z]/-\L&/g')"
+	fi
+}
+
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
