@@ -1,3 +1,6 @@
+source "$TOOLS/util/shell/base.sh" || return 1
+check_is_sourced
+
 # Returns a list of paths in dir '$1' that start with '$2'
 # Directories are ended with '/', and files are not.
 complete_file_path() {
