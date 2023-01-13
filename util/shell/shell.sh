@@ -27,7 +27,13 @@ alias '@ARGS_UTIL=
 		else
 			echo >&2 "No Usage line provided. However, here are the options:"
 		fi
-		funcname -q && print_args -f "$(funcname)" || print_args
+
+		if [ "$(type -t options)" = function ]; then
+			options
+		else
+			funcname -q && print_args -f "$(funcname)" || print_args
+		fi
+
 		return 0 2>/dev/null || exit 0;
 
 		shift;
