@@ -58,4 +58,5 @@ RUN mkdir -p $REPOS $TOOLS \
 	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.profile \
 	&& bash -c 'source "$TOOLS/tools.sh" --sync && wait'
 
-# ENTRYPOINT ["/bin/bash", "-c"]
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD [ "bash" ]
