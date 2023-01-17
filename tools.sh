@@ -17,10 +17,13 @@ done
 add_tools_to_bin() {
 	(
 	cd "$TOOLS"
-	for file in $(find . -type f); do
-		echo "$file" | grep -q .bin && continue
+	for file in $(find . \
+		\( -path '*/.*' -o -path '*/_*' \) -prune `# skip files/directories starting with '.' or '_' `\
+			-o -type f -print `# print all other files `\
+		)
+	do
 		[ -x "$file" ] || continue
-		ln -sf "$TOOLS/$file" "$TOOLS/.bin"
+		ln -sf ".$file" "$TOOLS/.bin" # `find` adds `./` to each $file already
 	done
 	)
 }

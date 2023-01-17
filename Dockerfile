@@ -1,6 +1,14 @@
 ARG DEPENDENCY_PROXY=""
 
 # Use debian rather than Ubuntu, as it's smaller and **much** faster to install everything!
+FROM ${DEPENDENCY_PROXY}debian:bullseye-slim AS install_scripts
+
+COPY . /tmp/tools
+WORKDIR /tmp/tools
+RUN for file in $(find */ -name _install.sh); do cp -r --parents "$(dirname $file)" /root; done \
+	&& cp _install.sh /root \
+	&& cp -r --parents util/shell/ /root
+
 FROM ${DEPENDENCY_PROXY}debian:bullseye-slim
 
 ARG HOME=/root
@@ -30,6 +38,7 @@ RUN apt-get update && apt-get install -y \
 	redis-tools \
 	rename \
 	shellcheck \
+	sudo \
 	vim \
 	wget \
 	zip
@@ -51,8 +60,13 @@ RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | b
 	&& echo 'eval "$($HOME/.rakubrew/bin/rakubrew init Bash)"' >> ~/.profile \
 	&& bash -c "$HOME/.rakubrew/bin/rakubrew init"
 
+COPY --from=install_scripts /root $TOOLS
+
+RUN $TOOLS/_install.sh
+
+
 # Copy the tools and configure them in the bash profile
-COPY . tools/
+COPY . $TOOLS
 RUN mkdir -p $REPOS $TOOLS \
 	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.bashrc \
 	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.profile \
