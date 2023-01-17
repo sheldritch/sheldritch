@@ -58,5 +58,9 @@ RUN mkdir -p $REPOS $TOOLS \
 	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.profile \
 	&& bash -c 'source "$TOOLS/tools.sh" --sync && wait'
 
-ENTRYPOINT ["/bin/bash", "-c"]
+# Entrypoint:
+# -i ensures that the contents of .bashrc are run (includes sourcing $TOOLS)
+# If only one arg is given to docker, run as if it were a script (conventional Docker shell operation)
+# If arguments are given, treat like a command and ensure all args are quoted
+ENTRYPOINT ["/bin/bash", "-i", "-c", "[ $# -eq 0 ] && eval $0 || \"$0\" \"$@\" "]
 CMD [ "bash" ]
