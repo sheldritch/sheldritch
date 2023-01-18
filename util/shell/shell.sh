@@ -124,12 +124,14 @@ diff_confirm() {
 
 # Returns the key for a given key value pair
 key() {
-	echo "$1" | cut -d = -f 1
+	local pair="$([ $# -eq 0 ] cat || echo $1)"
+	echo "$pair" | cut -d = -f 1
 }
 
 # Returns the value for a given key value pair
 value() {
-	echo "$1" | cut -d = -f 2
+	local pair="$([ $# -eq 0 ] cat || echo $1)"
+	echo "$pair" | cut -d = -f 2
 }
 
 funcname() {
