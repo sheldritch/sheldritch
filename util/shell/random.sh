@@ -44,6 +44,18 @@ random_digit() {
 	echo "$(tr -dc '0-9' </dev/urandom | head -c "$count")"
 }
 
+# A bit of a hacky way to get a random port.
+random_port() {
+	local port
+	while true; do
+		# 10# means in base 10
+		port=$(( 10#$(random_digit -c 5) / 2 + 1024 ))
+		command -v netstat >/dev/null || break
+		netstat --listening | grep -q $port || break
+	done
+	echo $port
+}
+
 # insert a character at a random position
 random_insert_char() {
 	usage() {
