@@ -37,9 +37,15 @@ tool_cd() {
 complete -F _completion_tool_list tool_cd
 
 tool_edit() {
+	local workspace
 	declare -a files
 	while [ $# -ne 0 ]; do
 		case "$1" in
+			# Select a directory to run the editor from. Defaults to $TOOLS
+			-w | --workspace ) workspace="$2"
+				shift
+				shift
+				;;
 			--help ) local HELP=true
 				shift
 				break
@@ -54,7 +60,11 @@ tool_edit() {
 		esac
 	done 
 
+	(
+	cd "${workspace:-$TOOLS}"
+
 	$EDITOR "$@" "${files[@]}"
+	)
 
 	for file in "${files[@]}"; do
 		if ! [ -x "$file" ] \
