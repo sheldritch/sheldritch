@@ -266,11 +266,42 @@ fmtvar() {
 	echo "$var"
 }
 
+#outputs an argument flag for the given variable name, if and only if that variable is set to `true`
 arg_bool() {
 	if isTrue ${!1}; then
 		echo --"$(echo "$1" | sed 's/[A-Z]/-\L&/g')"
 	fi
 }
+
+# print
+case $(uname | tr '[:upper:]' '[:lower:]') in
+	linux*)
+		export OS=linux
+		;;
+	darwin*)
+		export OS=mac
+		;;
+	msys* | windows* | cygwin*)
+		export OS=windows
+		;;
+	*)
+		export OS=unknown
+		;;
+esac
+
+ip_local() {
+	case $OS in
+		linux) ip route get 1 | perl -ne ' /src (\S+)/ && print "$1\n" ';;
+		mac) ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk 'NR == 1 {print $2}' ;;
+		*) echo >&2 "Error: ip_local: Unspported operating system. Please update the function to add support."; return 1 ;;
+	esac
+}
+alias ipl=ip_local
+
+ip_public() {
+	curl ifconfig.me
+}
+alias ipp=ip_public
 
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
