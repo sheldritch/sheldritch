@@ -5,6 +5,8 @@
 source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
 
+unset TOOLS_SOURCES
+
 # source all non-executable shell scripts
 for file in $(find "$TOOLS" -name '*.sh'); do
 	echo "$file" | grep -q .bin && continue
