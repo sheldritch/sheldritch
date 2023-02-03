@@ -305,3 +305,4 @@ alias ipp=ip_public
 
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
+[[ "$OS" = "linux" ]] && source_once "util/linux/linux.sh"
