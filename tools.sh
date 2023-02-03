@@ -2,15 +2,22 @@
 # Makes all the shell scripts in `tools` available to the shell
 #
 
+unset TOOLS_SOURCES
+
 source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
 
+if find "$TOOLS/tools.sh" -not -perm /111 -quit; then
+	exec=/111
+else
+	exec=+111
+fi
+
 # source all non-executable shell scripts
-for file in $(find "$TOOLS" -name '*.sh'); do
-	echo "$file" | grep -q .bin && continue
+for file in $(find "$TOOLS" -type f -not -perm $exec -name '*.sh' -not -path "*/.bin/*" ); do
 	grep -q check_is_sourced "$file" || continue
-	[ -x "$file" ] && continue
 	[ "$file" = "$TOOLS/tools.sh" ] && continue
+
 	source_once "$file"
 done
 
@@ -30,7 +37,7 @@ add_tools_to_bin() {
 
 if [ "$1" = "--sync" ]; then
 	add_tools_to_bin
-else 
+else
 	(add_tools_to_bin &)
 fi
 

@@ -35,7 +35,7 @@ source_once() {
 		return 1
 	fi
 
-	if ! echo "$TOOLS_SOURCES" | grep -q "$path"; then
+	if ! [[ "$TOOLS_SOURCES" =~ "$path" ]]; then
 		TOOLS_SOURCES+="$(echo -e "\n$path")" # before source to prevent dependency loops
 		source "$1"
 	fi
