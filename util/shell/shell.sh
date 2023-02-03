@@ -303,5 +303,7 @@ ip_public() {
 }
 alias ipp=ip_public
 
+now() { echo "$(date +%S.%N)"; }
+
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
