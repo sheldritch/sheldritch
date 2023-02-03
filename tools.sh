@@ -15,8 +15,8 @@ fi
 
 # source all non-executable shell scripts
 for file in $(find "$TOOLS" -type f -not -perm $exec -name '*.sh' -not -path "*/.bin/*" ); do
-	[ "$file" = "$TOOLS/tools.sh" ] && continue
 	grep -q check_is_sourced "$file" || continue
+	[ "$file" = "$TOOLS/tools.sh" ] && continue
 
 	source_once "$file"
 done
