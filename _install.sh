@@ -34,6 +34,7 @@ set +e
 curl https://rakubrew.org/install-on-perl.sh | sh
 eval "$($HOME/.rakubrew/bin/rakubrew init Bash)"
 grep -q rakubrew ~/.bashrc || echo 'eval "$(/home/wm-admin/.rakubrew/bin/rakubrew init Bash)"' >> ~/.bashrc
+rakubrew download
 rakubrew build-zef
 ~/.raku/bin/zef install $TOOLS --force-install
 
