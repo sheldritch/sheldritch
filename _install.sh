@@ -1,5 +1,10 @@
 #!/bin/bash
 
+SELF_DIR="$( cd "$(dirname $(realpath "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd )"
+TOOLS="$SELF_DIR"
+grep -q TOOLS= ~/.bashrc || echo "TOOLS=$TOOLS" >> ~/.bashrc
+grep -Eq 'source "?$TOOLS' ~/.bashrc || echo 'source "$TOOLS/tools.sh"' >> ~/.bashrc
+
 set -e
 
 case "$(uname -s)" in
@@ -23,8 +28,14 @@ case "$(uname -s)" in
     *)          machine="UNKNOWN:${unameOut}"
 esac
 
-
 set +e
+
+# Raku
+curl https://rakubrew.org/install-on-perl.sh | sh
+eval "$(/home/wm-admin/.rakubrew/bin/rakubrew init Bash)"
+grep -q rakubrew ~/.bashrc || echo 'eval "$(/home/wm-admin/.rakubrew/bin/rakubrew init Bash)"' >> ~/.bashrc
+rakubrew build-zef
+~/.raku/bin/zef install $TOOLS --force-install
 
 for file in $(find "$TOOLS"/*/ -name '_install.sh'); do
 	"$file"
