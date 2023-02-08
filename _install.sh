@@ -3,7 +3,7 @@
 SELF_DIR="$( cd "$(dirname $(realpath "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd )"
 TOOLS="$SELF_DIR"
 grep -q TOOLS= ~/.bashrc || echo "TOOLS=$TOOLS" >> ~/.bashrc
-grep -Eq 'source "?$TOOLS' ~/.bashrc || echo 'source "$TOOLS/tools.sh"' >> ~/.bashrc
+grep -Eq 'source "\$TOOLS' ~/.bashrc || echo 'source "$TOOLS/tools.sh"' >> ~/.bashrc
 
 set -e
 
