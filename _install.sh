@@ -1,11 +1,19 @@
 #!/bin/bash
 
+set -e
+
 SELF_DIR="$( cd "$(dirname $(realpath "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd )"
 TOOLS="$SELF_DIR"
 grep -q TOOLS= ~/.bashrc || echo "TOOLS=$TOOLS" >> ~/.bashrc
 grep -Eq 'source "\$TOOLS' ~/.bashrc || echo 'source "$TOOLS/tools.sh"' >> ~/.bashrc
 
-set -e
+source ~/.bashrc
+
+cat <<-EOF
+###
+### Critical resources -- needed to run util/shell/base.sh
+###
+EOF
 
 case "$(uname -s)" in
     Linux*)     machine=Linux;;
@@ -28,17 +36,22 @@ case "$(uname -s)" in
     *)          machine="UNKNOWN:${unameOut}"
 esac
 
+source "$TOOLS/util/shell/base.sh"
+
 set +e
 
-# Raku
-curl https://rakubrew.org/install-on-perl.sh | sh
-eval "$($HOME/.rakubrew/bin/rakubrew init Bash)"
-grep -q rakubrew ~/.bashrc || echo 'eval "$(/home/wm-admin/.rakubrew/bin/rakubrew init Bash)"' >> ~/.bashrc
-rakubrew download
-rakubrew build-zef
-~/.raku/bin/zef install $TOOLS --force-install
+cat <<-EOF
+###
+### Optional resources -- you may end up using only some of these tools
+###
+EOF
+
+use_tool install/install_raku.sh
+
 
 for file in $(find "$TOOLS"/*/ -name '_install.sh'); do
+	echo >&2 "installing $file"
 	"$file"
 done
+echo >&2 "Installations complete."
 
