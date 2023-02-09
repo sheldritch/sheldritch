@@ -43,7 +43,7 @@ alias '@ARGS_UTIL=
 		break;
 '
 
-alias '@ENDARGS='"$(alias_print @ARGS_UTIL)"'
+alias '@ARGS_END='"$(alias_print @ARGS_UTIL)"'
 		;;
 	'-*' )
 		echo >&2 "Error: flag $1 not supported"
@@ -53,6 +53,8 @@ alias '@ENDARGS='"$(alias_print @ARGS_UTIL)"'
 	'*' ) break;
 		;;
 esac; done'
+
+alias '@ENDARGS='"$(alias_print @ARGS_END)"
 
 args_gen() {
 	echo "$(alias_print @ARGS)"
@@ -288,6 +290,16 @@ case $(uname | tr '[:upper:]' '[:lower:]') in
 		export OS=unknown
 		;;
 esac
+
+alias '@OS_CASE=case "$OS" in'
+
+alias '@OS_CASE_END_ERROR=
+		;;
+	'*' )
+		echo >&2 "Error: OS $OS not supported"
+		safe_quit
+		;;
+esac'
 
 ip_local() {
 	case $OS in
