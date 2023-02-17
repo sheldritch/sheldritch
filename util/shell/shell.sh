@@ -99,7 +99,7 @@ alias check_var_set='__check_var_set() {
 __check_var_set'
 
 url_encode() {
-	python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus('$*'))"
+	python3 -c "import sys, urllib.parse as ul; print (ul.quote('$*'))"
 }
 
 find_bin() {
