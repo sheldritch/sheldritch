@@ -74,7 +74,16 @@ isTrue() {
 		return 2
 	fi
 	for bool in "$@"; do
-		test "$*" = "true" || return 1
+		test "$bool" = "true" || return 1
+	done
+}
+
+anyTrue() {
+	if [ $# -eq 0 ]; then
+		return 2
+	fi
+	for bool in "$@"; do
+		test "$bool" = "true" && return 0
 	done
 }
 
