@@ -3,6 +3,11 @@
 # Random generation utilities
 #
 
+source "$TOOLS/util/shell/base.sh" || return 1
+check_is_sourced
+
+use_tool util/shell/shell.sh
+
 random_word() {
 	local count
 	@ARGS
