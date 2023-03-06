@@ -24,7 +24,7 @@ done
 add_tools_to_bin() {
 	(
 	cd "$TOOLS"
-	for file in $(find . \
+	for file in $(find -L . \
 		\( -path '*/.*' -o -path '*/_*' \) -prune `# skip files/directories starting with '.' or '_' `\
 			-o -type f -print `# print all other files `\
 		)
