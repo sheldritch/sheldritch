@@ -180,14 +180,16 @@ funcname() {
 		# Happens when run in shell script
 		[ "$parentFunc" = main -a -z "${FUNCNAME[$(($parent + 1))]}" ]
 	then
-		echo >&2 "Error: funcname: no bash function found."
+		print >&2 "Error: funcname: no bash function found."
 		return 1
 	fi
 	print "$parentFunc"
 }
 
 print_usage() {
-	echo >&2 "Usage: $(funcname -p 2)" "$@"
+	name="$(funcname -p 2 2>/dev/null)"
+	name="${name:-$0}"
+	echo >&2 "Usage: $name" "$@"
 }
 
 # Output the args of a script file
