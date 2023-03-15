@@ -2,12 +2,28 @@
 
 set -e
 
+
 SELF_DIR="$( cd "$(dirname $(realpath "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd )"
 TOOLS="$SELF_DIR"
-grep -q TOOLS= ~/.bashrc || echo "TOOLS=$TOOLS" >> ~/.bashrc
+
+add_tools_envar() {
+	if [ -f "$1" ]; then
+		if grep -q TOOLS= "$1"; then
+			# export needed for executable scripts that use $TOOLS
+			sed -i -e "/TOOLS=/s%^.*$%export TOOLS=$TOOLS%" "$1"
+		else
+			echo "export TOOLS=$TOOLS" >> "$1"
+		fi
+	fi
+}
+add_tools_envar ~/.bashrc
+# non-interactive init files need $TOOLS when they source $TOOLS/util/base.sh
+add_tools_envar ~/.profile
+add_tools_envar ~/.bash_profile
+
 grep -Eq 'source "\$TOOLS' ~/.bashrc || echo 'source "$TOOLS/tools.sh"' >> ~/.bashrc
 
-source ~/.bashrc
+source "$TOOLS/tools.sh" --sync
 
 cat <<-EOF
 ###
