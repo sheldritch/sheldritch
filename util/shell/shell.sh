@@ -251,15 +251,18 @@ print_args() {
 
 url_open() {
 	link="$1"
-	if echo "$XDG_SESSION_TYPE" | grep -qE "(x11|wayland)"; then
+	if [ "$XDG_SESSION_TYPE" = tty ]; then
+		echo >&2 "Open the following link in your browser:"
+		echo >&2 "$link"
+	elif command -v xdg-open ; then
+		echo >&2 "Trying to open link in your browser."
+		echo >&2 "If you don't see the browser open up, manually open the following link in your browser:"
 		xdg-open "$link"
-	elif [ "$XDG_SESSION_TYPE" = tty ]; then
-		echo "Open the following link in your browser:"
-		echo "$link"
+		echo >&2 "$link"
 	else
 		echo >&2 "Error: Unknown XDG type: $XDG_SESSION_TYPE"
-		echo "Open the following link in your browser:"
-		echo "$link"
+		echo >&2 "Open the following link in your browser:"
+		echo >&2 "$link"
 	fi
 }
 
