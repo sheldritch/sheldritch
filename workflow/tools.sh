@@ -38,6 +38,7 @@ complete -F _completion_tool_list tool_cd
 
 tool_edit() {
 	local workspace
+	declare -a paths
 	declare -a files
 	while [ $# -ne 0 ]; do
 		case "$1" in
@@ -54,17 +55,28 @@ tool_edit() {
 				shift
 				break
 				;;
-			* ) files+=("$TOOLS/$1")
+			* ) paths+=("$1")
 				shift
 				;;
 		esac
 	done 
+
+	for path in "${paths[@]}"; do
+		matches="$(find "$TOOLS" -path "*$path*")"
+
+		if [ "$(echo "$matches" | wc -l)" -eq 1 ]; then
+			files+=("$matches")
+		else
+			files+=("$TOOLS/$path")
+		fi
+	done
 
 	(
 	cd "${workspace:-$TOOLS}"
 
 	$EDITOR "$@" "${files[@]}"
 	)
+
 
 	for file in "${files[@]}"; do
 		if ! [ -x "$file" ] \
