@@ -7,7 +7,9 @@ COPY . /tmp/tools
 WORKDIR /tmp/tools
 RUN for file in $(find */ -name _install.sh); do cp -r --parents "$(dirname $file)" /root; done \
 	&& cp _install.sh /root \
+	&& cp -r install /root \
 	&& cp -r --parents util/shell/ /root
+
 
 FROM ${DEPENDENCY_PROXY}debian:bullseye-slim
 
