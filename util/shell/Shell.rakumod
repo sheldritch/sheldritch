@@ -1,6 +1,9 @@
 unit module Tools::Util::Shell;
 
 sub bash($cmd, :$stdout, :$proc, :$pipe, :$out = $stdout ?? '-' !! True, *%other) is export {
+	if %*ENV<DEBUG> {
+		$*ERR.say("Running command: $cmd");
+	}
 	# See https://docs.raku.org/routine/run for other available args
 	my $process = run('/bin/bash', '-c', "source \$TOOLS/tools.sh; $cmd", :$out, |%other);
 

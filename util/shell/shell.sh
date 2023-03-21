@@ -289,7 +289,6 @@ arg_bool() {
 	fi
 }
 
-# print
 case $(uname | tr '[:upper:]' '[:lower:]') in
 	linux*)
 		export OS=linux
