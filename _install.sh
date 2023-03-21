@@ -23,8 +23,6 @@ add_tools_envar ~/.bash_profile
 
 grep -Eq 'source "\$TOOLS' ~/.bashrc || echo 'source "$TOOLS/tools.sh"' >> ~/.bashrc
 
-source "$TOOLS/tools.sh" --sync
-
 cat <<-EOF
 ###
 ### Critical resources -- needed to run util/shell/base.sh
@@ -70,4 +68,3 @@ for file in $(find "$TOOLS"/*/ -name '_install.sh'); do
 	"$file"
 done
 echo >&2 "Installations complete."
-
