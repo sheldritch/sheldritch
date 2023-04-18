@@ -56,11 +56,7 @@ RUN curl -sL https://deb.nodesource.com/setup_16.x | bash \
 RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash \
 	&& curl -LO https://dl.k8s.io/release/v1.23.0/bin/linux/amd64/kubectl \
 	&& install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
-	&& rm kubectl \
-	&& curl https://rakubrew.org/install-on-perl.sh | sh \
-	&& echo 'eval "$($HOME/.rakubrew/bin/rakubrew init Bash)"' >> ~/.bashrc \
-	&& echo 'eval "$($HOME/.rakubrew/bin/rakubrew init Bash)"' >> ~/.profile \
-	&& bash -c "$HOME/.rakubrew/bin/rakubrew init"
+	&& rm kubectl
 
 COPY --from=install_scripts /root $TOOLS
 
