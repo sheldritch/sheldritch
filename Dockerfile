@@ -71,12 +71,15 @@ RUN $TOOLS/_install.sh
 COPY . $TOOLS
 RUN mkdir -p $REPOS $TOOLS \
 	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.bashrc \
-	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.profile \
 	&& bash -c 'source "$TOOLS/tools.sh" --sync && wait'
 
+RUN echo >>/usr/local/bin/bash '[ -t 0 -a -t 1 ] && /bin/bash "$@" || { source '$HOME'/.bashrc; "$@" ; }' \
+	&& chmod 755 /usr/local/bin/bash
+
+
 # Entrypoint:
-# -i ensures that the contents of .bashrc are run (includes sourcing $TOOLS)
 # If only one arg is given to docker, run as if it were a script (conventional Docker shell operation)
 # If arguments are given, treat like a command and ensure all args are quoted
-ENTRYPOINT ["/bin/bash", "-i", "-c", "[ $# -eq 0 ] && eval $0 || \"$0\" \"$@\" "]
+ENTRYPOINT ["/bin/bash", "-c", "[ -t 0 -a -t 1 ] || source $HOME/.bashrc; [ $# -eq 0 ] && eval $0 || \"$0\" \"$@\" "]
 CMD [ "bash" ]
+
