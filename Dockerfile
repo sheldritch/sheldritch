@@ -23,9 +23,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR $HOME
 
 # Install anything we can get from apt
+# Keep alphabetical please!
 RUN apt-get update && apt-get install -y \
 	atool \
 	curl \
+	git \
 	jq \
 	keyutils \
 	libxml2-utils \
@@ -66,7 +68,6 @@ RUN $TOOLS/_install.sh
 # Copy the tools and configure them in the bash profile
 COPY . $TOOLS
 RUN mkdir -p $REPOS $TOOLS \
-	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.bashrc \
 	&& echo 'source "$TOOLS/tools.sh"' >> $HOME/.profile \
 	&& bash -c 'source "$TOOLS/tools.sh" --sync && wait'
 
