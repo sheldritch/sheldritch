@@ -10,6 +10,16 @@ alias_print() {
 	alias "$1" | sed -e "s/^\s*alias $1='//" -e "s/'$//"
 }
 
+# for all defined functions, create an alias replacing the given extended regex
+# with the given match
+alias_funcs() {
+	functionMatch="$1"
+	replacement="$2"
+	for func in $(declare -F | awk '$3 ~ /'"$functionMatch"'/ { print $3; }'); do
+		alias $(echo $func | sed -E "s/$functionMatch/$replacement/")=$func
+	done
+}
+
 # Shorthand structure for defining arguments
 alias '@ARGS=local HELP 2>/dev/null || :
 while [ $# -ne 0 ]; do case "$1" in'
