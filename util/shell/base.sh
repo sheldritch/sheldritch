@@ -19,7 +19,7 @@ shopt -s expand_aliases
 alias script_is_sourced='[[ "${BASH_SOURCE[0]}" != "${0}" ]]'
 
 alias check_is_sourced="if ! script_is_sourced; then
-	echo \"You aren't sourcing ${BASH_SOURCE[0]}. Make sure you are to have its libs available to you.\"
+	echo \"You aren't sourcing ${0}. Make sure you are to have its libs available to you.\"
 	exit 1
 fi"
 check_is_sourced
