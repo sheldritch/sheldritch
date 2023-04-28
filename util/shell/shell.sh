@@ -48,6 +48,13 @@ alias '@ARGS_UTIL=
 
 		shift;
 		;;
+	--*=* ) 
+		key="$(key "$1")"
+		value="$(value "$1")"
+		shift;
+		set "$key" "$value" "$@"
+		continue;
+		;;
 	-- )
 		shift;
 		break;
