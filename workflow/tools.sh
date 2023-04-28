@@ -5,6 +5,7 @@ source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
 
 use_tool util/shell/shell.sh
+use_tool util/text/text.sh
 
 # Completion for files in $TOOLS
 # TODO: make a generic helper to list files in this format
@@ -46,6 +47,19 @@ tool_edit() {
 			-w | --workspace ) workspace="$2"
 				shift
 				shift
+				;;
+			-f | --function ) function="$2"
+				shift
+				shift
+
+				file="$(cd "$TOOLS"; grep -rl "$function(")"
+				echo "$file"
+				if ! lines_one "$file"; then
+					echo >&2 "Error: tool_edit: could not find single result for '$function()'"
+					return 1
+				fi
+				paths+="$file"
+
 				;;
 			--help ) local HELP=true
 				shift

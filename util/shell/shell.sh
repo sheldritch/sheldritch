@@ -48,6 +48,13 @@ alias '@ARGS_UTIL=
 
 		shift;
 		;;
+	--*=* ) 
+		key="$(key "$1")"
+		value="$(value "$1")"
+		shift;
+		set "$key" "$value" "$@"
+		continue;
+		;;
 	-- )
 		shift;
 		break;
@@ -117,8 +124,120 @@ alias check_var_set='__check_var_set() {
 }
 __check_var_set'
 
+args_or_stdin() {
+	local args
+	if [ $# -eq 0 ]; then
+		if [ -t 0 ]; then
+			echo >&2 "Error: $(funcname -p 1) run with no args, but nothing piped in"
+			return 1
+		fi
+		args="$(cat)"
+	else
+		args="$*"
+	fi
+	echo "$args"
+}
+
+contains() {
+  local match="$1"
+  shift
+
+  for element in "$@"; do
+	  if [ "$element" = "$match" ]; then
+		  return 0
+	  fi
+  done
+  return 1
+}
+
 url_encode() {
-	python3 -c "import sys, urllib.parse as ul; print (ul.quote('$*'))"
+	usage() {
+		print_usage "[options] [TEXT_TO_ENCODE...]"
+	}
+
+	declare -a encodeIfEscaped ignoreIfEscaped onlyEncode
+	@ARGS
+		# If specified, only encode the characters that appear in this argument.
+		#
+		# Each argument may contain either multiple non-whitespace characters separated by whitespace,
+		# or a single whitespace character.
+		#
+		# May work in conjunction with --only-if-escaped or --ignore-escaped.
+		-o | --only | --only-encode)
+			if [ $(echo -n "$2" | wc -c) -eq 1 ]; then
+				onlyEncode+=("$2")
+			else
+				onlyEncode+=($2)
+			fi
+			shift
+			shift
+			;;
+
+		# Only encode the given character if it's escaped with '\'
+		# Multiple characters may be given if separated by whitespace
+		--only-if-escaped) encodeIfEscaped+=($2)
+			shift
+			shift
+			;;
+
+		# Only encode the given character if it's NOT escaped with '\'
+		# Multiple characters may be given if separated by whitespace
+		--ignore-escaped) ignoreIfEscaped+=($2)
+			shift
+			shift
+
+	@ARGS_END
+
+	local args="$(args_or_stdin "$@")"
+
+	if [ "$onlyEncode" ]; then
+		local encodeChars
+
+		# Find and replace individual characters with their encoded form
+		for char in "${onlyEncode[@]}"; do
+			local encoded matchPrefix replacePrefix
+			encoded="$(url_encode "$char")"
+
+			if contains "$char" "${encodeIfEscaped[@]}"; then
+				matchPrefix='\\'
+
+			elif contains "$char" "${ignoreIfEscaped[@]}"; then
+				matchPrefix='([^\\])'
+				replacePrefix='$1'
+			fi
+
+			encodeChars+="s/$matchPrefix\\Q$char\\E/$replacePrefix$encoded/g; "
+			# remove leading slash from any remaining non-encoded instances
+			encodeChars+='s/\Q\'$char'\E/'$char'/g; '
+		done
+
+		echo "$args" | perl -pe "$encodeChars"
+		return $?
+	fi
+
+	# pre/post-processing
+	local preProc postProc
+
+	for i in "${!ignoreIfEscaped[@]}"; do
+		# prevent escaped characters from being encoded
+		preProc+='s/\\'${ignoreIfEscaped[$i]}'/~URL_ENCODE_UNESCAPED_CHAR_'$i'~/g; '
+
+		postProc+='s/~URL_ENCODE_UNESCAPED_CHAR_'$i'~/\'${ignoreIfEscaped[$i]}'/g; '
+	done
+
+	for i in "${!encodeIfEscaped[@]}"; do
+		# _prevent_ un-escaped characters from being encoded
+		preProc+='s/([^\\])'${encodeIfEscaped[$i]}'/\1~URL_ENCODE_ESCAPED_CHAR_'$i'~/g; '
+		# remove extra escape from chars to be encoded
+		preProc+='s/\\('${encodeIfEscaped[$i]}')/\1/g; '
+
+		postProc+='s/~URL_ENCODE_ESCAPED_CHAR_'$i'~/\'${encodeIfEscaped[$i]}'/g; '
+	done
+
+	echo "$args" \
+		| perl -pe "$preProc" \
+		| xargs -I {} python3 -c "import sys, urllib.parse as ul; print (ul.quote('{}'))" \
+		| perl -pe "$postProc"
 }
 
 find_bin() {
