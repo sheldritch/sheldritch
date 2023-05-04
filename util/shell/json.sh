@@ -22,10 +22,26 @@ jqj() {
 
 # Iterate over given JSON values
 json_it() {
-	local length
-	length="$(jqj "$1" length)"
+	local json length
 
-	seq 0 $(( $length - 1 ))
+	json="$(args_or_stdin "$@")"
+
+	case $(jqj "$json" -r type) in
+
+		array )
+			length="$(jqj "$1" length)"
+			seq 0 $(( $length - 1 ))
+			;;
+
+		object )
+			jqj "$json" keys[]
+			;;
+
+		* )
+			echo >&2 "Error: json_it: unhandled type for '$json'."
+			echo >&2 "If you think you have sensible behaviour for this type, please add it to this function."
+			return 1
+	esac
 }
 
 alias jq_extract_match=json_extract_match
