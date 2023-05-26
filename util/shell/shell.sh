@@ -321,6 +321,7 @@ funcname() {
 }
 
 print_usage() {
+	local name
 	name="$(funcname -p 2 2>/dev/null)"
 	name="${name:-$0}"
 	echo >&2 "Usage: $name" "$@"
