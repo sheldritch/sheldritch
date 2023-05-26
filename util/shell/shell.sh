@@ -208,7 +208,7 @@ url_encode() {
 
 			encodeChars+="s/$matchPrefix\\Q$char\\E/$replacePrefix$encoded/g; "
 			# remove leading slash from any remaining non-encoded instances
-			encodeChars+='s/\Q\'$char'\E/'$char'/g; '
+			encodeChars+='s/\Q\'"$char"'\E/'"$char"'/g; '
 		done
 
 		echo "$args" | perl -pe "$encodeChars"
@@ -217,6 +217,9 @@ url_encode() {
 
 	# pre/post-processing
 	local preProc postProc
+
+	# escape single quotes, because we use them inside python.
+	preProc+='s/\\'\''/'\\\''/g; '
 
 	for i in "${!ignoreIfEscaped[@]}"; do
 		# prevent escaped characters from being encoded
@@ -234,7 +237,7 @@ url_encode() {
 		postProc+='s/~URL_ENCODE_ESCAPED_CHAR_'$i'~/\'${encodeIfEscaped[$i]}'/g; '
 	done
 
-	echo "$args" \
+	echo "'$args'" \
 		| perl -pe "$preProc" \
 		| xargs -I {} python3 -c "import sys, urllib.parse as ul; print (ul.quote('{}'))" \
 		| perl -pe "$postProc"
