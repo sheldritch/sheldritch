@@ -37,7 +37,16 @@ tool_cd() {
 }
 complete -F _completion_tool_list tool_cd
 
+# Edit a file in the `tools` repo
 tool_edit() {
+
+	usage() {
+		echo >&2 "tool_edit: edit a file relative to the \$TOOLS repo"
+		echo >&2 "Also works with a unique file name, e.g. 'tool_edit ldap.sh'"
+		print_usage "[options] TOOL"
+		print_usage "-f BASH_FUNCTION"
+	}
+
 	local workspace
 	declare -a paths
 	declare -a files
@@ -48,6 +57,8 @@ tool_edit() {
 				shift
 				shift
 				;;
+
+			# find a BASH function declaration and open the containing file
 			-f | --function ) function="$2"
 				shift
 				shift
