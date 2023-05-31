@@ -4,12 +4,16 @@ check_is_sourced
 use_tool util/shell/shell.sh
 use_tool services/bitwarden/bitwarden.sh
 
+# Count lines.
+# Any text past the final newline counts as a line, unlike raw `wc -l`
+lines() {
+	echo -n "$*" | awk '{print}' | wc -l
+}
+
 lines_one() {
-	lines="$(echo -n "$*" | wc -l)"
-	debug "line_count: $lines"
-	! test -z "$*" -o $lines -gt 1
+	test "$*" -a $(lines "$*") -eq 1
 }
 
 lines_multi() {
-	test "$(echo -n "$1" | wc -l)" -gt 1
+	test "$(lines "$*")" -gt 1
 }
