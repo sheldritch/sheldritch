@@ -52,13 +52,14 @@ tool_edit() {
 				shift
 				shift
 
+				local file=
 				file="$(cd "$TOOLS"; grep -rl "$function(")"
-				echo "$file"
 				if ! lines_one "$file"; then
-					echo >&2 "Error: tool_edit: could not find single result for '$function()'"
+					echo >&2 "Error: tool_edit: could not find single file location for '$function()':"
+					echo >&2 "$file"
 					return 1
 				fi
-				paths+="$file"
+				paths+=("$file")
 
 				;;
 			--help ) local HELP=true
@@ -78,7 +79,7 @@ tool_edit() {
 	for path in "${paths[@]}"; do
 		matches="$(find "$TOOLS" -path "*$path*")"
 
-		if [ "$(echo "$matches" | wc -l)" -eq 1 ]; then
+		if lines_one "$matches"; then
 			files+=("$matches")
 		else
 			files+=("$TOOLS/$path")
@@ -93,6 +94,7 @@ tool_edit() {
 
 
 	for file in "${files[@]}"; do
+		[ -e "$file" ] || continue
 		if ! [ -x "$file" ] \
 			&& grep -q check_is_sourced "$file" \
 			&& echo "$file" | grep -q "\.sh$"
