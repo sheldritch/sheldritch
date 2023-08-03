@@ -41,4 +41,6 @@ else
 	(add_tools_to_bin &)
 fi
 
-PATH="$TOOLS/.bin:$PATH"
+if ! echo "$PATH" | grep -q "$TOOLS/.bin"; then
+	PATH="$TOOLS/.bin:$PATH"
+fi
