@@ -60,8 +60,7 @@ cat <<-EOF
 ###
 EOF
 
-use_tool install/install_raku.sh
-
+use_tool install/install_*.sh
 
 for file in $(find "$TOOLS"/*/ -name '_install.sh'); do
 	echo >&2 "installing $file"
