@@ -1,4 +1,3 @@
-#!/bin/bash
 # move around between certain repos
 
 repo_list() {
@@ -13,12 +12,16 @@ repo_list() {
 	)
 }
 
-_completion_repo_list() {
-	COMPREPLY=($(compgen -W "$(repo_list)" -- "${COMP_WORDS[COMP_CWORD]}"))
+alias @complete_repo_list='COMPREPLY=($(compgen -W "$(repo_list)" -- "${COMP_WORDS[COMP_CWORD]}"))'
+
+_complete_repo_list() {
+	@complete_repo_list
 }
 
 # print the directory for a given repo
 repo_dir() {
+	if [ -z "$1" ]; then return 1; fi
+
 	local repo
 	repo="$(
 		IFS=:
@@ -34,7 +37,29 @@ repo_dir() {
 
 # Will try and cd directly into a repo folder from anywhere on the machine
 repo() {
-	cd "$(repo_dir "$1")"
+
+	if ! dir="$(repo_dir "$1")"; then
+		cd "$(echo "$REPOS" | sed 's/:.*//')"
+		return
+	fi
+
+	cd "$dir/$2"
 }
 
-complete -F _completion_repo_list repo
+_complete_repo() {
+	local cur="${COMP_WORDS[COMP_CWORD]}"
+
+	if [ $COMP_CWORD = 1 ]; then
+		@complete_repo_list
+
+	else
+		local IFS=$'\n'
+		COMPREPLY=($(complete_file_path "$(repo_dir "${COMP_WORDS[1]}")" "$cur"))
+	fi
+
+	if ! [ "${#COMPREPLY[@]}" -eq 1 -a -f "${COMPREPLY[0]}" ]; then
+		compopt -o nospace
+	fi
+}
+
+complete -F _complete_repo repo
