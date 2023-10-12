@@ -91,7 +91,17 @@ isTrue() {
 		return 2
 	fi
 	for bool in "$@"; do
-		test "$bool" = "true" || return 1
+		if [ -z "$bool" -o "$bool" = false ]; then
+			return 1
+		fi
+
+		if [ "$bool" != true ]; then
+			echo >&2 "Warning!: isTrue argument '$bool' is not 'true', 'false' or ''!"
+			echo >&2 "!!!"
+			echo >&2 "inside function $(funcname -p 1)"
+			sleep 1
+			return 1
+		fi
 	done
 }
 
