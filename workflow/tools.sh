@@ -88,7 +88,7 @@ tool_edit() {
 	done 
 
 	for path in "${paths[@]}"; do
-		matches="$(find "$TOOLS" -path "*$path*")"
+		matches="$(find "$TOOLS"/* -path "*$path*")"
 
 		if lines_one "$matches"; then
 			files+=("$matches")
