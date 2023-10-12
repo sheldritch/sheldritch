@@ -289,6 +289,9 @@ value() {
 	echo "$value"
 }
 
+# WARNING!
+# funcname should not use any helper functions internally
+# except print_args
 funcname() {
 	local quiet parent
 	@ARGS
@@ -303,7 +306,7 @@ funcname() {
 	@ENDARGS
 
 	# done manually since @ARGS and print_usage use funcname internally
-	if isTrue $HELP; then
+	if [ $HELP = true ]; then
 		echo >&2 "funcname: print the function name of the caller, or a given parent function"
 		echo >&2 "Usage: funcname [options]"
 		print_args -f funcname
@@ -341,6 +344,8 @@ print_usage() {
 #
 # given file must have a case block that parses args
 # identified with an @ARGS comment at the top
+#
+# WARNING: print_args must NOT use `funcname` internally.
 print_args() {
 
 	local function HELP
@@ -427,7 +432,7 @@ fmtvar() {
 	echo "$var"
 }
 
-#outputs an argument flag for the given variable name, if and only if that variable is set to `true`
+# Outputs an argument flag for the given variable name, if and only if that variable is set to `true`
 arg_bool() {
 	if isTrue ${!1}; then
 		echo --"$(echo "$1" | sed 's/[A-Z]/-\L&/g')"
