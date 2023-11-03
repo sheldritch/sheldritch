@@ -17,3 +17,10 @@ lines_one() {
 lines_multi() {
 	test "$(lines "$*")" -gt 1
 }
+
+tgrep() {
+	local input="$(cat)"
+
+	echo "$input" | head -1
+	echo "$input" | sed 1d | grep "$@"
+}
