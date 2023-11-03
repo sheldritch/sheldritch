@@ -253,10 +253,82 @@ url_encode() {
 		| perl -pe "$postProc"
 }
 
+url_decode() {
+	python3 -c "import sys, urllib.parse as ul; print (ul.quote('$*'))"
+}
+
 find_bin() {
 	for x in ${PATH//://*${1}* }*${1}*; do
 		[ -f "$x" ] && echo $x
 	done
+}
+
+yesNoToBool() {
+	case "$1" in
+		[yY] | [Yy]es | true | correct) echo "true"
+			;;
+		[nN] | [Nn]o | false | incorrect) echo "false"
+			;;
+		*)
+			echo "null"
+			return 1
+			;;
+	esac
+}
+
+confirm() {
+	local question default
+	@ARGS
+		-q | --question | --query | --inquiry | --quiz | -p | --prompt) question="$2"
+			shift
+			shift
+			;;
+		-d | --default ) default="$2"
+			shift
+			shift
+	@ENDARGS
+
+	while true; do
+
+		if [ "$default" ]; then
+			default="$(yesNoToBool "$default")"
+
+			if [ $default = null ]; then
+				echo >&2 "Error: invalid default passed to 'confirm'"
+				echo >&2 "Complain to whoever wrote the tool your using to fix it."
+				echo >&2 "This applies doubly so if it was you."
+				return 9
+			fi
+		fi
+
+		local promptOpts
+		if [ -z "$default" ]; then
+			promptOpts=y/n
+		elif isTrue "$default"; then
+			promptOpts=Y/n
+		else
+			promptOpts=y/N
+		fi
+
+		read -p "${question:+$question [$promptOpts]: }" TOOLS_CONFIRM
+
+		local response
+		if response="$(yesNoToBool "$TOOLS_CONFIRM")"; then
+			echo "$response"
+			return
+		fi
+
+		if [ -z "$TOOLS_CONFIRM" -a -n "$default" ]; then
+			echo "$default"
+			return
+		fi
+
+		echo >&2 "Error: Please reply 'yes' or 'no'"
+		echo >&2
+
+	done
+
+
 }
 
 # Display the output of a diff, and ask the user if they want to continue with those changes
