@@ -41,3 +41,98 @@ _tool_install() {
 	done
 
 }
+
+# Given a list of packages, and a given tool, install the first package that exists
+install_first_with() {
+
+	usage() {
+		print_usage INSTALLER_TOOL POSSIBLE_PACKAGES...
+	}
+
+	@DEFAULT_ARGS
+
+	installer="$1"
+	shift
+
+	for pkg in "$@"; do
+		case "$installer" in 
+
+			apt)
+				if [ "$(apt-cache search --names-only ^$pkg$)" ]; then
+					sudo apt-get install "$pkg" && return
+				fi
+				;;
+
+			snap) 
+				local confinement
+				confinement="$(snap info --verbose "$pkg" 2>/dev/null |
+						awk '$1 ~ /confinement:/ {print $2}')"
+
+				if [ "$confinement" = strict ]; then
+					sudo snap install "$pkg" && return
+				elif [ "$confinement" = classic ]; then
+					sudo snap install --classic "$pkg" && return
+				fi
+
+				;;
+
+			yarn)
+				if ! yarn info "$pkg" 2>/dev/null | grep -q '^error'; then
+					yarn install global "$pkg" &&
+						command -v bw 2>/dev/null
+						return
+				fi
+				;;
+
+			npm)
+				if ! quiet npm info "$pkg"; then
+					npm install -g "$pkg" && return
+				fi
+				;;
+
+
+			choco)
+				if quiet choco info "$pkg"; then
+					choco install "$pkg" && return
+				fi
+				;;
+
+			brew) 
+				if quiet brew info "$pkg"; then
+					brew install "$pkg" && return
+				fi
+				;;
+
+			*)
+				echo >&2 "Error: install_with_first: installer '$installer' not supported"
+				return 9
+				;;
+		esac
+	done
+
+	return 1
+}
+
+
+install_basic() {
+
+	usage() {
+		print_usage "[options] POSSIBLE_PACKAGE_NAMES..."
+	}
+
+	@ARGS
+		# a command the package will install. If it already exists, installation will cancel.
+		-c | --command ) command="$2"
+		shift
+		shift
+	@ENDARGS
+
+	for installer in apt brew yarn choco snap; do
+		[ "$command" ] && command -v "$command" >/dev/null && return
+		if command -v "$installer" >/dev/null; then
+			install_first_with $installer "$@" && return
+		fi
+	done
+	echo >&2 "Error: install_basic: could not install one of '$@'"
+
+}
