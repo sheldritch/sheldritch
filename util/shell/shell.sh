@@ -495,7 +495,7 @@ fmtvar() {
 	@ENDARGS
 
 	# intermediate tr to '-' means existing _s are not squeezed into 1
-	var="$(echo -n $1 | tr --squeeze --complement 'A-Za-z0-9_' "-" | tr - _)"
+	var="$(echo -n $1 | tr -c -s 'A-Za-z0-9_' "-" | tr -- - _)"
 
 	if isTrue $upperCase; then
 		var="$(echo -n $var | tr '[a-z]' '[A-Z]')"
