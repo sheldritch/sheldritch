@@ -293,7 +293,7 @@ confirm() {
 		if [ "$default" ]; then
 			default="$(yesNoToBool "$default")"
 
-			if [ $default = null ]; then
+			if [ "$default" = null ]; then
 				echo >&2 "Error: invalid default passed to 'confirm'"
 				echo >&2 "Complain to whoever wrote the tool your using to fix it."
 				echo >&2 "This applies doubly so if it was you."
@@ -378,7 +378,7 @@ funcname() {
 	@ENDARGS
 
 	# done manually since @ARGS and print_usage use funcname internally
-	if [ $HELP = true ]; then
+	if [ "$HELP" = true ]; then
 		echo >&2 "funcname: print the function name of the caller, or a given parent function"
 		echo >&2 "Usage: funcname [options]"
 		print_args -f funcname

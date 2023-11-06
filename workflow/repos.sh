@@ -49,7 +49,7 @@ repo() {
 _complete_repo() {
 	local cur="${COMP_WORDS[COMP_CWORD]}"
 
-	if [ $COMP_CWORD = 1 ]; then
+	if [ "$COMP_CWORD" = 1 ]; then
 		@complete_repo_list
 
 	else
