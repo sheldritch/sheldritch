@@ -17,10 +17,18 @@ fi
 jqj() {
 	local json="$1"
 	shift
+
+	if echo "$json" | grep -q ^-; then
+		echo >&2 "Error: first argument to jqj should always be json."
+	fi
+
 	echo "$json" | jq "$@"
 }
 
 # Iterate over given JSON values
+# eg for i in $(json_it "$json"); do
+#    	elem="$(jqj "$json" .[$i])"'
+#    	...
 json_it() {
 	local json length
 

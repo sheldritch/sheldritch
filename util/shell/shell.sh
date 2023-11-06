@@ -91,7 +91,17 @@ isTrue() {
 		return 2
 	fi
 	for bool in "$@"; do
-		test "$bool" = "true" || return 1
+		if [ -z "$bool" -o "$bool" = false ]; then
+			return 1
+		fi
+
+		if [ "$bool" != true ]; then
+			echo >&2 "Warning!: isTrue argument '$bool' is not 'true', 'false' or ''!"
+			echo >&2 "!!!"
+			echo >&2 "inside function $(funcname -p 1)"
+			sleep 1
+			return 1
+		fi
 	done
 }
 
@@ -243,10 +253,82 @@ url_encode() {
 		| perl -pe "$postProc"
 }
 
+url_decode() {
+	python3 -c "import sys, urllib.parse as ul; print (ul.quote('$*'))"
+}
+
 find_bin() {
 	for x in ${PATH//://*${1}* }*${1}*; do
 		[ -f "$x" ] && echo $x
 	done
+}
+
+yesNoToBool() {
+	case "$1" in
+		[yY] | [Yy]es | true | correct) echo "true"
+			;;
+		[nN] | [Nn]o | false | incorrect) echo "false"
+			;;
+		*)
+			echo "null"
+			return 1
+			;;
+	esac
+}
+
+confirm() {
+	local question default
+	@ARGS
+		-q | --question | --query | --inquiry | --quiz | -p | --prompt) question="$2"
+			shift
+			shift
+			;;
+		-d | --default ) default="$2"
+			shift
+			shift
+	@ENDARGS
+
+	while true; do
+
+		if [ "$default" ]; then
+			default="$(yesNoToBool "$default")"
+
+			if [ "$default" = null ]; then
+				echo >&2 "Error: invalid default passed to 'confirm'"
+				echo >&2 "Complain to whoever wrote the tool your using to fix it."
+				echo >&2 "This applies doubly so if it was you."
+				return 9
+			fi
+		fi
+
+		local promptOpts
+		if [ -z "$default" ]; then
+			promptOpts=y/n
+		elif isTrue "$default"; then
+			promptOpts=Y/n
+		else
+			promptOpts=y/N
+		fi
+
+		read -p "${question:+$question [$promptOpts]: }" TOOLS_CONFIRM
+
+		local response
+		if response="$(yesNoToBool "$TOOLS_CONFIRM")"; then
+			echo "$response"
+			return
+		fi
+
+		if [ -z "$TOOLS_CONFIRM" -a -n "$default" ]; then
+			echo "$default"
+			return
+		fi
+
+		echo >&2 "Error: Please reply 'yes' or 'no'"
+		echo >&2
+
+	done
+
+
 }
 
 # Display the output of a diff, and ask the user if they want to continue with those changes
@@ -279,6 +361,9 @@ value() {
 	echo "$value"
 }
 
+# WARNING!
+# funcname should not use any helper functions internally
+# except print_args
 funcname() {
 	local quiet parent
 	@ARGS
@@ -293,7 +378,7 @@ funcname() {
 	@ENDARGS
 
 	# done manually since @ARGS and print_usage use funcname internally
-	if isTrue $HELP; then
+	if [ "$HELP" = true ]; then
 		echo >&2 "funcname: print the function name of the caller, or a given parent function"
 		echo >&2 "Usage: funcname [options]"
 		print_args -f funcname
@@ -331,6 +416,8 @@ print_usage() {
 #
 # given file must have a case block that parses args
 # identified with an @ARGS comment at the top
+#
+# WARNING: print_args must NOT use `funcname` internally.
 print_args() {
 
 	local function HELP
@@ -408,7 +495,7 @@ fmtvar() {
 	@ENDARGS
 
 	# intermediate tr to '-' means existing _s are not squeezed into 1
-	var="$(echo -n $1 | tr --squeeze --complement 'A-Za-z0-9_' "-" | tr - _)"
+	var="$(echo -n $1 | tr -c -s 'A-Za-z0-9_' "-" | tr -- - _)"
 
 	if isTrue $upperCase; then
 		var="$(echo -n $var | tr '[a-z]' '[A-Z]')"
@@ -417,7 +504,7 @@ fmtvar() {
 	echo "$var"
 }
 
-#outputs an argument flag for the given variable name, if and only if that variable is set to `true`
+# Outputs an argument flag for the given variable name, if and only if that variable is set to `true`
 arg_bool() {
 	if isTrue ${!1}; then
 		echo --"$(echo "$1" | sed 's/[A-Z]/-\L&/g')"
