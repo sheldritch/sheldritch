@@ -29,14 +29,11 @@ check_is_sourced
 
 add_to_path() {
 	for path in "$@"; do
-		if echo "$PATH" | grep -F "$path"; then
+		if ! echo "$PATH" | grep -qF "$path"; then
 			PATH="$PATH:$path"
 		fi
 	done
 }
-
-command -v yarn >/dev/null && add_to_path $(yarn bin)
-add_to_path $HOME/.yarn/bin
 
 source_once() {
 	path="$(realpath "$1")"

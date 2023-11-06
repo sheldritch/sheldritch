@@ -1,4 +1,4 @@
-#
+
 # Makes all the shell scripts in `tools` available to the shell
 #
 
@@ -6,6 +6,13 @@ unset TOOLS_SOURCES
 
 source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
+
+# Add things to PATH if not already added
+if command -v yarn >/dev/null; then
+	add_to_path $(sh -c "yarn bin")
+fi
+add_to_path "$HOME/.yarn/bin"
+
 
 if find "$TOOLS/tools.sh" -not -perm /111 -quit; then
 	exec=/111
