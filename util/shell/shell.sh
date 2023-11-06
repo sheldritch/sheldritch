@@ -552,6 +552,9 @@ alias ipp=ip_public
 
 now() { echo "$(date +%S.%N)"; }
 
+quiet() { "$@" >/dev/null 2>/dev/null; }
+error() { "$@" 2>&1; }
+
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
 [[ "$OS" = linux ]] && use_tool util/linux/linux.sh

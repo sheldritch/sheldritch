@@ -37,7 +37,7 @@ case "$(uname -s)" in
 			brewCmds="$(/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
 				| tee /dev/tty | grep -A 3 'Run these three commands' | tail -n 3
 			)"
-			echo >&2 "Running those three commands above (you don't need to manually do it)":
+			echo >&2 "We are running those three commands above (you don't need to manually do it)":
 			eval "$brewCmds"
 		fi
 
@@ -51,8 +51,12 @@ case "$(uname -s)" in
 esac
 
 source "$TOOLS/util/shell/base.sh"
+use_tool util/shell/install.sh
 
 set +e
+
+install_basic -c jq
+install_basic -c bw bitwarden-cli @bitwarden/cli bw
 
 cat <<-EOF
 ###

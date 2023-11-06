@@ -27,6 +27,17 @@ check_is_sourced
 
 # Sourcing & Tools Library Access
 
+add_to_path() {
+	for path in "$@"; do
+		if echo "$PATH" | grep -F "$path"; then
+			PATH="$PATH:$path"
+		fi
+	done
+}
+
+command -v yarn >/dev/null && add_to_path $(yarn bin)
+add_to_path $HOME/.yarn/bin
+
 source_once() {
 	path="$(realpath "$1")"
 
