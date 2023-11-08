@@ -51,9 +51,10 @@ case "$(uname -s)" in
 esac
 
 source "$TOOLS/util/shell/base.sh"
-use_tool util/shell/install.sh
 
 set +e
+
+use_tool util/shell/install.sh
 
 install_basic -c jq jq
 install_basic -c bw bitwarden-cli @bitwarden/cli bw
