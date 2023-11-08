@@ -4,19 +4,15 @@
 
 # Init
 
-if [ -z "$BASH_VERSION" ]; then
-	echo >&2 "Error: utils/base.sh: base currently requires Bash to execute."
-	echo >&2 "Sorry for the inconvenience."
-
-	if [ "$1" != '--force' ]; then
-		return 1
-	fi
+# Ensure the aliases created by this script are available
+if [ "$BASH_VERSION" ]; then
+	shopt -s expand_aliases
+elif [ "$ZSH_VERSION" ]; then
+	setopt aliases
 fi
 
-# Ensure the aliases created by this script are available
-shopt -s expand_aliases
 
-alias script_is_sourced='[[ "${BASH_SOURCE[0]}" != "${0}" ]]'
+alias script_is_sourced='[ "${BASH_SOURCE[0]}" != "${0}" -o "$ZSH_EVAL_CONTEXT" = toplevel ]'
 
 alias check_is_sourced="if ! script_is_sourced; then
 	echo \"You aren't sourcing ${0}. Make sure you are to have its libs available to you.\"
@@ -28,23 +24,24 @@ check_is_sourced
 # Sourcing & Tools Library Access
 
 add_to_path() {
-	for path in "$@"; do
-		if ! echo "$PATH" | grep -qF "$path"; then
-			PATH="$PATH:$path"
+	for Path in "$@"; do
+		if ! echo "$PATH" | grep -qF "$Path"; then
+			export PATH="$PATH:$Path"
 		fi
 	done
 }
 
 source_once() {
-	path="$(realpath "$1")"
+	local Path
+	Path="$(realpath "$1")"
 
-	if [ -x "$path" ]; then
-		echo >&2 "Error: $path is an executable, presumably not a sourced file."
+	if [ -x "$Path" ]; then
+		echo >&2 "Error: $Path is an executable, presumably not a sourced file."
 		return 1
 	fi
 
-	if ! [[ "$TOOLS_SOURCES" =~ "$path" ]]; then
-		TOOLS_SOURCES+="$(echo -e "\n$path")" # before source to prevent dependency loops
+	if ! [[ "$TOOLS_SOURCES" =~ "$Path" ]]; then
+		TOOLS_SOURCES+="$(echo -e "\n$Path")" # before source to prevent dependency loops
 		source "$1"
 	fi
 }
@@ -111,10 +108,10 @@ enable_previous_aliases() {
 
 
 # The directory of the file currently being executed (or viewed, if looking at code)
-alias 'self_dir=( cd "$(dirname $(realpath "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd )'
+alias 'self_dir=( cd "$(dirname $(realpath "${BASH_VERSION:+${BASH_SOURCE[0]}}${ZSH_VERSION:+${0:a}}"))" >/dev/null 2>&1 && pwd )'
 
 if [ -z "$TOOLS" ]; then
-	export TOOLS="$(realpath $SELF_DIR/../../)"
+	export TOOLS="$(realpath $(self_dir)/../../)"
 fi
 
 # /tmp/tools for tool-related temporary files

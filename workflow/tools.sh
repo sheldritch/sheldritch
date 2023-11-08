@@ -13,8 +13,8 @@ _completion_tool_list() {
 	local IFS=$'\n'
 
 	declare -a files=("$TOOLS/${COMP_WORDS[COMP_CWORD]}"*)
-	if ! [ "${#files[@]}" -eq 1 -a -f "${files[0]}" ]; then
-		compopt -o nospace
+	if ! [ "${#files[@]}" -eq 1 -a -f "${files[@]:0:1}" ]; then
+		bash_run compopt -o nospace
 	fi
 
 	COMPREPLY=($(
@@ -87,13 +87,13 @@ tool_edit() {
 		esac
 	done 
 
-	for path in "${paths[@]}"; do
-		matches="$(find "$TOOLS"/* -path "*$path*")"
+	for Path in "${paths[@]}"; do
+		matches="$(find "$TOOLS"/* -path "*$Path*")"
 
 		if lines_one "$matches"; then
 			files+=("$matches")
 		else
-			files+=("$TOOLS/$path")
+			files+=("$TOOLS/$Path")
 		fi
 	done
 

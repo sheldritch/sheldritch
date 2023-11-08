@@ -4,7 +4,7 @@
 
 unset TOOLS_SOURCES
 
-source "$TOOLS/util/shell/base.sh" || return 1
+source "$TOOLS/util/shell/base.sh" "$@" || return 1
 check_is_sourced
 
 # Add things to PATH if not already added
@@ -32,8 +32,8 @@ add_tools_to_bin() {
 	(
 	cd "$TOOLS"
 	for file in $(find -L . \
-		\( -path '*/.*' -o -path '*/_*' \) -prune `# skip files/directories starting with '.' or '_' `\
-			-o -type f -print `# print all other files `\
+		\( -path '*/.*' -o -path '*/_*' \) -prune `: # skip files/directories starting with '.' or '_' `\
+			-o -type f -print `: # print all other files `\
 		)
 	do
 		[ -x "$file" ] || continue
