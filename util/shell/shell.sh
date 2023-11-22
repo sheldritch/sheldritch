@@ -86,6 +86,22 @@ args_gen_tail() {
 
 alias "@DEFAULT_ARGS=$( args_gen "@ARGS_DEFAULT_ARGS_ONLY )" )"
 
+args_quoted() {
+	# from https://unix.stackexchange.com/a/307017
+	awk -v q="'" '
+	  function shellquote(s) {
+		gsub(q, q "\\" q q, s)
+		return q s q
+	  }
+	  BEGIN {
+		for (i = 1; i < ARGC; i++) {
+		  printf "%s", sep shellquote(ARGV[i])
+		  sep = " "
+		}
+		printf "\n"
+	  }' "$@"
+}
+
 isTrue() {
 	if [ $# -eq 0 ]; then
 		return 2
