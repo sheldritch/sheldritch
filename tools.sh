@@ -14,7 +14,7 @@ fi
 add_to_path "$HOME/.yarn/bin"
 
 
-if find "$TOOLS/tools.sh" -not -perm /111 -quit; then
+if find "$TOOLS/tools.sh" -not -perm /111 -quit 2>/dev/null; then
 	exec=/111
 else
 	exec=+111
