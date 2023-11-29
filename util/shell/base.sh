@@ -20,6 +20,9 @@ alias check_is_sourced="if ! script_is_sourced; then
 fi"
 check_is_sourced
 
+if ! command -v complete >/dev/null 2>/dev/null; then
+	complete() { return; }
+fi
 
 # Sourcing & Tools Library Access
 

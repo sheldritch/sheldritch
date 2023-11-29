@@ -599,6 +599,11 @@ alias '@OS_CASE_END_ERROR=
 esac'
 zsh_run setopt GLOB
 
+if [ $OS = mac ] && ! command -v brew >/dev/null; then
+	echo >&2 "Error: Homebrew not found in Mac install. Ensure it is installed and initialised before using the tools repo."
+	return 1
+fi
+
 ip_local() {
 	case $OS in
 		linux) ip route get 1 | perl -ne ' /src (\S+)/ && print "$1\n" ';;
