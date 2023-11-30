@@ -4,14 +4,14 @@ check_is_sourced
 # Returns a list of paths in dir '$1' that start with '$2'
 # Directories are ended with '/', and files are not.
 complete_file_path() {
-	local directory path
+	local directory Path
 	directory="$1"
-	path="$2"
+	Path="$2"
 
 	(
 	cd "$directory"
 
-	for file in "$path"*; do
+	for file in "$Path"*; do
 		if [ $(echo -n "$file" | wc -l) -gt 0 ]; then
 			echo >&2 "Error: new-line found in matches!"
 			echo >&2 "Cannot provide file path list."
@@ -33,7 +33,7 @@ _complete_file_path() {
 	COMPREPLY=($(complete_file_path . ${COMP_WORDS[COMP_CWORD]}))
 
 	if ! [ "${#COMPREPLY[@]}" -eq 1 -a -f "${COMPREPLY[0]}" ]; then
-		compopt -o nospace
+		bash_run compopt -o nospace
 	fi
 }
 # To auto-complete itself

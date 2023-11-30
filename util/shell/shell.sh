@@ -5,9 +5,22 @@
 source "$TOOLS"/util/shell/base.sh || return 1
 check_is_sourced
 
+zsh_run() {
+	if [ "$ZSH_VERSION" ]; then
+		"$@"
+	fi
+}
+
+bash_run() {
+	if [ "$BASH_VERSION" ]; then
+		"$@"
+	fi
+}
+
 # Print the contents of a given alias. Used for nested aliases.
 alias_print() {
-	alias "$1" | sed -e "s/^\s*alias $1='//" -e "s/'$//"
+	eval "alias=$(alias $1 | sed -E 's/^(alias )?'"$1"'=//' )"
+	echo "$alias"
 }
 
 # for all defined functions, create an alias replacing the given extended regex
@@ -15,30 +28,41 @@ alias_print() {
 alias_funcs() {
 	functionMatch="$1"
 	replacement="$2"
-	for func in $(declare -F | awk '$3 ~ /'"$functionMatch"'/ { print $3; }'); do
+	for func in $(funcs | grep -E "$functionMatch"); do
 		alias $(echo $func | sed -E "s/$functionMatch/$replacement/")=$func
 	done
 }
 
+zsh_run unsetopt GLOB
+
 # Shorthand structure for defining arguments
-alias '@ARGS=local HELP 2>/dev/null || :
+alias '@ARGS=
+local HELP >/dev/null 2>/dev/null || :
 while [ $# -ne 0 ]; do case "$1" in'
 
+
+isFunction() {
+	if [ "$BASH_VERSION" ]; then
+		test "$(type -t $1)" = function
+	elif [ "$ZSH_VERSION" ]; then
+		test "$(whence -w)" = function
+	fi
+}
 
 alias '@ARGS_UTIL=
 ;;
 # by specifying args before @ENDARGS, you can override the following values
 	-h | --help )
-		local HELP 2>/dev/null || :
+		local HELP >/dev/null 2>/dev/null || :
 		HELP=true # excluding help for compatibility.
 
-		if [ "$(type -t usage)" = function ]; then
+		if isFunction usage; then
 			usage
 		else
 			echo >&2 "No Usage line provided. However, here are the options:"
 		fi
 
-		if [ "$(type -t options)" = function ]; then
+		if isFunction options; then
 			options
 		else
 			funcname -q && print_args -f "$(funcname)" || print_args
@@ -67,7 +91,8 @@ alias '@ARGS_END='"$(alias_print @ARGS_UTIL)"'
 		shift
 		safe_quit
 		;;
-	'*' ) break;
+	'*' )
+		break
 		;;
 esac; done'
 
@@ -101,6 +126,8 @@ args_quoted() {
 		printf "\n"
 	  }' "$@"
 }
+
+zsh_run setopt GLOB
 
 isTrue() {
 	if [ $# -eq 0 ]; then
@@ -247,20 +274,20 @@ url_encode() {
 	# escape single quotes, because we use them inside python.
 	preProc+='s/\\'\''/'\\\''/g; '
 
-	for i in "${!ignoreIfEscaped[@]}"; do
+	for i in $(seq ${#ignoreIfEscaped[@]}); do
 		# prevent escaped characters from being encoded
-		preProc+='s/\\'${ignoreIfEscaped[$i]}'/~URL_ENCODE_UNESCAPED_CHAR_'$i'~/g; '
+		preProc+='s/\\'${ignoreIfEscaped[@]:$i:1}'/~URL_ENCODE_UNESCAPED_CHAR_'$i'~/g; '
 
-		postProc+='s/~URL_ENCODE_UNESCAPED_CHAR_'$i'~/\'${ignoreIfEscaped[$i]}'/g; '
+		postProc+='s/~URL_ENCODE_UNESCAPED_CHAR_'$i'~/\'${ignoreIfEscaped[@]}'/g; '
 	done
 
-	for i in "${!encodeIfEscaped[@]}"; do
+	for i in $(seq ${#ignoreIfEscaped[@]}); do
 		# _prevent_ un-escaped characters from being encoded
-		preProc+='s/([^\\])'${encodeIfEscaped[$i]}'/\1~URL_ENCODE_ESCAPED_CHAR_'$i'~/g; '
+		preProc+='s/([^\\])'${encodeIfEscaped[@]:$i:1}'/\1~URL_ENCODE_ESCAPED_CHAR_'$i'~/g; '
 		# remove extra escape from chars to be encoded
-		preProc+='s/\\('${encodeIfEscaped[$i]}')/\1/g; '
+		preProc+='s/\\('${encodeIfEscaped[@]:$i:1}')/\1/g; '
 
-		postProc+='s/~URL_ENCODE_ESCAPED_CHAR_'$i'~/\'${encodeIfEscaped[$i]}'/g; '
+		postProc+='s/~URL_ENCODE_ESCAPED_CHAR_'$i'~/\'${encodeIfEscaped[@]:$i:1}'/g; '
 	done
 
 	echo "'$args'" \
@@ -377,6 +404,14 @@ value() {
 	echo "$value"
 }
 
+funcs() {
+	if [ "$ZSH_VERSION" ]; then
+		print -l ${(ok)functions}
+	else
+		declare -F | awk '{print $3}'
+	fi
+}
+
 # WARNING!
 # funcname should not use any helper functions internally
 # except print_args
@@ -402,7 +437,7 @@ funcname() {
 	fi
 
 	parent="${parent:-0}"
-	parent="$(($parent + 1))" # add this current function as another layer down
+	parent="$(($parent + 1))" # this function, `funcname`, counts as an additional layer
 
 	print() {
 		if [ "$quiet" != true ]; then
@@ -410,10 +445,10 @@ funcname() {
 		fi
 	}
 
-	local parentFunc="${FUNCNAME[$parent]}"
+	local parentFunc="${FUNCNAME[$parent]}${funcstack[@]:$parent:1}"
 	if [ -z "$parentFunc" ] ||
 		# Happens when run in shell script
-		[ "$parentFunc" = main -a -z "${FUNCNAME[$(($parent + 1))]}" ]
+		[ "$parentFunc" = main -a -z "${FUNCNAME[$(($parent + 1))]}${funcstack[@]:$(($parent + 1)):1}" ]
 	then
 		print >&2 "Error: funcname: no bash function found."
 		return 1
@@ -451,7 +486,17 @@ print_args() {
 		return
 	fi
 
-	local file="${1:-${BASH_SOURCE[1]}}" # [1] is the context that called this function.
+	local file="$1"
+
+	if [ -z "$file" ]; then
+		if [ "$BASH_VERSION" ]; then
+			file="${BASH_SOURCE[1]}" # [1] is the context that called this function.
+		elif [ "$ZSH_VERSION" ]; then
+			file="$(echo "$funcfiletrace[1]" | sed 's/:[0-9]*$//')"
+		else
+			echo >&2 "Error: print_args: shell not supported. Please run --help from in bash."
+		fi
+	fi
 
 	if ! echo "$file" | grep -q '.sh$'; then
 		echo >&2 "Error: print_args: file '$file' is not a shell script."
@@ -544,6 +589,7 @@ esac
 
 alias '@OS_CASE=case "$OS" in'
 
+zsh_run unsetopt GLOB
 alias '@OS_CASE_END_ERROR=
 		;;
 	'*' )
@@ -551,6 +597,12 @@ alias '@OS_CASE_END_ERROR=
 		safe_quit
 		;;
 esac'
+zsh_run setopt GLOB
+
+if [ $OS = mac ] && ! command -v brew >/dev/null; then
+	echo >&2 "Error: Homebrew not found in Mac install. Ensure it is installed and initialised before using the tools repo."
+	return 1
+fi
 
 ip_local() {
 	case $OS in
@@ -573,4 +625,4 @@ error() { "$@" 2>&1; }
 
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
-[[ "$OS" = linux ]] && use_tool util/linux/linux.sh
+[[ "$OS" = linux ]] && use_tool util/linux/linux.sh || :

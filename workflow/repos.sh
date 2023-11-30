@@ -22,6 +22,7 @@ _complete_repo_list() {
 repo_dir() {
 	if [ -z "$1" ]; then return 1; fi
 
+	zsh_run setopt sh_word_split
 	local repo
 	repo="$(
 		IFS=:
@@ -33,6 +34,7 @@ repo_dir() {
 		done
 	)"
 	echo "$repo"
+	zsh_run unsetopt sh_word_split
 }
 
 # Will try and cd directly into a repo folder from anywhere on the machine
@@ -58,7 +60,7 @@ _complete_repo() {
 	fi
 
 	if ! [ "${#COMPREPLY[@]}" -eq 1 -a -f "${COMPREPLY[0]}" ]; then
-		compopt -o nospace
+		bash_run compopt -o nospace
 	fi
 }
 
