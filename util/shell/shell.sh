@@ -490,7 +490,7 @@ print_args() {
 
 	if [ -z "$file" ]; then
 		if [ "$BASH_VERSION" ]; then
-			file="${BASH_SOURCE[1]}" # [1] is the context that called this function.
+			file="${BASH_SOURCE[-1]}" # [1] is the context that called this function.
 		elif [ "$ZSH_VERSION" ]; then
 			file="$(echo "$funcfiletrace[1]" | sed 's/:[0-9]*$//')"
 		else
