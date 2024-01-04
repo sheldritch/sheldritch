@@ -621,7 +621,14 @@ alias ipp=ip_public
 now() { echo "$(date +%S.%N)"; }
 
 quiet() { "$@" >/dev/null 2>/dev/null; }
-error() { "$@" 2>&1; }
+stderr() { "$@" 2>&1; }
+error() {
+	local prefix
+	if funcname -q; then
+		prefix="$(funcname): "
+	fi
+	echo "Error: $prefix$*" 2>&1
+}
 
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
