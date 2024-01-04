@@ -10,21 +10,21 @@ mkdir -p $SEMS
 # modified from https://unix.stackexchange.com/a/216475
 
 # initialize a semaphore with a given number of tokens
-async_sem(){
-	SEM="3"
-	while [ -e /dev/fd/$SEM ]; do
-		SEM=$(($SEM + 1))
-	done
+# async_sem(){
+# 	SEM="3"
+# 	while [ -e /dev/fd/$SEM ]; do
+# 		SEM=$(($SEM + 1))
+# 	done
 
-	id="$(random_digit -c 8)"
-    mkfifo $SEMS/$id
-    eval "exec ${SEM}<>$SEMS/$id"
-    rm $SEMS/$id
-    local i=$1
-    for((;i>0;i--)); do
-        printf %s 000 >&"${SEM}"
-    done
-}
+# 	id="$(random_digit -c 8)"
+#     mkfifo $SEMS/$id
+#     eval "exec ${SEM}<>$SEMS/$id"
+#     rm $SEMS/$id
+#     local i=$1
+#     for((;i>0;i--)); do
+#         printf %s 000 >&"${SEM}"
+#     done
+# }
 
 async_wait() {
 	local x
