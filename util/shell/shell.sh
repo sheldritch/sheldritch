@@ -490,7 +490,7 @@ print_args() {
 
 	if [ -z "$file" ]; then
 		if [ "$BASH_VERSION" ]; then
-			file="${BASH_SOURCE[1]}" # [1] is the context that called this function.
+			file="${BASH_SOURCE[-1]}" # [1] is the context that called this function.
 		elif [ "$ZSH_VERSION" ]; then
 			file="$(echo "$funcfiletrace[1]" | sed 's/:[0-9]*$//')"
 		else
@@ -621,7 +621,14 @@ alias ipp=ip_public
 now() { echo "$(date +%S.%N)"; }
 
 quiet() { "$@" >/dev/null 2>/dev/null; }
-error() { "$@" 2>&1; }
+stderr() { "$@" 2>&1; }
+error() {
+	local prefix
+	if funcname -q; then
+		prefix="$(funcname): "
+	fi
+	echo "Error: $prefix$*" 2>&1
+}
 
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
