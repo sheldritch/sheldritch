@@ -21,7 +21,7 @@ async_sem(){
     eval "exec ${SEM}<>$SEMS/$id"
     rm $SEMS/$id
     local i=$1
-    for((;i>0;i--)); do
+    for ((;i>0;i--)); do
         printf %s 000 >&"${SEM}"
     done
 }
