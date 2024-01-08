@@ -16,15 +16,15 @@ mkdir -p $SEMS
 # 		SEM=$(($SEM + 1))
 # 	done
 
-# 	id="$(random_digit -c 8)"
-#     mkfifo $SEMS/$id
-#     eval "exec ${SEM}<>$SEMS/$id"
-#     rm $SEMS/$id
-#     local i=$1
-#     for((;i>0;i--)); do
-#         printf %s 000 >&"${SEM}"
-#     done
-# }
+	id="$(random_digit -c 8)"
+    mkfifo $SEMS/$id
+    eval "exec ${SEM}<>$SEMS/$id"
+    rm $SEMS/$id
+    local i=$1
+    for ((;i>0;i--)); do
+        printf %s 000 >&"${SEM}"
+    done
+}
 
 async_wait() {
 	local x
