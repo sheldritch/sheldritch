@@ -63,6 +63,7 @@ async_batch() {
 			local "$variable=$ASYNC_BATCH_ITERATOR"
 		fi
 		async_wait
+		echo >&2 "variable '$variable' is ${!variable}"
 		eval "{ $command; async_done; } &"
 	done 
 }
