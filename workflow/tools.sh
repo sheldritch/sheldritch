@@ -100,6 +100,11 @@ tool_edit() {
 	(
 	cd "${workspace:-$TOOLS}"
 
+	if [ -z "$EDITOR" ]; then
+		error "\$EDITOR is not set. Please add it to your rc file."
+		return 1
+	fi
+
 	$EDITOR "$@" "${files[@]}"
 	)
 
