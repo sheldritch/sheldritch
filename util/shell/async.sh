@@ -11,10 +11,10 @@ mkdir -p $SEMS
 
 # initialize a semaphore with a given number of tokens
 async_sem(){
-	SEM="3"
-	while [ -e /dev/fd/$SEM ]; do
-		SEM=$(($SEM + 1))
-	done
+ 	SEM="3"
+ 	while [ -e /dev/fd/$SEM ]; do
+ 		SEM=$(($SEM + 1))
+ 	done
 
 	id="$(random_digit -c 8)"
     mkfifo $SEMS/$id

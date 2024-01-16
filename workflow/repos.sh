@@ -6,7 +6,7 @@ repo_list() {
 	IFS=:
 	for repoDir in $REPOS; do
 		cd "$repoDir"
-		repos+="$(echo */.git) "
+		repos+="$(echo **/.git) "
 	done
 	echo $repos | tr ' ' '\n' | sort -u | sed 's_/\.git__g'
 	)
