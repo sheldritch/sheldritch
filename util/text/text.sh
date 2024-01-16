@@ -14,6 +14,10 @@ lines_one() {
 	test "$*" -a $(lines "$*") -eq 1
 }
 
+lines_none() {
+	test "$*" -a $(lines "$*") -eq 0
+}
+
 lines_multi() {
 	test "$(lines "$*")" -gt 1
 }
