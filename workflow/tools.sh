@@ -1,6 +1,5 @@
 # meta-utilities for dealing with the tools repo
 
-
 source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
 
@@ -47,9 +46,10 @@ tool_edit() {
 		print_usage "-f BASH_FUNCTION"
 	}
 
-	local workspace
+	local workspace firstFileAndLine
 	declare -a paths
 	declare -a files
+	declare -a args
 	while [ $# -ne 0 ]; do
 		case "$1" in
 			# Select a directory to run the editor from. Defaults to $TOOLS
@@ -63,14 +63,23 @@ tool_edit() {
 				shift
 				shift
 
-				local file=
-				file="$(cd "$TOOLS"; grep -rl "$function(")"
+				local file= matches=
+				matches="$(cd "$TOOLS"; grep -rno "^$function(")"
+
+				if lines_none "$file"; then
+					matches="$(cd "$TOOLS"; grep -rno "$function\w*(")"
+				fi
+
+				file="$(echo "$matches" | cut -d : -f 1 | sort -u)"
+
 				if ! lines_one "$file"; then
 					echo >&2 "Error: tool_edit: could not find single file location for '$function()':"
 					echo >&2 "$file"
 					return 1
 				fi
 				paths+=("$file")
+
+				firstFileAndLine="${firstFileAndLine:-$(echo "$matches" | awk -F : 'NR == 1 { print $1":"$2 }')}"
 
 				;;
 			--help ) local HELP=true
@@ -97,6 +106,18 @@ tool_edit() {
 		fi
 	done
 
+	if [ "$firstFileAndLine" ]; then
+		case "$EDITOR" in
+			vim*) args+=(
+				+$(echo "$firstFileAndLine" | cut -d : -f 2)
+				'+normal zz'
+			)
+				;;
+			code*) args+=(-g $firstFileAndLine)
+				;;
+		esac
+	fi
+
 	(
 	cd "${workspace:-$TOOLS}"
 
@@ -105,7 +126,7 @@ tool_edit() {
 		return 1
 	fi
 
-	$EDITOR "$@" "${files[@]}"
+	$EDITOR "${args[@]}" "$@" "${files[@]}"
 	)
 
 
@@ -163,7 +184,7 @@ tool_commit() {
 		head="$(dirname "$head")"
 	done
 
-	# TODO: Infer a ticket name from the branch and include as '[TIC-100]' at the start
+	# TODO: Infer a ticket name from the branch and include as "[TIC-100]" at the start
 	if git diff --cached --exit-code >/dev/null; then
 		git add -i "$file"
 	fi
@@ -180,4 +201,8 @@ complete -F _completion_tool_list tool_commit
 
 tool_push() {
 	( cd "$TOOLS"; git push )
+}
+
+tool_sync() {
+	source "$TOOLS/tools.sh" --sync
 }
