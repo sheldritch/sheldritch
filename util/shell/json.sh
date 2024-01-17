@@ -143,14 +143,22 @@ json_pop() {
 			echo >&2 '	..."'
 		fi
 
-
 		local match="$var"
-		if grep -q '^[0-9]\+$' <<<"$var"; then
-			match="[$var]"
+
+		if echo "$var" | grep -q =; then
+			match="$(value "$var")"
+			var="$(key "$var")"
+		fi
+
+		if grep -q '[^0-9]' <<<"$match"; then
+			match="\"$match\""
+		fi
+
+		if grep -q '^[0-9]' <<<"$var"; then
 			var=arr$var
 		fi
 
-		result="$(echo "$JSON" | jq -r ".$match")"
+		result="$(echo "$JSON" | jq -r ".[$match]")"
 		if [ "$result" == null ] && [ "$force" != true ]; then
 			echo >&2 "json_pop: $var not found"
 			returnCode=2
@@ -164,7 +172,7 @@ json_pop() {
 		declare -g $var="$result"
 		debug "var '$var' set to '${!var}'"
 
-		JSON="$(echo "$JSON" | jq "del(.$match)")"
+		JSON="$(echo "$JSON" | jq "del(.[$match])")"
 	done
 
 	if [ -n "$outputVar" ]; then
