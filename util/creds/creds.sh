@@ -4,6 +4,8 @@ source "$TOOLS"/util/shell/base.sh || return 1
 check_is_sourced
 use_tool util/shell/shell.sh
 
+TOOLS_KEYSTORE="/tmp/tools/keystore-$(whoami)"
+
 # A shared frontend for secret management
 keyset() {
 	usage() {
@@ -41,9 +43,10 @@ keyset() {
 		security add-generic-password -a $LOGNAME -s "$1" -w "$2"
 
 	elif command -v pwsh >/dev/null; then
+		debug "keyset: using powershell"
 		pwsh -CommandWithArgs '
 
-		$keystore = $env:TMP ?? "/tmp/keystore"
+		$keystore = $env:TMP ?? "'$TOOLS_KEYSTORE'"
 		if (Test-Path $keystore) {
 			$data = Import-Clixml $keystore
 		} else {
@@ -54,6 +57,7 @@ keyset() {
 		$data | Export-Clixml -Path $keystore
 
 		' "$1" "$2"
+		chmod 600 $TOOLS_KEYSTORE
 
 	else
 		echo >&2 "keyset failed: system unsupported for auto credential management."
@@ -80,7 +84,7 @@ keyget() {
 	elif command -v pwsh >/dev/null; then
 		pwsh -nologo -noprofileloadtime -noprofile -noninteractive -CommandWithArgs '
 
-		$keystore = $env:TMP ?? "/tmp/keystore"
+		$keystore = $env:TMP ?? "'$TOOLS_KEYSTORE'"
 		if (Test-Path $keystore) {
 			$data = Import-Clixml $keystore
 		} else {
