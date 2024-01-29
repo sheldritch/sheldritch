@@ -65,7 +65,9 @@ cat <<-EOF
 ###
 EOF
 
-use_tool install/install_*.sh
+for file in "$TOOLS"/install/install_*.sh; do
+	"$file"
+done
 
 for file in $(find "$TOOLS"/*/ -name '_install.sh'); do
 	echo >&2 "installing $file"

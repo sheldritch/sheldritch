@@ -7,8 +7,8 @@ COPY . /tmp/tools
 WORKDIR /tmp/tools
 RUN for file in $(find */ -name _install.sh); do cp -r --parents "$(dirname $file)" /root; done \
 	&& cp _install.sh /root \
-	&& cp -r install /root \
-	&& cp -r --parents util/shell/ /root
+	&& cp -r install/ /root \
+	&& cp -r --parents util/shell util/linux /root
 
 
 FROM ${DEPENDENCY_PROXY}debian:bullseye-slim
@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y \
 	curl \
 	git \
 	jq \
-	keyutils \
+	ldap-utils \
 	libxml2-utils \
 	magic-wormhole \
 	net-tools \
@@ -49,12 +49,12 @@ RUN apt-get update && apt-get install -y \
 
 # Install NodeJS v16, npm, and Yarn,
 # then install the bitwarden CLI
-RUN curl -sL https://deb.nodesource.com/setup_16.x | bash \
+RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash \
 	&& apt-get install -y nodejs \
 	&& npm install -g yarn \
 	&& yarn global add @bitwarden/cli@2022.6.2
 
-# Install Helm, Kubectl, and Rakubrew
+# Install Helm and Kubectl
 RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash \
 	&& curl -LO https://dl.k8s.io/release/v1.23.0/bin/linux/amd64/kubectl \
 	&& install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
