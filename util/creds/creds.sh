@@ -40,8 +40,8 @@ keyset() {
 	elif command -v security >/dev/null; then
 		security add-generic-password -a $LOGNAME -s "$1" -w "$2"
 
-	elif command -v powershell >/dev/null; then
-		powershell -CommandWithArgs '
+	elif command -v pwsh >/dev/null; then
+		pwsh -CommandWithArgs '
 
 		$keystore = $env:TMP ?? "/tmp/keystore"
 		if (Test-Path $keystore) {
@@ -77,8 +77,8 @@ keyget() {
 	elif command -v security >/dev/null; then
 		security find-generic-password -w -a $LOGNAME -s "$1"
 
-	elif [ $OS == windows ] && command -v powershell >/dev/null; then
-		powershell -nologo -noprofileloadtime -noprofile -noninteractive -CommandWithArgs '
+	elif command -v pwsh >/dev/null; then
+		pwsh -nologo -noprofileloadtime -noprofile -noninteractive -CommandWithArgs '
 
 		$keystore = $env:TMP ?? "/tmp/keystore"
 		if (Test-Path $keystore) {
