@@ -54,18 +54,8 @@ repo() {
 
 _complete_repo() {
 	local cur="${COMP_WORDS[COMP_CWORD]}"
-
-	if [ "$COMP_CWORD" = 1 ]; then
-		@complete_repo_list
-
-	else
-		local IFS=$'\n'
-		COMPREPLY=($(complete_file_path "$(repo_dir "${COMP_WORDS[1]}")" "$cur"))
-	fi
-
-	if ! [ "${#COMPREPLY[@]}" -eq 1 -a -f "${COMPREPLY[0]}" ]; then
-		bash_run compopt -o nospace
-	fi
+	@complete_repo_list
+	bash_run compopt -o nospace
 }
 
 complete -F _complete_repo repo

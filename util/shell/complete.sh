@@ -17,14 +17,18 @@ complete_file_path() {
 			echo >&2 "Error: new-line found in matches! '$file'"
 			echo >&2 "Cannot provide file path list."
 			return 3
-		fi
-		if [[ "$file" =~ (\\Q|\\E) ]]; then
+
+		elif [[ "$file" =~ (\\Q|\\E) ]]; then
 			echo >&2 "Error: \Q or \E found in matches."
 			echo >&2 "Cannot provide file path list."
 			return 3
+
+		elif [[ -d "$file" ]]; then
+			echo "$file/"
+		else
+			echo "$file"
 		fi
 	done
-	ls -p | grep -P "^\Q$Path\E"
 	)
 }
 
