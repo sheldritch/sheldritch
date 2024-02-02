@@ -16,7 +16,7 @@ repo_list() {
 	) | grep /$ | sort -u
 }
 
-alias @complete_repo_list='COMPREPLY=($(compgen -W "$(repo_list)" -- "${COMP_WORDS[COMP_CWORD]}"))'
+alias @complete_repo_list='COMPREPLY=($(compgen -W "$(repo_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))'
 
 _complete_repo_list() {
 	@complete_repo_list
