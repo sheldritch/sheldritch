@@ -1,15 +1,19 @@
 # move around between certain repos
 
+source "$TOOLS/util/shell/base.sh" || return 1
+check_is_sourced
+
 repo_list() {
+	usage() {
+		echo "repo_list: prints directories from all repos"
+	}
 	local repos
 	(
 	IFS=:
 	for repoDir in $REPOS; do
-		cd "$repoDir"
-		repos+="$(echo **/.git) "
+		complete_file_path "$repoDir" "$1"
 	done
-	echo $repos | tr ' ' '\n' | sort -u | sed 's_/\.git__g'
-	)
+	) | grep /$ | sort -u
 }
 
 alias @complete_repo_list='COMPREPLY=($(compgen -W "$(repo_list)" -- "${COMP_WORDS[COMP_CWORD]}"))'
