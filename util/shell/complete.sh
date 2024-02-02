@@ -18,11 +18,6 @@ complete_file_path() {
 			echo >&2 "Cannot provide file path list."
 			return 3
 
-		elif [[ "$file" =~ (\\Q|\\E) ]]; then
-			echo >&2 "Error: \Q or \E found in matches."
-			echo >&2 "Cannot provide file path list."
-			return 3
-
 		elif [[ -d "$file" ]]; then
 			echo "$file/"
 		else
