@@ -1,4 +1,5 @@
 source "$TOOLS/util/shell/base.sh" || return 1
+
 check_is_sourced
 
 # Returns a list of paths in dir '$1' that start with '$2'
@@ -9,21 +10,21 @@ complete_file_path() {
 	Path="$2"
 
 	(
-	cd "$directory"
+	cd "$directory" || return 1
 
 	for file in "$Path"*; do
-		if [ $(echo -n "$file" | wc -l) -gt 0 ]; then
-			echo >&2 "Error: new-line found in matches!"
+		if [[ "$file" =~ $'\n' ]]; then
+			echo >&2 "Error: new-line found in matches! '$file'"
 			echo >&2 "Cannot provide file path list."
 			return 3
 		fi
-
-		if [ -d "$file" ]; then
-			echo "$file/" 
-		elif [ -f "$file" ]; then
-			echo "$file"
+		if [[ "$file" =~ (\\Q|\\E) ]]; then
+			echo >&2 "Error: \Q or \E found in matches."
+			echo >&2 "Cannot provide file path list."
+			return 3
 		fi
 	done
+	ls -p | grep -P "^\Q$Path\E"
 	)
 }
 
