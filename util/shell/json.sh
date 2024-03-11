@@ -31,6 +31,13 @@ jqj() {
 #    	...
 json_it() {
 	local json length
+	usage() {
+		echo >&2 "Iterate over given JSON values"
+		echo >&2 "For example:"
+		echo >&2 "for i in $(json_it "$json"); do"
+		echo >&2 "    	elem="$(jqj "$json" .[$i])"'"
+		echo >&2 "    	..."
+	}
 
 	json="$(args_or_stdin "$@")"
 
