@@ -42,7 +42,7 @@ keyset() {
 	elif command -v security >/dev/null; then
 		security add-generic-password -a $LOGNAME -s "$1" -w "$2"
 
-	elif command -v pwsh >/dev/null; then
+	elif [ "$OS" = windows ] && command -v pwsh >/dev/null; then
 		debug "keyset: using powershell"
 		pwsh -CommandWithArgs '
 
@@ -57,12 +57,25 @@ keyset() {
 		$data | Export-Clixml -Path $keystore
 
 		' "$1" "$2"
-		chmod 600 $TOOLS_KEYSTORE
+		chmod 600 "$TOOLS_KEYSTORE"
 
 	else
-		echo >&2 "keyset failed: system unsupported for auto credential management."
-		return 1
+		touch "$TOOLS_KEYSTORE"
+		chmod 600 "$TOOLS_KEYSTORE"
+
+		local keys
+		keys="$(cat "$TOOLS_KEYSTORE")"
+
+		echo "${keys:-"{}"}" | jq --arg key "$1" --arg value "$2" '.[$key] = $value' > "$TOOLS_KEYSTORE"
 	fi
+
+	if [ -n "$2" -a -n "$timeout" ]; then
+		((
+		sleep "$timeout"
+		keyset -t 1 "$1" ""
+		) & disown)
+	fi
+
 }
 
 # A shared frontend for secret management
@@ -81,10 +94,10 @@ keyget() {
 	elif command -v security >/dev/null; then
 		security find-generic-password -w -a $LOGNAME -s "$1"
 
-	elif command -v pwsh >/dev/null; then
+	elif [ "$OS" = windows ] && command -v pwsh >/dev/null; then
 		pwsh -nologo -noprofileloadtime -noprofile -noninteractive -CommandWithArgs '
 
-		$keystore = $env:TMP ?? "'$TOOLS_KEYSTORE'"
+		$keystore = "'"$TOOLS_KEYSTORE"'"
 		if (Test-Path $keystore) {
 			$data = Import-Clixml $keystore
 		} else {
@@ -96,7 +109,6 @@ keyget() {
 		' "$1"
 
 	else
-		echo >&2 "keyget failed: system unsupported for auto credential management."
-		return 1
+		cat "$TOOLS_KEYSTORE" 2>/dev/null | jq --arg key "$1" -r '.[$key] // ""'
 	fi
 }
