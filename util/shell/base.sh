@@ -125,7 +125,7 @@ if [[ -z "$TOOLS" ]]; then
 fi
 
 # /tmp/tools for tool-related temporary files
-mkdir -p /tmp/tools
+! [[ -d /tmp/tools ]] && mkdir -p /tmp/tools
 
 # Directories storing repos
 if [[ -z "$REPOS" ]]; then
