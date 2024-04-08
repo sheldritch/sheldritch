@@ -21,10 +21,10 @@ else
 fi
 
 # source all non-executable shell scripts
-for file in $(find "$TOOLS" -type f -not -perm $exec -name '*.sh' -not -path "*/.bin/*" ); do
-	grep -q check_is_sourced "$file" || continue
-	[ "$file" = "$TOOLS/tools.sh" ] && continue
-
+for file in $(find "$TOOLS" -type f -not -perm $exec -name '*.sh' -not -path "*/.bin/*"  \
+	| sed "s|$TOOLS/tools.sh||" \
+	| xargs grep -l check_is_sourced)
+do
 	source_once "$file"
 done
 
@@ -36,7 +36,7 @@ add_tools_to_bin() {
 			-o -type f -print `: # print all other files `\
 		)
 	do
-		[ -x "$file" ] || continue
+		[[ -x "$file" ]] || continue
 		ln -sf ".$file" "$TOOLS/.bin" # `find` adds `./` to each $file already
 	done
 	)
