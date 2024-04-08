@@ -624,10 +624,26 @@ quiet() { "$@" >/dev/null 2>/dev/null; }
 stderr() { "$@" >&2; }
 error() {
 	local prefix
-	if funcname -q; then
-		prefix="$(funcname): "
+	if funcname -p 1 -q; then
+		prefix="$(funcname -p 1): "
 	fi
 	echo "Error: $prefix$*" >&2
+}
+
+function su_write() {
+	if [ $# -ne 1 ]; then
+		error "requires one file name as argument"
+		return 1
+	fi
+	sudo tee > /dev/null "$1"
+}
+
+function su_append() {
+	if [ $# -ne 1 ]; then
+		error "requires one file name as argument"
+		return 1
+	fi
+	sudo tee > /dev/null -a "$1"
 }
 
 use_tool util/shell/json.sh
