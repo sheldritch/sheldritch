@@ -12,7 +12,7 @@ elif [[ "$ZSH_VERSION" ]]; then
 fi
 
 
-alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]] }'
+alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
 
 alias check_is_sourced="if ! script_is_sourced; then
 	echo \"You aren't sourcing ${0}. Make sure you are to have its libs available to you.\"
