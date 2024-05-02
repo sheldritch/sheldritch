@@ -31,6 +31,11 @@ keyset() {
 	fi
 
 	if command -v keyctl >/dev/null; then
+		if [ -z "$2" ]; then
+			keyctl purge user "$1" >/dev/null || return 1
+			return
+		fi
+
 		keyctl add user "$1" "$2" @u >/dev/null
 
 		timeout="${timeout:-$((60 * 60 * 2))}"
@@ -60,21 +65,29 @@ keyset() {
 		chmod 600 "$TOOLS_KEYSTORE"
 
 	else
+		if [ -z "$TOOLS_KEYSTORE" ]; then
+			error "TOOLS_KEYSTORE var missing"
+			return 1
+		fi
+
 		touch "$TOOLS_KEYSTORE"
 		chmod 600 "$TOOLS_KEYSTORE"
 
 		local keys
 		keys="$(cat "$TOOLS_KEYSTORE")"
 
-		echo "${keys:-"{}"}" | jq --arg key "$1" --arg value "$2" '.[$key] = $value' > "$TOOLS_KEYSTORE"
+		echo "${keys:-"{}"}" \
+			| jq --arg key "$1" --arg value "$2" '.[$key] = $value' \
+			> "$TOOLS_KEYSTORE"
 	fi
 
 	if [ -n "$2" -a -n "$timeout" ]; then
 		((
 		sleep "$timeout"
 		keyset -t 1 "$1" ""
-		) & disown)
+		) & disown) < /dev/null
 	fi
+
 
 }
 
