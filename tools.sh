@@ -7,6 +7,8 @@ unset TOOLS_SOURCES
 source "$TOOLS/util/shell/base.sh" "$@" || return 1
 check_is_sourced
 
+export MSYS=winsymlinks:nativestrict
+
 # Add things to PATH if not already added
 if command -v yarn >/dev/null; then
 	add_to_path $(sh -c "yarn bin")
