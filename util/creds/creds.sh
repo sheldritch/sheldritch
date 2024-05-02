@@ -82,12 +82,15 @@ keyset() {
 	fi
 
 	if [ -n "$2" -a -n "$timeout" ]; then
-		((
-		sleep "$timeout"
-		keyset -t 1 "$1" ""
-		) & disown) < /dev/null
+		(
+		bash -c "
+			source '$(self_dir)/creds.sh'
+			sleep '$timeout'
+			keyset -t 1 '$1' ''
+		" 2>&1 >/dev/null </dev/null &
+		disown
+		)
 	fi
-
 
 }
 
