@@ -16,10 +16,10 @@ repo_list() {
 	) | grep /$ | sort -u
 }
 
-alias @complete_repo_list='COMPREPLY=($(compgen -W "$(repo_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))'
+_complete_repo_list='COMPREPLY=($(compgen -W "$(repo_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))'
 
 _complete_repo_list() {
-	@complete_repo_list
+	eval "$_complete_repo_list"
 }
 
 # print the directory for a given repo
@@ -54,7 +54,7 @@ repo() {
 
 _complete_repo() {
 	local cur="${COMP_WORDS[COMP_CWORD]}"
-	@complete_repo_list
+	eval "$_complete_repo_list"
 	bash_run compopt -o nospace
 }
 
