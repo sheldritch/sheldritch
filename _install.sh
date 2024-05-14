@@ -66,6 +66,7 @@ cat <<-EOF
 EOF
 
 for file in "$TOOLS"/install/install_*.sh; do
+	echo "$file" | grep -q install_bundle && continue
 	"$file"
 done
 
