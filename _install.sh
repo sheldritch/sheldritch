@@ -57,7 +57,7 @@ set +e
 use_tool util/shell/install.sh
 
 install_basic -c jq jq
-install_basic -c bw bitwarden-cli @bitwarden/cli bw
+install_basic -e winget -c bw bitwarden-cli @bitwarden/cli bw
 
 cat <<-EOF
 ###
