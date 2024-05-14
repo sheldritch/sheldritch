@@ -579,7 +579,7 @@ case $(uname | tr '[:upper:]' '[:lower:]') in
 	darwin*)
 		export OS=mac
 		;;
-	msys* | windows* | cygwin*)
+	msys* | windows* | cygwin* | mingw*_nt-*)
 		export OS=windows
 		;;
 	*)
