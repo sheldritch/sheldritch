@@ -65,15 +65,17 @@ install_first_with() {
 
 			winget)
 				(
-				local wingetOut options choice
+				local wingetOut options choice 
 				set -o pipefail
-				if local wingetOut="$(winget.exe search -e "$pkg" 2>/dev/null | sed 's/.*\r//')"; then
+				if wingetOut="$(winget.exe search -e "$pkg" 2>/dev/null | sed 's/.*\r//')" \
+					&& ! echo "$wingetOut" | grep -q 'No package found'
+				then
 
 					echo "$wingetOut" | head -2 | stderr sed 's/^/\t/'
-					local options="$(echo "$wingetOut" | tail -n -2 | nl)"
+					options="$(echo "$wingetOut" | tail -n -2 | nl)"
 					stderr echo "$options"
 
-					read -p "Enter the number of the package you want to install: " choice
+					read -p "Enter the number of the package you want to install (or enter anything else if no package is acceptable): " choice
 					if source="$(echo "$options" | grep "^ *$choice" | grep -oE '\w+$')"; then
 						winget.exe install -s "$source" --interactive --exact "$pkg" && return
 					fi
@@ -104,7 +106,7 @@ install_first_with() {
 				;;
 
 			npm)
-				if ! quiet npm info "$pkg"; then
+				if quiet npm info "$pkg"; then
 					npm install -g "$pkg" && return
 				fi
 				;;
@@ -129,7 +131,7 @@ install_first_with() {
 		esac
 	done
 
-	return 1
+	return 2
 }
 
 
@@ -139,15 +141,26 @@ install_basic() {
 		print_usage "[options] POSSIBLE_PACKAGE_NAMES..."
 	}
 
+	local command
+	declare -A exclude=()
+
 	@ARGS
 		# a command the package will install. If it already exists, installation will cancel.
 		-c | --command ) command="$2"
-		shift
-		shift
+			shift
+			shift
+			;;
+		# exclude the given installer from being used
+		-e | --exclude ) exclude[$2]=1
+			shift
+			shift
 	@ENDARGS
 
 	for installer in apt winget brew yarn npm snap; do
+		# in the loop to exit if previous installer worked
 		[ "$command" ] && command -v "$command" >/dev/null && return
+
+		[ "${exclude[$installer]}" ] && continue
 		if command -v "$installer" >/dev/null; then
 			install_first_with $installer "$@" && return
 		fi
