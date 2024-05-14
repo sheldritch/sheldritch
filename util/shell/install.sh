@@ -63,6 +63,25 @@ install_first_with() {
 				fi
 				;;
 
+			winget)
+				(
+				local wingetOut options choice
+				set -o pipefail
+				if local wingetOut="$(winget.exe search -e "$pkg" 2>/dev/null | sed 's/.*\r//')"; then
+
+					echo "$wingetOut" | head -2 | stderr sed 's/^/\t/'
+					local options="$(echo "$wingetOut" | tail -n -2 | nl)"
+					stderr echo "$options"
+
+					read -p "Enter the number of the package you want to install: " choice
+					if source="$(echo "$options" | grep "^ *$choice" | grep -oE '\w+$')"; then
+						winget.exe install -s "$source" --interactive --exact "$pkg" && return
+					fi
+				fi
+				)
+				;;
+
+
 			snap) 
 				local confinement
 				confinement="$(snap info --verbose "$pkg" 2>/dev/null |
@@ -127,7 +146,7 @@ install_basic() {
 		shift
 	@ENDARGS
 
-	for installer in apt brew yarn choco snap; do
+	for installer in apt winget brew yarn npm snap; do
 		[ "$command" ] && command -v "$command" >/dev/null && return
 		if command -v "$installer" >/dev/null; then
 			install_first_with $installer "$@" && return
