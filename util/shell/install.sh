@@ -78,7 +78,7 @@ install_first_with() {
 
 			yarn)
 				if ! yarn info "$pkg" 2>/dev/null | grep -q '^error'; then
-					yarn install global "$pkg" &&
+					yarn global add "$pkg" &&
 						command -v bw 2>/dev/null
 						return
 				fi
