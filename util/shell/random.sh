@@ -16,9 +16,13 @@ random_word() {
 	@ENDARGS
 
 	count="${count:-1}"
-	
+
+	if ! [ -f /usr/share/dict/words ]; then
+		sudo apt install wbritish
+	fi
+
 	grep -v "[A-Z']" /usr/share/dict/words \
-		| shuf --random-source=/dev/urandom --repeat --head-count=$count \
+		| shuf --random-source=/dev/random --repeat --head-count=$count \
 		| tr '\n' ' ' | sed 's/ $//'
 }
 
@@ -32,7 +36,7 @@ random_symbol() {
 
 	count="${count:-1}"
 
-	echo "$(tr -dc '!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/urandom | head -c "$count")"
+	echo "$(tr -dc '!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/random | head -c "$count")"
 }
 
 random_digit() {
@@ -45,7 +49,7 @@ random_digit() {
 
 	count="${count:-1}"
 
-	echo "$(tr -dc '0-9' </dev/urandom | head -c "$count")"
+	echo "$(tr -dc '0-9' </dev/random | head -c "$count")"
 }
 
 # A bit of a hacky way to get a random port.
