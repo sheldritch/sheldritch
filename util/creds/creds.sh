@@ -83,13 +83,13 @@ keyset() {
 
 	if [ -n "$2" -a -n "$timeout" ]; then
 		(
-		bash -c "
+		nohup bash -c "
 			source '$(self_dir)/creds.sh'
 			sleep '$timeout'
 			keyset -t 1 '$1' ''
-		" 2>&1 >/dev/null </dev/null &
+		" 2>/dev/null >/dev/null </dev/null &
 		disown
-		)
+		) & disown
 	fi
 
 }
