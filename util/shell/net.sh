@@ -29,9 +29,12 @@ port_wait() {
 			host="$1"
 			port="$2"
 			;;
+		*) 
+			usage >&2
+			return 1
 	esac
 
-	timeout 3 sh -c "until nc -z '$1' '$2'; do sleep 0.05; done"
+	timeout 3 sh -c "until nc -z '$host' '$port'; do sleep 0.05; done"
 }
 
 port_publish() {
