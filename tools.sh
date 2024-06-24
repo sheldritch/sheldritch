@@ -8,6 +8,14 @@ source "$TOOLS/util/shell/base.sh" "$@" || return 1
 check_is_sourced
 
 export MSYS=winsymlinks:nativestrict
+if grep -q enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
+	__browser="cmd.exe /c start"
+	if [ "$BROWSER" -a "$BROWSER" != "$__browser" ]; then
+		echo >&2 "Warning: setting BROWSER as '$__browser' for WSL. To quash this warning, unset BROWSER or set it as '$__browser' yourself."
+	fi
+	export BROWSER="$__browser"
+fi
+
 
 # Add things to PATH if not already added
 if command -v yarn >/dev/null; then
