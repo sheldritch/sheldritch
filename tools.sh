@@ -2,10 +2,13 @@
 # Makes all the shell scripts in `tools` available to the shell
 #
 
+if [ "$TOOLS_SOURCES" ]; then echo >&2 "Note: re-running tools.sh"; fi
 unset TOOLS_SOURCES
 
 source "$TOOLS/util/shell/base.sh" "$@" || return 1
 check_is_sourced
+
+_tools_trace 'Running root tools.sh'
 
 export MSYS=winsymlinks:nativestrict
 if grep -q enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
