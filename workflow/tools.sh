@@ -99,7 +99,12 @@ tool_edit() {
 	for Path in "${paths[@]}"; do
 		matches="$(find "$TOOLS"/* -path "*$Path*")"
 
+		debug matches: "\n$matches"
 		if lines_one "$matches"; then
+			files+=("$matches")
+		elif matches="$(echo "$matches" | grep /$Path)" \
+			&& lines_one "$matches"
+		then
 			files+=("$matches")
 		else
 			files+=("$TOOLS/$Path")
