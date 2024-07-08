@@ -2,6 +2,9 @@
 # Base script utilities
 #
 
+# base.sh is frequently re-run, so enforcing performance is important
+# shellcheck enable=require-double-brackets
+
 # Init
 
 # Ensure the aliases created by this script are available
@@ -11,9 +14,14 @@ elif [[ "$ZSH_VERSION" ]]; then
 	setopt aliases
 fi
 
+alias zsh_run='[[ -z "$ZSH_VERSION" ]] || '
+alias bash_run='[[ -z "$BASH_VERSION" ]] || '
+alias _tools_trace='[[ "$TOOLS_TRACE" ]] && echo >&2 '
 
+# shellcheck disable=SC2142
 alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
 
+# shellcheck disable=SC2139
 alias check_is_sourced="if ! script_is_sourced; then
 	echo \"You aren't sourcing ${0}. Make sure you are to have its libs available to you.\"
 	exit 1
@@ -39,6 +47,7 @@ source_once() {
 	Path="$(realpath -s "$1")"
 
 	if [[ "$TOOLS_SOURCES" =~ "$Path" ]]; then
+		_tools_trace "source_once: skipping export '$Path': Already sourced"
 		return
 	fi
 
@@ -48,6 +57,10 @@ source_once() {
 	fi
 
 	TOOLS_SOURCES+="$(echo -e "\n$Path")" # before source to prevent dependency loops
+	_tools_trace "source_once: sourcing '$Path'"
+	_tools_trace ""
+	_tools_trace "sources currently:"
+	_tools_trace "$TOOLS_SOURCES"
 	source "$1"
 }
 
@@ -72,7 +85,8 @@ use_tool() {
 		echo >&2 "Usage: use_tool [--force] <tool>"
 	fi
 
-	for tool in $TOOLS/$@; do
+	for tool in "$@"; do
+		tool="$TOOLS/$tool"
 
 		if [[ "$TOOLS_SOURCES" =~ "$tool" ]]; then
 			continue
@@ -83,15 +97,20 @@ use_tool() {
 				echo >&2 "Error: refusing to mutate PATH for a sourced script"
 				return 1
 			fi
+			_tools_trace "Importing tools in directory '$tool'"
 			export PATH="$(find "$tool" -type d -printf "%p:")$PATH"
+			source_once "$tool"/*
 		elif [[ -x "$tool" ]]; then
 			if in_tools_root_context; then
 				echo >&2 "Error: refusing to mutate aliases for a sourced script"
 				return 1
 			fi
+			_tools_trace "Importing executable tool '$tool'"
+			# shellcheck disable=SC2139
 			alias "$(basename "$tool")=$tool"
 		else 
 			if [[ "$FORCE" = true ]]; then
+				_tools_trace "Force source tool '$tool'"
 				source "$tool"
 			else 
 				source_once "$tool"
@@ -116,9 +135,20 @@ enable_previous_aliases() {
 
 # Directories/Environment
 
+zsh_run zmodload zsh/parameter
 
-# The directory of the file currently being executed (or viewed, if looking at code)
-alias 'self_dir=( cd "$(dirname $(realpath -s "${BASH_VERSION:+${BASH_SOURCE[0]}}${ZSH_VERSION:+${0:a}}"))" >/dev/null 2>&1 && pwd )'
+self_file() {
+	local level
+	level="${1:-0}"
+	bash_run caller "$level" | awk '{print $3; exit}'
+	# shellcheck disable=all
+	zsh_run echo ${funcfiletrace[$(($level + 1 ))]} | cut -d : -f 1
+}
+
+self_dir() {
+	dirname "$(self_file 1)"
+}
+
 
 if [[ -z "$TOOLS" ]]; then
 	export TOOLS="$(realpath -s $(self_dir)/../../)"

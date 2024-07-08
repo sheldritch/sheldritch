@@ -5,18 +5,6 @@
 source "$TOOLS"/util/shell/base.sh || return 1
 check_is_sourced
 
-zsh_run() {
-	if [ "$ZSH_VERSION" ]; then
-		"$@"
-	fi
-}
-
-bash_run() {
-	if [ "$BASH_VERSION" ]; then
-		"$@"
-	fi
-}
-
 # Print the contents of a given alias. Used for nested aliases.
 alias_print() {
 	eval "alias=$(alias $1 | sed -E 's/^(alias )?'"$1"'=//' )"
