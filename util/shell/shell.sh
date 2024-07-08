@@ -72,6 +72,20 @@ alias '@ARGS_UTIL=
 		break;
 '
 
+alias '@ARGS_END_PASSTHROUGH='"$(alias_print @ARGS_UTIL)"'
+		;;
+	# preserve any unrecognised flags and arguments in the arguments list
+	'*' )
+		echo >&2 "Error: flag $1 not supported"
+		shift
+		safe_quit
+		;;
+	'*' )
+		break
+		;;
+esac; done'
+
+
 alias '@ARGS_END='"$(alias_print @ARGS_UTIL)"'
 		;;
 	'-*' )
