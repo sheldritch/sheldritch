@@ -536,20 +536,22 @@ print_args() {
 
 url_open() {
 	link="$1"
+	if [ "$XDG_SESSION_TYPE" = tty ]; then
+		echo >&2 "Open the following link in your browser:"
+		echo >&2 "$link"
+		return
+	fi
+
+	echo >&2 "Trying to open link in your browser..."
+	echo >&2 "If you don't see the browser open up, manually open the following link in your browser:"
+	echo >&2 "$link"
+
 	if grep -q enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
 		(cd /mnt/c || cd /c && cmd.exe /c start "$link")
-	elif [ "$XDG_SESSION_TYPE" = tty ]; then
-		echo >&2 "Open the following link in your browser:"
-		echo >&2 "$link"
 	elif command -v xdg-open ; then
-		echo >&2 "Trying to open link in your browser."
-		echo >&2 "If you don't see the browser open up, manually open the following link in your browser:"
 		xdg-open "$link"
-		echo >&2 "$link"
 	else
-		echo >&2 "Error: Unknown XDG type: $XDG_SESSION_TYPE"
-		echo >&2 "Open the following link in your browser:"
-		echo >&2 "$link"
+		echo >&2 "Error: no link opener available. Please do so manually."
 	fi
 }
 
