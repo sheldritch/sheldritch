@@ -322,16 +322,36 @@ yesNoToBool() {
 }
 
 confirm() {
-	local question default
+	usage() {
+		echo "confirm: prompt user for yes/no and return the response as an exit code."
+		print_usage "[args...]"
+		echo
+		echo "If input is a pipe, will print input to user before asking."
+		echo "If output is also a pipe, will pass on input iff confirm is true."
+	}
+	local question default echo
 	@ARGS
-		-q | --question | --query | --inquiry | --quiz | -p | --prompt) question="$2"
+		-q | --question | --query | --inquiry | --quiz \
+			| -p | --prompt \
+		) question="$2"
 			shift
 			shift
 			;;
 		-d | --default ) default="$2"
 			shift
 			shift
+			;;
+		# print true/false based on response
+		-e | --echo | -v | --verbose ) echo=true
+			shift
 	@ENDARGS
+
+	local input
+	if ! [ -t 0 ]; then
+		debug 'confirm: piped input'
+		input="$(cat)"
+		echo "$input" >/dev/tty
+	fi
 
 	while true; do
 
@@ -355,17 +375,21 @@ confirm() {
 			promptOpts=y/N
 		fi
 
-		read -p "${question:+$question [$promptOpts]: }" TOOLS_CONFIRM
+		read -rp "${question:+$question [$promptOpts]: }" TOOLS_CONFIRM < /dev/tty
 
 		local response
-		if response="$(yesNoToBool "$TOOLS_CONFIRM")"; then
-			echo "$response"
-			return
-		fi
+		if response="$(yesNoToBool "${TOOLS_CONFIRM:-$default}")"; then
 
-		if [ -z "$TOOLS_CONFIRM" -a -n "$default" ]; then
-			echo "$default"
-			return
+			if ! [ -t 0 -o -t 1 ]; then
+				if isTrue "$response"; then
+					echo "$input"
+				fi
+			elif isTrue $echo; then
+				echo "$response"
+			fi
+
+			isTrue "$response"
+			return $?
 		fi
 
 		echo >&2 "Error: Please reply 'yes' or 'no'"
@@ -388,7 +412,7 @@ diff_confirm() {
 	fi
 
 	echo "$diff" | grep --color=always -E '^.{64}(\||>|<).*|$' # use grep to highlight lines with changes
-	read -p "Do you wish to make these changes? (y/N): " confirm
+	read -rp "Do you wish to make these changes? (y/N): " confirm
 	test "$confirm" = "y"
 }
 

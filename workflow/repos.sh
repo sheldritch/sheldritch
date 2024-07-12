@@ -39,6 +39,7 @@ repo_dir() {
 	)"
 	echo "$repo"
 	zsh_run unsetopt sh_word_split
+	test -d "$repo"
 }
 
 # Will try and cd directly into a repo folder from anywhere on the machine
