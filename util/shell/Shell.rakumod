@@ -1,7 +1,7 @@
 unit module Tools::Util::Shell;
 
 sub cmd(*@cmd, :$stdout, :$proc, :$pipe, :$out = $stdout ?? '-' !! True, *%other) is export {
-	debug "Running command: ", @cmd;
+	debug "Running command: ", @cmd.map({$_ ~~ /<-[\\]>\s/ ?? "'$_'" !! $_});
 
 	# See https://docs.raku.org/routine/run for other available args
 	my $process = run(|@cmd, :$out, |%other);
