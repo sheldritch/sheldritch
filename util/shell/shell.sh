@@ -114,7 +114,8 @@ args_gen_tail() {
 	echo "$ARGS_END"
 }
 
-alias "@DEFAULT_ARGS=$( args_gen "@ARGS_DEFAULT_ARGS_ONLY )" )"
+alias "@ARGS_DEFAULT=$( args_gen "@ARGS_DEFAULT_ARGS_ONLY )" )"
+alias '@DEFAULT_ARGS='"$(alias_print @ARGS_DEFAULT)"
 
 args_quoted() {
 	# from https://unix.stackexchange.com/a/307017
@@ -256,7 +257,7 @@ url_encode() {
 		# or a single whitespace character.
 		#
 		# May work in conjunction with --only-if-escaped or --ignore-escaped.
-		-o | --only | --only-encode)
+		-o | --only | --only-encode )
 			if [ $(echo -n "$2" | wc -c) -eq 1 ]; then
 				onlyEncode+=("$2")
 			else
