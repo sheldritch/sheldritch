@@ -24,14 +24,14 @@ _complete_repo_list() {
 
 # print the directory for a given repo
 repo_dir() {
-	if [ -z "$1" ]; then return 1; fi
+	if [[ -z "$1" ]]; then return 1; fi
 
 	zsh_run setopt sh_word_split
 	local repo
 	repo="$(
 		IFS=:
 		for repoDir in $REPOS; do
-			if [ -d "$repoDir/$1" ]; then
+			if [[ -d "$repoDir/$1" ]]; then
 				echo "$repoDir/$1"
 				break
 			fi
