@@ -16,18 +16,9 @@ alias_print() {
 alias_funcs() {
 	functionMatch="$1"
 	replacement="$2"
-	for func in $(funcs | grep -E "$functionMatch"); do
-		alias $(echo $func | sed -E "s/$functionMatch/$replacement/")=$func
-	done
+
+	alias $(funcs | sed -E -n "s/.*/&=&/; s/$functionMatch/$replacement/p")
 }
-
-zsh_run unsetopt GLOB
-
-# Shorthand structure for defining arguments
-alias '@ARGS=
-local HELP >/dev/null 2>/dev/null || :
-while [ $# -ne 0 ]; do case "$1" in'
-
 
 isFunction() {
 	if [ "$BASH_VERSION" ]; then
@@ -37,9 +28,18 @@ isFunction() {
 	fi
 }
 
-alias '@ARGS_UTIL=
+zsh_run unsetopt GLOB
+
+# Shorthand structure for defining arguments
+ARGS='
+local HELP >/dev/null 2>/dev/null || :
+while [ $# -ne 0 ]; do case "$1" in '
+alias '@ARGS'="$ARGS"
+
+
+local ARGS_UTIL='
 ;;
-# by specifying args before @ENDARGS, you can override the following values
+# by specifying args before @ARGS_END, you can override the following values
 	-h | --help )
 		local HELP >/dev/null 2>/dev/null || :
 		HELP=true # excluding help for compatibility.
@@ -71,8 +71,9 @@ alias '@ARGS_UTIL=
 		shift;
 		break;
 '
+alias @ARGS_UTIL="$ARGS_UTIL"
 
-alias '@ARGS_END_PASSTHROUGH='"$(alias_print @ARGS_UTIL)"'
+local ARGS_END_PASSTHROUGH="$ARGS_UTIL"'
 		;;
 	# preserve any unrecognised flags and arguments in the arguments list
 	'*' )
@@ -85,8 +86,9 @@ alias '@ARGS_END_PASSTHROUGH='"$(alias_print @ARGS_UTIL)"'
 		;;
 esac; done'
 
+alias @ARGS_END_PASSTHROUGH="$ARGS_END_PASSTHROUGH"
 
-alias '@ARGS_END='"$(alias_print @ARGS_UTIL)"'
+ARGS_END="$ARGS_UTIL"'
 		;;
 	'-*' )
 		echo >&2 "Error: flag $1 not supported"
@@ -97,18 +99,19 @@ alias '@ARGS_END='"$(alias_print @ARGS_UTIL)"'
 		break
 		;;
 esac; done'
+alias @ARGS_END="$ARGS_END"
 
-alias '@ENDARGS='"$(alias_print @ARGS_END)"
+alias '@ENDARGS='"$ARGS_END"
 
 args_gen() {
-	echo "$(alias_print @ARGS)"
+	echo "$ARGS"
 	echo "$*"
-	echo "$(alias_print @ENDARGS)"
+	echo "$ARGS_END"
 }
 
 args_gen_tail() {
 	echo "$*"
-	echo "$(alias_print @ENDARGS)"
+	echo "$ARGS_END"
 }
 
 alias "@DEFAULT_ARGS=$( args_gen "@ARGS_DEFAULT_ARGS_ONLY )" )"
@@ -344,7 +347,7 @@ confirm() {
 		# print true/false based on response
 		-e | --echo | -v | --verbose ) echo=true
 			shift
-	@ENDARGS
+	@ARGS_END
 
 	local input
 	if ! [ -t 0 ]; then
@@ -452,7 +455,7 @@ funcname() {
 		-p | --parent) parent="$2"
 			shift
 			shift
-	@ENDARGS
+	@ARGS_END
 
 	# done manually since @ARGS and print_usage use funcname internally
 	if [ "$HELP" = true ]; then
@@ -503,7 +506,7 @@ print_args() {
 		-f | --function ) function="$2"
 			shift
 			shift
-	@ENDARGS
+	@ARGS_END
 
 	if isTrue $HELP; then
 		echo >&2 "Usage: print_args [...args] [filename]"
@@ -536,7 +539,7 @@ print_args() {
 
 	local printArgs="
 	/@ARGS/,$ {
-		/(esac|@ENDARGS)/q;
+		/(esac|@ARGS_END)/q;
 		/@ARGS/d;
 
 		# print each comment and case match
@@ -570,7 +573,7 @@ url_open() {
 	echo >&2 "If you don't see the browser open up, manually open the following link in your browser:"
 	echo >&2 "$link"
 
-	if grep -q enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
+	if grep -sq enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
 		(cd /mnt/c || cd /c && cmd.exe /c start "$link")
 	elif command -v xdg-open ; then
 		xdg-open "$link"
@@ -583,7 +586,7 @@ fmtvar() {
 	@ARGS
 		-u | --upper | --upper-case | --to-upper) upperCase=true
 			shift
-	@ENDARGS
+	@ARGS_END
 
 	# intermediate tr to '-' means existing _s are not squeezed into 1
 	var="$(echo -n $1 | tr -c -s 'A-Za-z0-9_' "-" | tr -- - _)"

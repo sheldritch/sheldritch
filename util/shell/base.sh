@@ -14,6 +14,13 @@ elif [[ "$ZSH_VERSION" ]]; then
 	setopt aliases
 fi
 
+if [[ "$TOOLS_SOURCES" =~ "base.sh" && -z "$TOOLS_RESET" && "$1" != "--force" ]]
+then
+	return
+else
+	TOOLS_SOURCES+="$(echo -e "\nbase.sh")"
+fi
+
 alias zsh_run='[[ -z "$ZSH_VERSION" ]] || '
 alias bash_run='[[ -z "$BASH_VERSION" ]] || '
 alias _tools_trace='[[ "$TOOLS_TRACE" ]] && echo >&2 '
@@ -28,6 +35,13 @@ alias check_is_sourced="if ! script_is_sourced; then
 fi"
 check_is_sourced
 
+check_is_sourced_func() {
+	if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; then
+		echo "You aren't sourcing ${0}. Make sure you are to have its libs available to you."
+		exit 1
+	fi
+}
+
 if ! command -v complete >/dev/null 2>/dev/null; then
 	complete() { return; }
 fi
@@ -36,15 +50,17 @@ fi
 
 add_to_path() {
 	for Path in "$@"; do
-		if ! echo "$PATH" | grep -qF "$Path"; then
+		if ! [[ "$PATH" =~ "$Path" ]]; then
 			export PATH="$PATH:$Path"
 		fi
 	done
 }
 
 source_once() {
-	local Path
-	Path="$(realpath -s "$1")"
+	local Path="$1"
+	if ! [[ "$Path" =~ ^/ ]]; then
+		Path="$(realpath -s "$1")"
+	fi
 
 	if [[ "$TOOLS_SOURCES" =~ "$Path" ]]; then
 		_tools_trace "source_once: skipping export '$Path': Already sourced"
@@ -80,6 +96,8 @@ use_tool() {
 		esac
 	done
 
+	TOOLS_RESET="$FORCE"
+
 	if [[ "$HELP" = true ]]; then
 		echo >&2 "use_tool -- imports the given tool (relative to the tools repo)"
 		echo >&2 "Usage: use_tool [--force] <tool>"
@@ -109,7 +127,7 @@ use_tool() {
 			# shellcheck disable=SC2139
 			alias "$(basename "$tool")=$tool"
 		else 
-			if [[ "$FORCE" = true ]]; then
+			if [[ "$TOOLS_RESET" = true ]]; then
 				_tools_trace "Force source tool '$tool'"
 				source "$tool"
 			else 
@@ -117,6 +135,11 @@ use_tool() {
 			fi
 		fi
 	done
+
+	if [[ "$FORCE" ]]; then
+		TOOLS_RESET=""
+	fi
+
 }
 
 # temporarily unset aliases, so they don't interfere with a helper script
@@ -148,7 +171,6 @@ self_file() {
 self_dir() {
 	dirname "$(self_file 1)"
 }
-
 
 if [[ -z "$TOOLS" ]]; then
 	export TOOLS="$(realpath -s $(self_dir)/../../)"

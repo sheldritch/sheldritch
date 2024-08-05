@@ -207,7 +207,3 @@ complete -F _completion_tool_list tool_commit
 tool_push() {
 	( cd "$TOOLS"; git push )
 }
-
-tool_sync() {
-	source "$TOOLS/tools.sh" --sync
-}
