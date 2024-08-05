@@ -208,6 +208,41 @@ contains() {
   return 1
 }
 
+item() {
+	usage() {
+		print_usage "perform a check or operation of a single value against a given list"
+	}
+	@ARGS_DEFAULT
+	local item="$1" operator="$2"
+	shift 2 || return 1
+
+	case "$operator" in
+		not)
+			item "$item" "$@"
+			local exit="$?"
+			case $exit in
+				9) return 9;;
+				0) return 1;;
+				*) return 0;;
+			esac
+			;;
+		in)
+			for element in "$@"; do
+				if [[ "$element" = "$item" ]]; then
+					return 0
+				fi
+			done
+			;;
+		*)
+			error "operator '$operator' not supported"
+			echo >&2 "  Inside function '$(funcname -p 1 )'"
+			return 9
+	esac
+	return 1 # If ya wanted tuh succeed ya shoulda done it earlia!!
+}
+
+
+# shellcheck disable=SC1056
 url_encode() {
 	usage() {
 		print_usage "[options] [TEXT_TO_ENCODE...]"
