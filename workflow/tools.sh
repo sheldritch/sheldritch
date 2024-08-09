@@ -64,7 +64,7 @@ tool_edit() {
 				shift
 
 				local file= matches=
-				matches="$(cd "$TOOLS"; grep -rno "^$function(")"
+				matches="$(cd "$TOOLS"; grep -rno -e "^$function(" -e "^alias $function=")"
 
 				if lines_none "$file"; then
 					matches="$(cd "$TOOLS"; grep -rno "$function\w*(")"
