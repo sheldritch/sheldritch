@@ -11,7 +11,7 @@ mkdir -p $SEMS
 
 # initialize a semaphore with a given number of tokens
 async_sem(){
- 	SEM="3"
+	SEM="16" # Leave small fds for safety
  	while [ -e /dev/fd/$SEM ]; do
  		SEM=$(($SEM + 1))
  	done
@@ -24,15 +24,22 @@ async_sem(){
     for ((;i>0;i--)); do
         printf %s 000 >&"${SEM}"
     done
+
+	if [ "$2" ]; then
+		declare -g "$2"="$SEM"
+	fi
 }
 
 async_wait() {
 	local x
-	read -u "${SEM}" -n 3 x && ((0==x)) || return $x
+	read -u "${1:-$SEM}" -n 3 x && ((0==x)) || return $x
 }
 
 async_done() {
-	printf '%.3d' $? >&"${SEM}"
+	exit=$?
+	local sem="${1:-$SEM}"
+	printf '%.3d\n' $exit >&"$sem" || return $?
+	_tools_trace "async: released semaphore $sem"
 }
 
 async_batch() {
@@ -41,7 +48,7 @@ async_batch() {
 		print_usage '[options] --for VAR "COMMAND CONTAINING $VAR" ELEMENTS...'
 	}
 
-	local threads
+	local threads variable indexVar exit verbose
 	@ARGS
 		-n | -t | --threads ) threads="$2"
 			shift
@@ -51,19 +58,133 @@ async_batch() {
 		-v | --for | --variable ) variable="$2"
 			shift
 			shift
+			;;
+
+		-i | --index) indexVar="$2"
+			shift
+			shift
+			;;
+
+		-e | --exit ) exit=true
+			shift
+			;;
+
+		-V | --verbose ) verbose=true
+			shift
 	@ENDARGS
 
 	threads="${threads:-$(lscpu | awk '/^CPU\(s):/ {print $2}')}"
 	command="$1"
 	shift
 
-	async_sem $threads || return 1
-	for ASYNC_BATCH_ITERATOR in "$@"; do
-		if [ "$variable" ]; then
-			local "$variable=$ASYNC_BATCH_ITERATOR"
+	if [[ $# -eq 0 ]]; then
+		error "No arguments provided"
+		return 1
+	fi
+	for var in ASYNC_BATCH_INDEX ASYNC_BATCH_ELEMENT; do
+		if [ "${!var}" ]; then
+			error "$var must not be set!!"
+			return 9
 		fi
-		async_wait
-		echo >&2 "variable '$variable' is ${!variable}"
-		eval "{ $command; async_done; } &"
+	done
+
+	async_sem $threads ASYNC_BATCH_SEM || return 9
+	local ASYNC_BATCH_INDEX=1 ASYNC_BATCH_ELEMENT
+	for ASYNC_BATCH_ELEMENT in "$@"; do
+		if [ "$variable" ]; then
+			local "$variable=$ASYNC_BATCH_ELEMENT"
+		fi
+
+		if [ "$indexVar" ]; then
+			local "$indexVar=$ASYNC_BATCH_INDEX"
+		fi
+		if ! async_wait $ASYNC_BATCH_SEM; then
+			local code=$?
+			if isTrue $exit; then
+				return $code
+			fi
+		fi
+
+		debug "variable '$variable' is ${!variable}"
+		if isTrue $verbose; then
+			echo >&2 "Batching item '$ASYNC_BATCH_INDEX', value '$ASYNC_BATCH_ELEMENT'"
+		fi
+
+		eval "{
+			DEBUG=$DEBUG
+			$command
+			async_done $ASYNC_BATCH_SEM
+		} &"
+		((ASYNC_BATCH_INDEX++))
 	done 
+
+	eval "exec ${ASYNC_BATCH_SEM}>&-"
+}
+
+async_cat() {
+	local tmp=/tmp/tools/async/ dir
+	mkdir -p $tmp
+	dir="$(mktemp -d -p $tmp)"
+
+	__cleanup() {
+		eval "exec $cat>&-"
+		if ! isTrue $DEBUG; then
+			rm -r $dir
+		fi
+	}
+
+	local ordered
+	local threads variable indexVar exit verbose
+	@ARGS
+
+		-o | --preserve-order ) ordered=true
+			shift
+			;;
+
+		# async_batch args
+		
+		-n | -t | --threads ) threads="$2"
+			shift
+			shift
+			;;
+
+		-v | --for | --variable ) variable="$2"
+			shift
+			shift
+			;;
+
+		-e | --exit ) exit=true
+			shift
+			;;
+
+		-V | --verbose ) verbose=true
+			shift
+	@ENDARGS
+
+	local command="$1"
+	shift
+
+	async_sem 1 cat || return 9
+	file="$dir/\$ASYNC_BATCH_INDEX"
+	(
+	async_batch $(arg_bool exit verbose) -t "$threads" --for "$variable" "
+		
+		{ $command; } >$file
+		if ! isTrue $ordered; then
+			async_wait $cat
+			_tools_trace async_cat: fd $cat locked for i=$file
+			cat $file
+			async_done $cat
+			_tools_trace async_cat: fd $cat freed by i=$file
+		fi
+	" "$@"
+
+	wait
+	cd $dir
+	if isTrue $ordered; then
+		seq 1 $# | xargs cat
+	fi
+	)
+	wait
+	__cleanup
 }
