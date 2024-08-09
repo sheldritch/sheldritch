@@ -145,11 +145,10 @@ isTrue() {
 		fi
 
 		if [ "$bool" != true ]; then
-			echo >&2 "Warning!: isTrue argument '$bool' is not 'true', 'false' or ''!"
+			warn -p 1 "isTrue argument '$bool' is not 'true', 'false' or ''!"
 			echo >&2 "!!!"
-			echo >&2 "inside function $(funcname -p 1)"
 			sleep 1
-			return 1
+			return 9
 		fi
 	done
 }
@@ -636,9 +635,13 @@ fmtvar() {
 
 # Outputs an argument flag for the given variable name, if and only if that variable is set to `true`
 arg_bool() {
-	if isTrue ${!1}; then
-		echo --"$(echo "$1" | sed 's/[A-Z]/-\L&/g')"
-	fi
+	local __x
+	for __x in "$@"; do
+		# This works, despite questions you might have about variable scope
+		if isTrue ${!__x}; then
+			echo --"$(echo "$__x" | sed "s/[A-Z]/-\L&/g")"
+		fi
+	done
 }
 
 case $(uname | tr '[:upper:]' '[:lower:]') in
@@ -691,13 +694,29 @@ now() { echo "$(date +%S.%N)"; }
 
 quiet() { "$@" >/dev/null 2>/dev/null; }
 stderr() { "$@" >&2; }
-error() {
-	local prefix
-	if funcname -p 1 -q; then
-		prefix="$(funcname -p 1): "
+
+_genfunc_log() {
+	eval $1'() {
+	local parent
+	@ARGS
+		-p | --parent ) parent="$2"
+			shift
+			shift
+	@ARGS_END
+
+	parent="$((${parent:-0} + 1))"
+
+	local func
+	if funcname -p $parent -q; then
+		func="$(funcname -p $parent): "
 	fi
-	echo "Error: $prefix$*" >&2
+	echo '"$2"'": $func$*" >&2
+	}
+	'
 }
+_genfunc_log log   Info
+_genfunc_log error Error
+_genfunc_log warn  Warning
 
 function su_write() {
 	if [ $# -ne 1 ]; then
