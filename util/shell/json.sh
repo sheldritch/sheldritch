@@ -25,6 +25,22 @@ jqj() {
 	echo "$json" | jq "$@"
 }
 
+json_obj() {
+
+	local key value query
+	while key="$1" value="$2" && shift 2; do
+		if [[ "$value" =~ ^([-+.0-9e]+|true|false|null)$ ]]; then
+			warn 'Only string values currently supported'
+		fi
+		if [[ "$value" =~ ^[({].*[)}]$ ]]; then
+			warn 'Only string values currently supported'
+			warn 'nested objects/arrays can be supplied by using a key name like objectKey.fieldKey.0'
+		fi
+		query+=".$key = \"$value\" | "
+	done
+	jq -n "$query ."
+}
+
 # Iterate over given JSON values
 # eg for i in $(json_it "$json"); do
 #    	elem="$(jqj "$json" .[$i])"'
