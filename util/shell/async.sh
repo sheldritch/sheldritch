@@ -51,10 +51,11 @@ async_done() {
 async_batch() {
 	usage() {
 		echo >&2 'Usage: async_batch [options] COMMAND ELEMENTS...'
+		echo >&2 'Usage: async_batch [options] -f COMMAND_FILE ELEMENTS...'
 		print_usage '[options] --for VAR "COMMAND CONTAINING $VAR" ELEMENTS...'
 	}
 
-	local threads variable indexVar exit verbose
+	local threads variable indexVar exit verbose file
 	@ARGS
 		-n | -t | --threads ) threads="$2"
 			shift
@@ -71,6 +72,11 @@ async_batch() {
 			shift
 			;;
 
+		-f | --file) file="$2"
+			shift
+			shift
+			;;
+
 		-e | --exit ) exit=true
 			shift
 			;;
@@ -79,9 +85,18 @@ async_batch() {
 			shift
 	@ENDARGS
 
+	if [ "$TOOLS_TRACE" ]; then
+		verbose=true
+	fi
+
 	threads="${threads:-$(lscpu | awk '/^CPU\(s):/ {print $2}')}"
-	command="$1"
-	shift
+
+	if [ -n "$file" ]; then
+		command="$(cat "$file")"
+	else
+		command="$1"
+		shift
+	fi
 
 	if [[ $# -eq 0 ]]; then
 		error "No arguments provided"
@@ -149,7 +164,7 @@ async_cat() {
 	}
 
 	local ordered
-	local threads variable indexVar exit verbose
+	local threads variable indexVar exit verbose file
 	@ARGS
 
 		-o | --preserve-order ) ordered=true
@@ -168,6 +183,11 @@ async_cat() {
 			shift
 			;;
 
+		-f | --file) file="$2"
+			shift
+			shift
+			;;
+
 		-e | --exit ) exit=true
 			shift
 			;;
@@ -176,8 +196,12 @@ async_cat() {
 			shift
 	@ENDARGS
 
-	local command="$1"
-	shift
+	if [ -n "$file" ]; then
+		command="$(cat "$file")"
+	else
+		command="$1"
+		shift
+	fi
 
 	async_sem 1 cat || return 9
 	file="$dir/\$ASYNC_BATCH_INDEX"
