@@ -11,6 +11,8 @@ stages:
 test-tools:
   image: registry.workingmouse.com.au/workingmouse/projects/internal/tools:latest
   stage: test
+  variables:
+    CONTAINER_IMAGE_TAG: latest
   rules:
     - when: always
   script:
