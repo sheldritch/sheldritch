@@ -8,10 +8,6 @@ stages:
   - test
   - package
 
-workflow:
-  rules:
-    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
-
 variables:
     DISABLE_PACKAGE: "true"
 
@@ -26,10 +22,12 @@ test-tools:
 package-tools:
   extends:
     - .package-docker
+  rules:
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
 
 package-bw:
   extends:
-    - .package-docker
+    - package-tools
   variables:
     DOCKER_CONTEXT: ./services/bitwarden/
     CONTAINER_IMAGE_PATH: /bw
@@ -41,7 +39,7 @@ package-bw:
 
 package-mattermost-message-scheduler:
   extends:
-    - .package-docker
+    - package-tools
   variables:
     DOCKER_CONTEXT: ./services/mattermost/message-scheduler/
     CONTAINER_IMAGE_PATH: /mattermost.message-scheduler
