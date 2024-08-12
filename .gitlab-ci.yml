@@ -5,6 +5,7 @@ include:
     file: "/shared/core/package-docker.yml"
 
 stages:
+  - test
   - package
 
 workflow:
@@ -13,6 +14,11 @@ workflow:
 
 variables:
     DISABLE_PACKAGE: "true"
+
+test:
+  stage: test
+  script:
+    - export TOOLS=. && source tools.sh && source _test.sh
 
 package-tools:
   extends:
