@@ -8,9 +8,6 @@ stages:
   - test
   - package
 
-variables:
-    DISABLE_PACKAGE: "true"
-
 test-tools:
   image: registry.workingmouse.com.au/workingmouse/projects/internal/tools:latest
   stage: test
