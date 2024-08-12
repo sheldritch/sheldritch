@@ -1,8 +1,8 @@
 
 include:
   - project: "workingmouse/devops/gitlab-pipelines"
-    ref: "1.7.3.1"
-    file: "/shared/core/package-docker.yml"
+    ref: "feature/2.0"
+    file: "/package/docker.yml"
 
 stages:
   - test
@@ -21,7 +21,7 @@ test-tools:
 
 package-tools:
   extends:
-    - .package-docker
+    - .package:docker
   rules:
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
 
