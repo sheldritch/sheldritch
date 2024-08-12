@@ -11,8 +11,6 @@ stages:
 test-tools:
   image: registry.workingmouse.com.au/workingmouse/projects/internal/tools:latest
   stage: test
-  variables:
-    CONTAINER_IMAGE_TAG: latest
   rules:
     - when: always
   script:
@@ -21,6 +19,8 @@ test-tools:
 package:docker:
   rules:
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+  variables:
+    CONTAINER_IMAGE_TAG: latest
 
 package-bw:
   extends:
