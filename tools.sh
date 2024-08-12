@@ -88,7 +88,7 @@ tool_sync() {
 		(add_tools_to_bin &)
 	fi
 
-	if [[ "$PATH" =~ "$TOOLS/.bin" ]]; then
+	if ! [[ "$PATH" =~ "$TOOLS/.bin" ]]; then
 		PATH="$TOOLS/.bin:$PATH"
 	fi
 }
