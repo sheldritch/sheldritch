@@ -17,6 +17,8 @@ variables:
 
 test:
   stage: test
+  rules:
+    - always
   script:
     - export TOOLS=. && source tools.sh && source _test.sh
 
