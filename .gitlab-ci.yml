@@ -15,7 +15,7 @@ workflow:
 variables:
     DISABLE_PACKAGE: "true"
 
-test:
+test-tools:
   stage: test
   rules:
     - when: always
