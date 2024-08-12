@@ -29,14 +29,10 @@ json_obj() {
 
 	local key value query
 	while key="$1" value="$2" && shift 2; do
-		if [[ "$value" =~ ^([-+.0-9e]+|true|false|null)$ ]]; then
-			warn 'Only string values currently supported'
+		if ! jq -n "$value" >/dev/null 2>&1; then
+			value="\"$value\""
 		fi
-		if [[ "$value" =~ ^[({].*[)}]$ ]]; then
-			warn 'Only string values currently supported'
-			warn 'nested objects/arrays can be supplied by using a key name like objectKey.fieldKey.0'
-		fi
-		query+=".$key = \"$value\" | "
+		query+=".$key = $value | "
 	done
 	jq -n "$query ."
 }
