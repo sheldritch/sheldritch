@@ -25,7 +25,7 @@ tool_sync() {
 	done
 
 	if [[ -z "$noClear" ]]; then
-		if [[ "$TOOLS_SOURCES" ]]; then echo >&2 "Note: re-running tools.sh"; fi
+		if [[ "$TOOLS_SOURCES" =~ "shell.sh" ]]; then echo >&2 "Note: re-running tools.sh"; fi
 		unset TOOLS_SOURCES
 	fi
 
