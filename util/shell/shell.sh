@@ -241,6 +241,12 @@ item() {
 	return 1 # If ya wanted tuh succeed ya shoulda done it earlia!!
 }
 
+function join_by {
+  local d=${1-} f=${2-}
+  if shift 2; then
+    printf %s "$f" "${@/#/$d}"
+  fi
+}
 
 # shellcheck disable=SC1056
 url_encode() {
