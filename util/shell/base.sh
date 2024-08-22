@@ -23,7 +23,7 @@ fi
 
 alias zsh_run='[[ -z "$ZSH_VERSION" ]] || '
 alias bash_run='[[ -z "$BASH_VERSION" ]] || '
-alias _tools_trace='[[ "$TOOLS_TRACE" ]] && echo >&2 '
+alias _tools_trace='[[ -v TOOLS_TRACE && "$TOOLS_TRACE" ]] && echo >&2 '
 
 # shellcheck disable=SC2142
 alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
