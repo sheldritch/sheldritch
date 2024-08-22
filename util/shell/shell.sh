@@ -171,6 +171,21 @@ isNull() {
 	done
 }
 
+ternary() {
+	eval "$1" && echo "$2" || echo "$3"
+}
+?:() {
+	ternary "$@"
+}
+
+ifdef() {
+	if [[ $# -gt 3 ]]; then
+		error -p 2 "wrong argument count to ifdef (:+)"
+		return 9
+	fi
+	[[ -n "$1" ]] && echo "$2" || echo "$3"
+}
+:+ () { ifdef "$@"; }
 
 alias check_var_set='__check_var_set() {
 	for var in "$@"; do
@@ -347,10 +362,10 @@ find_bin() {
 }
 
 yesNoToBool() {
-	case "$1" in
-		[yY] | [Yy]es | true | correct) echo "true"
+	case "${1,,}" in
+		y | yes | true | correct) echo "true"
 			;;
-		[nN] | [Nn]o | false | incorrect) echo "false"
+		n | no | false | incorrect) echo "false"
 			;;
 		*)
 			echo "null"
