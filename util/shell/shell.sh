@@ -5,6 +5,10 @@
 source "$TOOLS"/util/shell/base.sh || return 1
 check_is_sourced
 
+use_tool util/shell/args.sh
+
+alias var_is_local='local >/dev/null 2>&1 -p'
+
 # Print the contents of a given alias. Used for nested aliases.
 alias_print() {
 	eval "alias=$(alias $1 | sed -E 's/^(alias )?'"$1"'=//' )"
