@@ -2,7 +2,6 @@ source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
 
 use_tool util/shell/shell.sh
-use_tool services/bitwarden/bitwarden.sh
 
 curl_json() {
 	curl -X POST -H 'Content-Type: application/json' "$@"
@@ -51,4 +50,18 @@ port_publish() {
 	socat tcp-listen:$publicPort,reuseaddr,fork tcp:0.0.0.0:$privatePort $(isTrue $verbose || echo >/dev/null) &
 	port_wait $publicPort
 }
+
+ip_local() {
+	case $OS in
+		linux) ip route get 1 | perl -ne ' /src (\S+)/ && print "$1\n" ';;
+		mac) ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk 'NR == 1 {print $2}' ;;
+		*) echo >&2 "Error: ip_local: Unspported operating system. Please update the function to add support."; return 1 ;;
+	esac
+}
+alias ipl=ip_local
+
+ip_public() {
+	curl ifconfig.me
+}
+alias ipp=ip_public
 
