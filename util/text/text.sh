@@ -28,6 +28,39 @@ tgrep() {
 	echo "$input" | sed 1d | grep "$@"
 }
 
+# This function is very optimised, so excuse the weird structure
+replace() {
+	local match="$1" replacement="$2"
+	local in="$3" out="" captures=""
+
+	# check for capture groups
+	local _="$replacement"
+	while [[ "$_" =~ ^(.*)\\([0-9])(.*) ]]; do
+		#captures+=" ${BASH_REMATCH[2]}"
+		captures+=" ${BASH_REMATCH[2]}"
+		_="${BASH_REMATCH[3]}"
+	done
+
+	# for x in 0 1 2 3 4 5 6 7 8 9; do
+	# 	if [[ "$replacement" =~ \\$x ]]; then
+	# 		captures+=" $x"
+	# 	fi
+	# done
+
+	while [[ "$in" =~ $1 ]]; do
+		local match="${BASH_REMATCH[0]}" sub="$2"
+
+		for x in $captures; do
+			sub="${sub/\\$x/${BASH_REMATCH[$x]}}"
+		done
+
+		printf "%s%s" "${in%%"$match"*}" "$sub"
+		in="${in#*"$match"}"
+	done
+	printf '%s\n' "$in"
+}
+s() { replace "$@"; }
+
 case_sep() {
 	local sep="$1"
 	shift || return 9
