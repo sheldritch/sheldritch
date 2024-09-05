@@ -5,19 +5,13 @@ use Term::ANSIColor;
 use List::Util qw/shuffle/;
 use Getopt::Long;
 
-our %colorCode;
-our @colors;
-our @matches;
+our (%colorCode, @colors, @matches);
 
 BEGIN {
-	our @matches;
-
 	GetOptions("match=s" => \@matches)
 		or die("Error in command line arguments\n");
 
-	if (!@matches) {
-		@matches[0] = shift(@ARGV);
-	}
+	$matches[0] ||= shift(@ARGV);
 
 	our @colors = (
 		8 .. 16, # 16-color bold set
@@ -30,12 +24,8 @@ BEGIN {
 }
 
 sub colorMatch {
-	my ($str) = @_;
-	my $color = $colorCode{$str};
-	if (!$color) {
-		$color = $colorCode{$str} = shift(@colors);
-	}
-	return colored( $str, "ansi$color");
+	my $color = $colorCode{$_[0]} ||= shift(@colors);
+	return colored($_[0], "ansi$color");
 }
 
 foreach my $match ( @matches ) {
