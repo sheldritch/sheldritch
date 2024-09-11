@@ -146,7 +146,7 @@ async_batch() {
 
 		if [ -n "$variable" ]; then
 
-			if ! [[ "$command" =~ \${?$variable ]]; then
+			if ! [[ "$command" =~ "$"\{?"$variable" ]]; then
 				error "parameter '$variable' requested, but not found in given command."
 				echo >&2 "Did you appropriately escape the dollar sign? Command as evaluated was:"
 				echo >&2 '```'
@@ -295,12 +295,16 @@ async_cat() {
 	" "$@"
 
 	wait
+	)
+	local exitCode="$?"
 
+	(
 	cd $dir
 	if isTrue $ordered; then
 		seq 1 $# | xargs cat
 	fi
 	)
-	wait
+
 	__cleanup
+	return "$exitCode"
 }
