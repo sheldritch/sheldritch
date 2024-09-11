@@ -31,6 +31,13 @@ tgrep() {
 # This function is very optimised for short, frequent runs
 # so excuse the weird structure
 replace() {
+
+	# Okay, I know I just said 'very optimised', but like, it does not scale in the slightest.
+	if [[ "${#3}" -gt 500 ]]; then
+		printf "%s" | sed -E "s/$1/$2"
+		return
+	fi
+
 	local match="$1" replacement="$2"
 	local in="$3" out="" captures=""
 
