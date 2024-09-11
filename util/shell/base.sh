@@ -218,7 +218,7 @@ stderr() { "$@" >&2; }
 _genfunc_log() {
 	eval "$1"'() {
 	local parent
-	while [[ "$1" =~ "^-" ]]; do
+	while [[ "$1" =~ ^- ]]; do
 		case "$1" in
 			-p | --parent ) parent="$2"
 				shift
