@@ -8,10 +8,10 @@ use_tool util/shell/args.sh
 #
 
 isFunction() {
-	if [ "$BASH_VERSION" ]; then
-		test "$(type -t "$1")" = function
-	elif [ "$ZSH_VERSION" ]; then
-		test "$(whence -w)" = function
+	if [[ "$BASH_VERSION" ]]; then
+		[[ "$(type -t "$1")" = function ]]
+	elif [[ "$ZSH_VERSION" ]]; then
+		[[ "$(whence -w)" = function ]]
 	fi
 }
 
@@ -117,10 +117,10 @@ isNull() {
 }
 
 yesNoToBool() {
-	case "$1" in
-		[yY] | [Yy]es | true | correct) echo "true"
+	case "${1,,}" in
+		y | yes | true | correct) echo "true"
 			;;
-		[nN] | [Nn]o | false | incorrect) echo "false"
+		n | no | false | incorrect) echo "false"
 			;;
 		*)
 			echo "null"

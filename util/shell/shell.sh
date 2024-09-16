@@ -138,6 +138,7 @@ url_open() {
 	fi
 }
 
+# TODO: replace with args.sh case_
 fmtvar() {
 	@ARGS
 		-u | --upper | --upper-case | --to-upper) upperCase=true
