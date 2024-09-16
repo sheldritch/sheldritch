@@ -4,53 +4,49 @@ check_is_sourced
 use_tool util/shell/shell.sh
 use_tool util/shell/random.sh
 
-SEMS=/tmp/tools/async/semaphores
+SEMS=/tmp/$USER/tools/async/semaphores
 mkdir -p $SEMS
 
 # modified from https://unix.stackexchange.com/a/216475
 
 # initialize a semaphore with a given number of tokens
 async_sem() {
+	
+	local _sem
+	_sem="$(random_char -c 8 'A-Za-z0-9')"
 
-	if ! declare -p $2 >/dev/null; then
-		error "variable '$2' must be declared beforehand"
-		echo >&2 "Please call 'local $2' above this function call, and 'declare -r $2' afterwards."
-		return 9
-
-	elif [[ -n "${!2}" ]]; then
-		error "'$2' Must be a fresh variable, do not set it to some initial value."
-		return 9
-
-	elif [ "$2" = _sem ]; then
-		error variable cannot be _sem
-		return 9
+	if [[ -n "$2" ]]; then
+		safe_set "$2" _sem || return $?
 	fi
 
-	local _sem="16" # Leave small fds for safety
- 	while [ -e /dev/fd/$_sem ]; do
- 		_sem=$(($_sem + 1))
- 	done
+	local fifo="$SEMS/$_sem"
+	mkfifo $fifo
 
-	id="$(random_digit -c 8)"
-    mkfifo $SEMS/$id
-    eval "exec ${_sem}<>$SEMS/$id"
-    rm $SEMS/$id
-    local i=$1
-    for ((;i>0;i--)); do
-        printf %s 000 >&"${_sem}"
-    done
+	(
+	local i=$1
+	for ((;i>0;i--)); do
+		flock $fifo printf '%s' 000 >>$fifo
+	done &
+	disown
+	)
 
-	eval $2="$_sem"
+	if [[ -z "$2" ]]; then
+		printf '%s\n' "$_sem"
+	fi
 }
 
 async_close() {
-	eval "exec ${1}>&-"
+	rm "$SEMS/$1"
 }
 
 async_wait() {
-	local sem="${1:-$SEM}"
-	_tools_trace "Awaiting sem '$sem' to be freed"
-	if ! read -u "$sem" -N 3 ASYNC_LAST_EXIT; then
+	if ! [[ -p "$SEMS/$1" ]]; then
+		error "could not find async id $1"
+		return 9
+	fi
+
+	_tools_trace "Awaiting sem '$1' to be freed"
+	if ! read -N 3 ASYNC_LAST_EXIT <"$SEMS/$1"; then
 		error "read returned error '$?'"
 		return 9
 	fi
@@ -59,9 +55,12 @@ async_wait() {
 }
 
 async_done() {
-	exit=${2:-$?}
+	local exit=${2:-$?}
 	local sem="${1:-$SEM}"
-	printf '%.3d' $exit >&"$sem" || return $?
+	(
+	flock "$SEMS/$sem" printf '%.3d' $exit >>"$SEMS/$sem" &
+	disown
+	)
 	_tools_trace "async: released semaphore $sem"
 }
 
@@ -211,7 +210,6 @@ async_cat() {
 
 	__cleanup() {
 		async_close $cat
-		eval "exec $cat>&-"
 		if ! isTrue $DEBUG; then
 			rm -r $dir
 		fi

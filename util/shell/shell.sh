@@ -178,6 +178,24 @@ function su_append() {
 	sudo tee > /dev/null -a "$1"
 }
 
+safe_set() {
+	if ! declare -p $1 >/dev/null; then
+		error "variable '$1' must be declared beforehand"
+		echo >&2 "Please call 'local $1' above this function call, and 'declare -r $1' afterwards."
+		return 9
+
+	elif [[ -n "${!1}" ]]; then
+		error "'$1' Must be a fresh variable, do not set it to some initial value."
+		return 9
+
+	elif [ "$1" = "$2" ]; then
+		error variable cannot be "$2"
+		return 9
+	fi
+
+	eval $1="${!2}"
+}
+
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
 [[ -f util/system/$OS.sh ]] && use_tool util/system/$OS.sh

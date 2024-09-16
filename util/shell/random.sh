@@ -26,6 +26,28 @@ random_word() {
 		| tr '\n' ' ' | sed 's/ $//'
 }
 
+random_hex() {
+	local count
+	@ARGS
+	  -c | --count ) count="$2"
+		shift
+		shift
+	@ENDARGS
+
+	openssl rand -hex $count
+}
+
+random_char() {
+	local count
+	@ARGS
+	  -c | --count ) count="$2"
+		shift
+		shift
+	@ENDARGS
+
+	tr -dc "${1:-[:print:]}" </dev/random | head -c "${count:-1}"
+}
+
 random_symbol() {
 	local count
 	@ARGS
@@ -36,7 +58,7 @@ random_symbol() {
 
 	count="${count:-1}"
 
-	echo "$(tr -dc '!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/random | head -c "$count")"
+	tr -dc '!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/random | head -c "$count"
 }
 
 random_digit() {
@@ -57,7 +79,7 @@ random_port() {
 	local port
 	while true; do
 		# 10# means in base 10
-		port=$(( 10#$(random_digit -c 5) / 2 + 1024 ))
+		port=$(( 10#$RANDOM + 32000 ))
 		command -v netstat >/dev/null || break
 		netstat --listening | grep -q $port || break
 	done
