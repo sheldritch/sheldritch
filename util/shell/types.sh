@@ -24,7 +24,7 @@ funcs() {
 }
 
 # WARNING!
-# funcname should not use any helper functions internally
+# `funcname` should not use any other helper functions
 # except print_args
 funcname() {
 	local quiet parent
@@ -202,3 +202,20 @@ value() {
 	test "$value" || return 2
 	echo "$value"
 }
+
+ternary() {
+       eval "$1" && echo "$2" || echo "$3"
+}
+?:() {
+       ternary "$@"
+}
+
+ifdef() {
+       if [[ $# -gt 3 ]]; then
+               error -p 2 "wrong argument count to ifdef (:+)"
+               return 9
+       fi
+       [[ -n "$1" ]] && echo "$2" || echo "$3"
+}
+:+ () { ifdef "$@"; }
+
