@@ -20,8 +20,11 @@ complete_file_path() {
 
 		elif [[ -d "$file" ]]; then
 			echo "$file/"
-		else
+		elif [[ -f "$file" ]]; then
 			echo "$file"
+		else
+			#echo "$Path"
+			return 1
 		fi
 	done
 	)

@@ -18,7 +18,7 @@ random_word() {
 	count="${count:-1}"
 
 	if ! [ -f /usr/share/dict/words ]; then
-		sudo apt install wbritish
+		sudo apt-get install wbritish
 	fi
 
 	grep -v "[A-Z']" /usr/share/dict/words \

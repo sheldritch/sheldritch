@@ -1,7 +1,24 @@
 ARG DEPENDENCY_PROXY=""
 
+FROM ${DEPENDENCY_PROXY}debian:stable-slim AS install_scripts
+
+COPY . /tmp/tools
+WORKDIR /tmp/tools
+RUN mkdir /root/install \
+	&& for file in $(find */ -name '*install.sh'); do cp -r --parents "$(dirname $file)" /root/install; done \
+	&& cp -r --parents -t /root/install \
+		META6.json \
+		_install.sh \
+		install \
+		util/system/system.sh
+
+RUN mkdir /root/tools \
+	&& find /root -name '*install.sh' -exec grep use_tool {} + \
+		| awk '{print $2}' | uniq \
+		| xargs cp -t /root/tools --parents util/shell/base.sh 
+
 # Use debian rather than Ubuntu, as it's smaller and **much** faster to install everything!
-FROM ${DEPENDENCY_PROXY}debian:bullseye-slim as dependencies
+FROM ${DEPENDENCY_PROXY}debian:stable-slim as dependencies
 
 ARG HOME=/root
 ARG REPOS=$HOME/repos
@@ -14,21 +31,19 @@ WORKDIR $HOME
 
 # Install anything we can get from apt
 # Keep alphabetical please!
-RUN apt-get update && apt-get install -y \
+RUN apt-get update -q=3 && apt-get install -q=3 --no-install-recommends \
 	atool \
 	curl \
 	git \
 	jq \
 	ldap-utils \
 	libxml2-utils \
-	magic-wormhole \
 	net-tools \
-	openjdk-11-jre-headless \
+	nodejs \
+	npm \
 	p7zip \
 	postgresql \
 	postgresql-client-common \
-	python \
-	python3 \
 	redis-tools \
 	rename \
 	shellcheck \
@@ -37,11 +52,9 @@ RUN apt-get update && apt-get install -y \
 	wget \
 	zip
 
-# Install NodeJS v16, npm, and Yarn,
+# Install yarn
 # then install the bitwarden CLI
-RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash \
-	&& apt-get install -y nodejs \
-	&& npm install -g yarn \
+RUN npm install -g yarn \
 	&& yarn global add @bitwarden/cli@2022.6.2
 
 # Install Helm and Kubectl
@@ -50,19 +63,10 @@ RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | b
 	&& install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
 	&& rm kubectl
 
-FROM ${DEPENDENCY_PROXY}debian:bullseye-slim AS install_scripts
-
-COPY . /tmp/tools
-WORKDIR /tmp/tools
-RUN for file in $(find */ -name _install.sh); do cp -r --parents "$(dirname $file)" /root; done \
-	&& cp _install.sh /root \
-	&& cp -r install/ /root \
-	&& cp -r --parents util/shell util/linux /root
-
-
 FROM dependencies as final
 
-COPY --from=install_scripts /root $TOOLS
+COPY --from=install_scripts /root/install $TOOLS/
+COPY --from=install_scripts /root/tools $TOOLS/
 
 RUN $TOOLS/_install.sh
 

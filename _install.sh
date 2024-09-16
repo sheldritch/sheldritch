@@ -67,11 +67,11 @@ EOF
 
 for file in "$TOOLS"/install/install_*.sh; do
 	echo "$file" | grep -q install_bundle && continue
-	"$file"
+	"$file" || safe_quit 1
 done
 
 for file in $(find "$TOOLS"/*/ -name '_install.sh'); do
 	echo >&2 "installing $file"
-	"$file"
+	"$file" || safe_quit 1
 done
 echo >&2 "Installations complete."

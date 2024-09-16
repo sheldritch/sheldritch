@@ -3,7 +3,9 @@
 source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
 
-use_tool util/shell/shell.sh
+# minimal install set
+use_tool util/shell/args.sh
+use_tool util/system/system.sh
 
 _tool_install() {
 	usage() {

@@ -23,7 +23,7 @@ fi
 
 alias zsh_run='[[ -z "$ZSH_VERSION" ]] || '
 alias bash_run='[[ -z "$BASH_VERSION" ]] || '
-alias _tools_trace='[[ "$TOOLS_TRACE" ]] && echo >&2 '
+alias _tools_trace='[[ -v TOOLS_TRACE && "$TOOLS_TRACE" ]] && echo >&2 '
 
 # shellcheck disable=SC2142
 alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
@@ -212,15 +212,40 @@ in_tools_root_context() {
 
 alias safe_quit="return 2> /dev/null || exit"
 
+quiet() { "$@" >/dev/null 2>/dev/null; }
+stderr() { "$@" >&2; }
+
+_genfunc_log() {
+	eval "$1"'() {
+	local parent
+	while [[ "$1" =~ ^- ]]; do
+		case "$1" in
+			-p | --parent ) parent="$2"
+				shift
+				shift
+		esac
+	done
+
+	parent="$((${parent:-0} + 1))"
+
+	local func
+	if funcname -p $parent -q 2>/dev/null; then
+		func="$(funcname -p $parent): "
+	fi
+	echo '"$2"'": $func$*" >&2
+	}
+	'
+}
+_genfunc_log log    Info
+_genfunc_log error  Error
+_genfunc_log warn   Warning
+_genfunc_log _debug Debug
+
 # Echo stderr debug line if turned on
 debug() {
-	if [[ "$DEBUG" = true ]]; then
-		echo >&2 -e "DEBUG:" "$@"
+	if [[ "${DEBUG,,}" = true ]]; then
+		_debug -p 1 "$@"
 	fi
 }
 
-debug_enable() {
-	set -u
-	export DEBUG=true
-}
-alias enable_debug=debug_enable
+alias var_is_local='local >/dev/null 2>&1 -p'
