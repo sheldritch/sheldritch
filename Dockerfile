@@ -34,6 +34,7 @@ WORKDIR $HOME
 RUN apt-get update -q=3 && apt-get install -q=3 --no-install-recommends \
 	atool \
 	curl \
+	file \
 	git \
 	jq \
 	ldap-utils \
