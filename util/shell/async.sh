@@ -4,8 +4,10 @@ check_is_sourced
 use_tool util/shell/shell.sh
 use_tool util/shell/random.sh
 
-SEMS=/tmp/$USER/tools/async/semaphores
+ASYNC_TMP=/tmp/$USER/tools/async
+SEMS=$ASYNC_TMP/semaphores
 mkdir -p $SEMS
+
 
 # modified from https://unix.stackexchange.com/a/216475
 
@@ -25,8 +27,8 @@ async_sem() {
 	(
 	local i=$1
 	for ((;i>0;i--)); do
-		flock $fifo printf '%s' 000 >>$fifo
-	done &
+		flock $fifo printf '%s' 000 >>$fifo &
+	done
 	disown
 	)
 
@@ -46,12 +48,14 @@ async_wait() {
 	fi
 
 	_tools_trace "Awaiting sem '$1' to be freed"
-	if ! read -N 3 ASYNC_LAST_EXIT <"$SEMS/$1"; then
-		error "read returned error '$?'"
+	read -N 3 <"$SEMS/$1"
+	local exit=$?
+	if [[ $exit -ne 0 ]]; then
+		error "read returned error '$exit'"
 		return 9
 	fi
 
-	return $ASYNC_LAST_EXIT
+	return $REPLY
 }
 
 async_done() {
@@ -203,13 +207,13 @@ async_batch() {
 }
 
 async_cat() {
-	local tmp=/tmp/tools/async/ dir
+	local tmp=$ASYNC_TMP/cat dir
 	mkdir -p $tmp
 	dir="$(mktemp -d -p $tmp)"
 	debug "Temp dir is '$dir'"
 
 	__cleanup() {
-		async_close $cat
+		rm $catQueue
 		if ! isTrue $DEBUG; then
 			rm -r $dir
 		fi
@@ -266,9 +270,7 @@ async_cat() {
 		shift
 	fi
 
-	local cat
-	async_sem 1 cat || return 9
-	declare -r cat
+	local catQueue="$(:+ $queueId $tmp/$queueId $dir/lock)"
 
 	file="$dir/\$ASYNC_BATCH_INDEX"
 	(
@@ -283,11 +285,9 @@ async_cat() {
 
 		ASYNC_CAT_EXIT=$?
 		if ! isTrue $ordered; then
-			async_wait $cat
-			_tools_trace async_cat: fd $cat locked for i=$file
-			cat $file
-			async_done $cat
-			_tools_trace async_cat: fd $cat freed by i=$file
+			_tools_trace async_cat: ${queueId:-$dir} awaiting lock for i=$file
+			flock $catQueue cat $file
+			_tools_trace async_cat: ${queueId:-$dir} freed by i=$file
 		fi
 		(exit \$ASYNC_CAT_EXIT)
 	" "$@"
