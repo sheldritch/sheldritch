@@ -8,6 +8,37 @@ ASYNC_TMP=/tmp/$USER/tools/async
 SEMS=$ASYNC_TMP/semaphores
 mkdir -p $SEMS
 
+flock() {
+	if command -v flock >/dev/null; then
+		flock "$@"
+	else
+		local path lock
+		path="$(realpath -m "$1")"
+		shift
+		lock="$ASYNC_TMP/flock/$path/LOCK"
+
+		if [[ "$1" =~ [0-9]+ ]]; then
+			error -p 1 "flock: file descriptors unsupported"
+			return 9
+		fi
+
+		while true; do
+			sleep 0.0$RANDOM
+			if ! [[ -d "$lock" ]]; then
+				if [[ "$(mkdir -v -p "$lock")" ]]; then
+					(
+					trap 'rmdir "$lock"' EXIT
+					if [[ "$1" = "-c" ]]; then
+						set -- sh "$@"
+					fi
+					"$@"
+					)
+					return
+				fi
+			fi
+		done
+	fi
+}
 
 # modified from https://unix.stackexchange.com/a/216475
 
