@@ -23,7 +23,6 @@ flock() {
 		fi
 
 		while true; do
-			sleep 0.00$RANDOM
 			if ! [[ -d "$lock" ]]; then
 				if [[ "$(mkdir -v -p "$lock")" ]]; then
 					(
@@ -146,14 +145,14 @@ async_batch() {
 			shift
 	@ENDARGS
 
-	if [ "$TOOLS_TRACE" ]; then
+	if [[ "$TOOLS_TRACE" ]]; then
 		verbose=true
 	fi
 
 	threads="${threads:-$(lscpu 2>/dev/null | awk '/^CPU\(s):/ {print $2}')}"
 	threads="${threads:-8}"
 
-	if [ -n "$file" ]; then
+	if [[ -n "$file" ]]; then
 		command="$(cat "$file")"
 	else
 		command="$1"
@@ -173,15 +172,17 @@ async_batch() {
 	fi
 
 	local ASYNC_BATCH_SEM=$queueId
-	if [[ -z "$queueId" ]]; then
+	if [[ -z "$queueId" && $# > $threads ]]; then
 		async_sem $threads ASYNC_BATCH_SEM || return 9
 	fi
 	declare -r ASYNC_BATCH_SEM
 
-	local ASYNC_BATCH_INDEX=1 ASYNC_BATCH_ELEMENT
+	local ASYNC_BATCH_INDEX=0 ASYNC_BATCH_ELEMENT
 	for ASYNC_BATCH_ELEMENT in "$@"; do
+		((ASYNC_BATCH_INDEX++))
 
-		if [ -n "$variable" ]; then
+		local vars=''
+		if [[ -n "$variable" ]]; then
 
 			if ! [[ "$command" =~ "$"\{?"$variable" ]]; then
 				error "parameter '$variable' requested, but not found in given command."
@@ -192,11 +193,10 @@ async_batch() {
 				return 1
 			fi
 
-			local "$variable=$ASYNC_BATCH_ELEMENT" || return 1
-			debug "variable '$variable' is ${!variable}"
+			vars+=" $variable=$(args_quoted "$ASYNC_BATCH_ELEMENT")"
 		fi
 
-		if [ "$indexVar" ]; then
+		if [[ "$indexVar" ]]; then
 
 			if ! [[ "$command" =~ \${?$indexVar ]]; then
 				error "parameter '$indexVar' requested, but not found in given command."
@@ -207,10 +207,19 @@ async_batch() {
 				return 1
 			fi
 
-			local "$indexVar=$ASYNC_BATCH_INDEX" || return 1
+			vars+=" $indexVar=$(args_quoted "$ASYNC_BATCH_INDEX")"
 
 		fi
-		if ! async_wait $ASYNC_BATCH_SEM; then
+
+		debug "variables are $vars"
+
+		if [[ -z "$ASYNC_BATCH_SEM" ]]; then
+			# no queue, just run
+			eval "(${vars:+ $vars &&} $command) &"
+			continue
+		fi
+
+		if ! time async_wait $ASYNC_BATCH_SEM; then
 			local code=$?
 			if isTrue $exit; then
 				async_done $ASYNC_BATCH_SEM $code
@@ -218,23 +227,24 @@ async_batch() {
 			fi
 		fi
 
-
 		if isTrue $verbose; then
 			echo >&2 Batching item '$ASYNC_BATCH_INDEX', value '$ASYNC_BATCH_ELEMENT'
 		fi
 
 		_batch_done() {
+			local exit=$?
 			async_done $ASYNC_BATCH_SEM
 			
 			if isTrue $verbose; then
 				echo >&2 Done item '$ASYNC_BATCH_INDEX', value '$ASYNC_BATCH_ELEMENT'
 			fi
+			return $exit
 		}
-		eval "{ ($command); _batch_done; } &"
+		eval "{ (${vars:+ $vars &&} $command); _batch_done; } &"
 		((ASYNC_BATCH_INDEX++))
 	done 
 
-	if [[ -z "$queueId" ]]; then
+	if [[ -z "$queueId" && $ASYNC_BATCH_SEM ]]; then
 		async_close $ASYNC_BATCH_SEM
 	fi
 
@@ -254,7 +264,7 @@ async_cat() {
 	}
 
 	local ordered
-	local threads variable indexVar exit verbose file
+	local threads variable exit verbose file
 	@ARGS
 
 		-o | --preserve-order ) ordered=true
@@ -297,7 +307,7 @@ async_cat() {
 			shift
 	@ENDARGS
 
-	if [ -n "$file" ]; then
+	if [[ -n "$file" ]]; then
 		command="$(cat "$file")"
 	else
 		command="$1"
@@ -309,6 +319,7 @@ async_cat() {
 	file="$dir/\$ASYNC_BATCH_INDEX"
 	(
 	async_batch $(arg_bool exit verbose) -t "$threads" --for "$variable" -q "$queueId" "
+		command=$(args_quoted "$command")
 		
 		if isTrue $json; then
 			{ $command; } | jq -s 'flatten | .[]'
