@@ -4,13 +4,13 @@ check_is_sourced
 use_tool util/shell/shell.sh
 use_tool util/shell/random.sh
 
-ASYNC_TMP=/tmp/$USER/tools/async
+ASYNC_TMP=/tmp/${USER:-$user}/tools/async
 SEMS=$ASYNC_TMP/semaphores
 mkdir -p $SEMS
 
 flock() {
-	if command -v flock >/dev/null; then
-		flock "$@"
+	if command flock --version >/dev/null 2>&1; then
+		command flock "$@"
 	else
 		local path lock
 		path="$(realpath -m "$1")"
@@ -23,7 +23,7 @@ flock() {
 		fi
 
 		while true; do
-			sleep 0.0$RANDOM
+			sleep 0.00$RANDOM
 			if ! [[ -d "$lock" ]]; then
 				if [[ "$(mkdir -v -p "$lock")" ]]; then
 					(
@@ -32,8 +32,9 @@ flock() {
 						set -- sh "$@"
 					fi
 					"$@"
-					)
 					return
+					)
+					break
 				fi
 			fi
 		done
@@ -79,6 +80,7 @@ async_wait() {
 	fi
 
 	_tools_trace "Awaiting sem '$1' to be freed"
+	flock "$SEMS/$1" true
 	read -N 3 <"$SEMS/$1"
 	local exit=$?
 	if [[ $exit -ne 0 ]]; then
@@ -148,7 +150,8 @@ async_batch() {
 		verbose=true
 	fi
 
-	threads="${threads:-$(lscpu | awk '/^CPU\(s):/ {print $2}')}"
+	threads="${threads:-$(lscpu 2>/dev/null | awk '/^CPU\(s):/ {print $2}')}"
+	threads="${threads:-8}"
 
 	if [ -n "$file" ]; then
 		command="$(cat "$file")"
@@ -244,7 +247,7 @@ async_cat() {
 	debug "Temp dir is '$dir'"
 
 	__cleanup() {
-		rm $catQueue
+		rm -f $catQueue
 		if ! isTrue $DEBUG; then
 			rm -r $dir
 		fi
