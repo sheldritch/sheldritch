@@ -272,7 +272,7 @@ async_cat() {
 			;;
 
 		# output is a stream of json objects (one per line)
-		--json ) ordered=true
+		--json ) json=true
 			shift
 			;;
 
@@ -322,7 +322,7 @@ async_cat() {
 		command=$(args_quoted "$command")
 		
 		if isTrue $json; then
-			{ $command; } | jq -s 'flatten | .[]'
+			{ $command; } | jq -sc 'flatten | .[]'
 			exit $?
 		fi
 
