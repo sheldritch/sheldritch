@@ -219,7 +219,7 @@ async_batch() {
 			continue
 		fi
 
-		if ! time async_wait $ASYNC_BATCH_SEM; then
+		if ! async_wait $ASYNC_BATCH_SEM; then
 			local code=$?
 			if isTrue $exit; then
 				async_done $ASYNC_BATCH_SEM $code
