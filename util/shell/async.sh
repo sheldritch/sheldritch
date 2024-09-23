@@ -241,7 +241,6 @@ async_batch() {
 			return $exit
 		}
 		eval "{ (${vars:+ $vars &&} $command); _batch_done; } &"
-		((ASYNC_BATCH_INDEX++))
 	done 
 
 	if [[ -z "$queueId" && $ASYNC_BATCH_SEM ]]; then
