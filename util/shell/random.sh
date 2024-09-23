@@ -34,7 +34,7 @@ random_hex() {
 		shift
 	@ENDARGS
 
-	openssl rand -hex $count
+	openssl rand -hex $((count / 2 + 1)) | head -c "$count"
 }
 
 random_char() {
