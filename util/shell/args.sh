@@ -59,7 +59,9 @@ ARGS_UTIL='
 		local HELP >/dev/null 2>/dev/null || :
 		HELP=true # excluding help for compatibility.
 
-		if isFunction usage; then
+		if [[ "$(! funcname -q && declare -p usage || local -p usage)" ]]; then
+			print_usage "$usage"
+		elif isFunction usage; then
 			usage
 		else
 			echo >&2 "No Usage line provided. However, here are the options:"
@@ -203,7 +205,10 @@ print_usage() {
 	local name
 	# funcname may not be defined if running this function, but that doesn't matter.
 	# besides, in any user environment it will be defined.
-	name="$(funcname -p 2 2>/dev/null)"
+	name="$(funcname -p 1 2>/dev/null)"
+	if [[ "$name" = usage ]]; then
+		name="$(funcname -p 2 2>/dev/null)"
+	fi
 	name="${name:-$0}"
 	echo >&2 "Usage: $name" "$@"
 }
