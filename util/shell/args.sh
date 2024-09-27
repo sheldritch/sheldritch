@@ -11,6 +11,48 @@ check_is_sourced
 # arg parsing frameworks
 #
 
+# see `tools_args_example` below for how to use func_info:
+alias func_info:='declare about args_req
+declare -a usage options
+declare -A _opts _opts_bool'
+
+# shellcheck disable=SC2142
+alias args_parse='
+
+	_args_options_gen "${options[@]}" || return $?
+
+	local _opt_count "${_opts[@]}" "${_opts_bool[@]}"
+
+	_args_options_parse "$@" || return $?
+	shift "$_opt_count"
+
+	if [[ "$args_req" ]]; then
+		if ! var_is_local args_req; then
+			error "INTERNAL ERR: args_req must be locally defined"
+			safe_quit 9
+		fi
+		local $args_req
+		_args_req "$@" || safe_quit $?
+	fi
+'
+
+tools_args_example() {
+	func_info:
+	about='an example for what a documentation structure might look like'
+	usage=(
+		"--format-1 VAL [SEVERAL_OPTIONAL_ARGS...]"
+		"--format-2 [OPTIONAL_ARGUMENT]"
+		"JUST THESE ARGS"
+	)
+	options=(
+		-1 --format-1=VAL "This flag has an argument. It will be put into a value called val"
+		-2 --format-2 "This flag is a boolean flag. It usually requires no argument, but I'm hoping that it will support things like --format-2=false in the future"
+	)
+	args_parse
+	echo "tools_args variables set:"
+	local -p "${_opts[@]}" "${_opts_bool[@]}" | uniq
+}
+
 _args_req() {
 	local arg
 	for arg in $args_req; do
