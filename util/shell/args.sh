@@ -260,7 +260,7 @@ print_args() {
 
 	local printArgs="
 	/@ARGS/,$ {
-		/(esac|@ARGS_END)/q;
+		/(esac|@ARGS_END|@ENDARGS)/q;
 		/@ARGS/d;
 
 		# print each comment and case match
