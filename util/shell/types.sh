@@ -191,16 +191,29 @@ join_by() {
 
 # Returns the key for a given key value pair
 key() {
+	local delimiter='='
+	if [ "$1" = '-d' ]; then
+		delimiter="$2"
+		shift
+		shift
+	fi
+
 	local pair="$([ $# -eq 0 ] && cat || echo $1)"
-	echo "$pair" | cut -d = -f 1
+	printf '%s\n' "${pair%%=*}"
 }
 
 # Returns the value for a given key value pair
 value() {
-	local pair="$([ $# -eq 0 ] && cat || echo $1)"
-	value="$(echo "$pair" | cut --only-delimited -d = -f 2)"
-	test "$value" || return 2
-	echo "$value"
+	local delimiter='='
+	if [ "$1" = '-d' ]; then
+		delimiter="$2"
+		shift
+		shift
+	fi
+
+	local value pair="$([ $# -eq 0 ] && cat || echo $1)"
+	[[ "$pair" =~ "$delimiter"(.*)$ ]] || return 2
+	printf '%s\n' "${BASH_REMATCH[1]}"
 }
 
 ternary() {
