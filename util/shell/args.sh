@@ -52,6 +52,12 @@ tools_args_example() {
 		"--format-2 [OPTIONAL_ARGUMENT]"
 		"JUST THESE ARGS"
 	)
+	# PERF: each extra option declaration takes about 3 microseconds per run
+	# parsing each option takes about 30 microseconds per run
+	# meaning each additional option adds about 33 microseconds in total
+	#
+	# If you expect your function to be run hundreds of times, consider parsing args manually
+	# In even more performant situations, don't use args and rely on the dynamic scoping of variables (but only if necesary)
 	options=(
 		-1 --format-1=VAL "This flag has an argument. It will be put into a value called val"
 		-2 --format-2 "This flag is a boolean flag. It usually requires no argument, but can support --format-2=true/false or --no-format-2"
@@ -81,6 +87,17 @@ _args_req() {
 	done
 }
 
+_args_name_to_camel() {
+	local in="${1,,}"
+
+	while [[ "$in" =~ _(.) ]]; do
+		local match="${BASH_REMATCH[1]}"
+
+		in="${in//_$match/${match^}}"
+	done
+	name="$in"
+}
+
 # used internally by args_parse to create a map of flags to variables for later parsing
 _args_options_gen() {
 
@@ -107,7 +124,8 @@ _args_options_gen() {
 		shift # throw away the docstring
 
 		# check if flag has argument or is boolean
-		if name="$(value "$last")"; then
+		if [[ "$last" =~ = ]]; then
+			name="${last#*=}"
 
 			# TODO: Implement array flags. will need some opinionated designing.
 			if [[ "$name" =~ '...' ]]; then
@@ -115,12 +133,12 @@ _args_options_gen() {
 				return 9
 			fi
 
-			name="$(case_camel "$name")"
+			_args_name_to_camel "$name"
 			for flag in $flags; do
 				_opts[${flag%%=*}]="$name"
 			done
 		else
-			name="$(case_camel "${last#--}")"
+			_args_name_to_camel "${last#--}"
 			for flag in $flags; do
 				_opts_bool[${flag}]="$name"
 			done
@@ -168,7 +186,7 @@ _args_options_parse() {
 		((i++))
 
 		if [[ $type = bool ]]; then
-			value="${value:-false}"
+			value="${value:-true}"
 			if [[ ! "$value" =~ (true|false) ]]; then
 				error -p 1 "Flag '$flag' is boolean"
 				return 1
