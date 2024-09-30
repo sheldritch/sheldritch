@@ -17,6 +17,7 @@ isFunction() {
 
 funcs() {
 	if [ "$ZSH_VERSION" ]; then
+		# shellcheck disable=SC2296
 		print -l ${(ok)functions}
 	else
 		declare -F | awk '{print $3}'
@@ -24,11 +25,11 @@ funcs() {
 }
 
 # WARNING!
-# `funcname` should not use any other helper functions
-# except print_args
+# `funcname` should not use any other helper functions to avoid recursion
+# except where explicitly commented
 funcname() {
 	local quiet parent
-	@ARGS
+	while [[ $# -gt 0 ]]; do case "$1" in
 		-q | --quiet) quiet=true
 			shift
 			;;
@@ -37,15 +38,15 @@ funcname() {
 		-p | --parent) parent="$2"
 			shift
 			shift
-	@ARGS_END
-
-	# done manually since @ARGS and print_usage use funcname internally
-	if [ "$HELP" = true ]; then
-		echo >&2 "funcname: print the function name of the caller, or a given parent function"
-		echo >&2 "Usage: funcname [options]"
-		print_args -f funcname
-		return 0
-	fi
+			;;
+		-h | --help )
+			# other utils are okay here
+			# do you really expect another util to call `funcname --help`?
+			echo >&2 "funcname - print the function name of the caller, or a given parent function"
+			echo >&2 "Usage: funcname [options]"
+			print_args -f funcname
+			return 0
+	esac; done
 
 	parent="${parent:-0}"
 	parent="$(($parent + 1))" # this function, `funcname`, counts as an additional layer
