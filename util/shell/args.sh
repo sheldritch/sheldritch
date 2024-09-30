@@ -131,7 +131,6 @@ _args_options_gen() {
 
 _args_options_parse() {
 	local flag arg type value i=0
-	(( "${#options[@]}" )) || return 0
 	while [[ "$1" =~ ^- && "$1" != -- ]]; do
 		type= arg= value=
 		flag="${1%%=*}"
@@ -147,15 +146,21 @@ _args_options_parse() {
 			type=string
 		fi
 
-		# common defaults
-		case "$flag" in
-			-h | --help) _opts_bool[__help]=true
-				return 0
-		esac
-
 		if [[ -z "$arg" ]]; then
-			error -p 1 "Flag '$flag' not supported!"
-			return 1
+
+			# fall back to common defaults
+			case "$flag" in
+				-h | --help)
+					_opts_bool[__help]=true
+					return 0
+					;;
+				*)
+					# if no options spec was defined, assume flags are parsed elsewhere
+					(( "${#options[@]}" )) || return 0
+
+					error -p 1 "Flag '$flag' not supported!"
+					return 1
+			esac
 		fi
 
 		value="${value:-$(value "$1")}"
@@ -324,6 +329,8 @@ args_quoted() {
 #
 
 print_options() {
+	echo
+	echo "Options:"
 	while [[ $# -gt 0 ]]; do
 		if [[ ! "$1" =~ ^- ]]; then
 			error -p 3 "argument flag format is messed up!"
@@ -331,6 +338,7 @@ print_options() {
 			return 9
 		fi
 
+		printf '  '
 		while [[ "$1" =~ ^- ]]; do
 			printf %s "$1"
 			if [[ "$2" =~ ^- ]]; then
@@ -354,36 +362,38 @@ print_doc() {
 
 	exec >&2
 	@func_use_parent
+	# TODO: ensure support of standalone scripts
 
-	if var_is_declared about; then
+	__has() { var_is_declared "$1" && [[ -n "${!1}" ]]; }
+
+	if __has about; then
 		echo
 		echo "$func - $about"
 		echo
 	fi
 
-	if declare -p | grep -q ' --  usage=.\+'; then
+	if __has usage; then
 		echo "Usage:"
 		for line in "${usage[@]}"; do
 			if [[ "$line" =~ ^#(.*)$ ]]; then
 				printf '\t%s\n' "$line"
 				continue
 			fi
-			printf '\t%s\n' "$func ${options[1]:+[options]} $line"
+			printf '\t%s%s\n' "$func ${options[1]:+[options] }" "$line"
 		done
-		echo
 	elif isFunction usage; then
 		usage
 	else
 		echo >&2 "No Usage line provided. However, here are the options:"
 	fi
 
-	if var_is_declared options; then
+	if __has options; then
 		print_options "${options[@]}" || return 9
 
 	elif isFunction options; then
 		options
 	else
-		{ funcname -q && print_args -f "$(funcname)" || print_args; } 2>&1
+		{ funcname -p 1 -q && print_args -f "$(funcname -p 1)" || print_args; } 2>&1
 	fi
 
 }
