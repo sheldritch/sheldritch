@@ -1,6 +1,11 @@
-# 
+#
 # utils for argument parsing
 #
+# This includes the @func_info framework, the recommended way for structuring
+# bash functions
+#
+# For an example of how to use it, see tools_args_example() function definition
+# later in this file
 
 # shellcheck disable=SC2154,SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031
 
@@ -11,12 +16,11 @@ check_is_sourced
 # arg parsing frameworks
 #
 
-# see `tools_args_example` below for how to use @func_info
+# aliases needs to be first to ensure later functions can use it
 alias @func_info='declare about args_req
 declare -a usage options
 declare -A _opts _opts_bool'
 
-# alias needs to be first to ensure later functions can use it
 # shellcheck disable=SC2142
 alias args_parse='
 
@@ -45,27 +49,96 @@ alias args_parse='
 '
 
 tools_args_example() {
+
+	# initialise the func_info framework
 	@func_info
-	about='an example for what a documentation structure might look like'
+
+	# structured definition of function operation metadata
+	about='an example function showing how to use @func_info to parse --option-flags and auto-document'
 	usage=(
-		"--format-1 VAL [SEVERAL_OPTIONAL_ARGS...]"
-		"--format-2 [OPTIONAL_ARGUMENT]"
-		"JUST THESE ARGS"
+		# this usage array (which can also be a single string) is currently only used for documentation
+		# it shows all the different allowed formats excluding optional arguments.
+		# That is, the arguments of the command MUST include the arguments of one of these examples.
+		"# (strings starting with '#' are comments)"
+		"--print-vars [SPECIFIC_VARS_TO_PRINT...]"
+		"--print-help"
+		"--example=boolean FUNCTION_FLAG"
+		"--example=string  FUNCTION_FLAG FUNCTION_VARIABLE"
 	)
-	# PERF: each extra option declaration takes about 3 microseconds per run
-	# parsing each option takes about 30 microseconds per run
-	# meaning each additional option adds about 33 microseconds in total
-	#
-	# If you expect your function to be run hundreds of times, consider parsing args manually
-	# In even more performant situations, don't use args and rely on the dynamic scoping of variables (but only if necesary)
+
+	# A list of the flags that can be passed into the command.
 	options=(
-		-1 --format-1=VAL "This flag has an argument. It will be put into a value called val"
-		-2 --format-2 "This flag is a boolean flag. It usually requires no argument, but can support --format-2=true/false or --no-format-2"
+		# format is FLAGS... FLAG_DESCRIPTION
+		--print-vars "A boolean flag to enable the print-var feature. Boolean flags usually have no argument, but can support --<arg>=true/false or --no-<arg>"
+		# any number of flags can be provided, including single-letter flags.
+		# the final flag defines the boolean variable name (`printHelp` here)
+		-h '-?' --HALP --print-help "@func_info automatically defines a --help flag, so you don't need to define one yourself like we do here."
+
+		# note the declared value name EXAMPLE_TYPE. This is *always* on the last flag. This will create a variable called `exampleType`
+		-x --eg --example=EXAMPLE_TYPE "Print out what the option def format would look like for the given type"
+
+		# PERFORMANCE: each additional option adds about 33 microseconds to command runtime
+		# If you expect your function to be run hundreds of times, consider parsing args manually:
+		# https://mywiki.wooledge.org/BashFAQ/035
 	)
 	args_parse
-	echo "tools_args variables set:"
-	local -p "${_opts[@]}" "${_opts_bool[@]}" | uniq
-	print_doc
+
+	# variables are automatically declared in args_parse
+	if [[ "$printVars" = true ]]; then
+		if [[ $# -gt 0 && -z "$exampleType" ]]; then
+			local -p "$@"
+		else
+			echo "standard args:"
+			local -p "${_opts[@]}" | sort --unique
+			echo "boolean args:"
+			local -p "${_opts_bool[@]}" | sort --unique
+		fi
+	fi
+
+	# you can still set defaults like so:
+	printHelp="${printHelp:-false}"
+
+	# if the command didn't specify, flag variables are empty (''), including boolean flags
+	# so be careful in your boolean checks -- if var='', then [[ "$var" = true ]] is false and [[ "$var" != false ]] is true
+	if [[ "$printHelp" = true ]]; then
+		print_docs
+		return
+	fi
+
+	case "$exampleType" in
+		'' ) return ;;
+
+		string )
+			if [[ -z "$2" ]]; then
+				error "string arguments must define a variable name/argument value name. See args.sh for the example's code"
+				return 1
+			fi
+			;;
+		bool | boolean )
+			if [[ -n "$2" ]]; then
+				error "boolean arguments cannot set a custom variable name. See args.sh for this example's code."
+				return 1
+			fi
+			;;
+
+		* )
+			error "flag type not supported!"
+			return 1
+	esac
+
+	local flag var prefix=--
+	var="$(case_big_snake "$2")"
+	flag="$(case_kebab "$1")"
+
+	if [[ "$flag" =~ ^-?.$ ]]; then
+		prefix=-
+	fi
+	flag="${flag#$prefix}"
+
+	echo 'options=('
+	printf "\t%s%s%s 'STRING EXPLAINING THE FLAG'\n" "$prefix" "$flag" "${var:+=$var}"
+	echo ')'
+	echo "variable name: '$(case_camel "${var:-$flag}")'"
 }
 
 _args_req() {
@@ -90,10 +163,11 @@ _args_req() {
 _args_name_to_camel() {
 	local in="${1,,}"
 
-	while [[ "$in" =~ _(.) ]]; do
-		local match="${BASH_REMATCH[1]}"
+	while [[ "$in" =~ ([_.-])(.) ]]; do
+		local separator="${BASH_REMATCH[1]}"
+		local match="${BASH_REMATCH[2]}"
 
-		in="${in//_$match/${match^}}"
+		in="${in//$separator$match/${match^}}"
 	done
 	name="$in"
 }
@@ -128,6 +202,8 @@ _args_options_gen() {
 			name="${last#*=}"
 
 			# TODO: Implement array flags. will need some opinionated designing.
+			# probably, all bash arguments until the next /^-/ are part of the array,
+			# but this is escapable with '\-'
 			if [[ "$name" =~ '...' ]]; then
 				error "'$name' elipsis format currently unsupported :("
 				return 9
@@ -147,9 +223,11 @@ _args_options_gen() {
 	done
 }
 
+alias __shift='((i++)); shift'
 _args_options_parse() {
 	local flag arg type value i=0
-	while [[ "$1" =~ ^- && "$1" != -- ]]; do
+
+	while [[ "$1" =~ ^- ]]; do
 		type= arg= value=
 		flag="${1%%=*}"
 
@@ -170,7 +248,11 @@ _args_options_parse() {
 			case "$flag" in
 				-h | --help)
 					_opts_bool[__help]=true
-					return 0
+					break
+					;;
+				-- )
+					__shift
+					break
 					;;
 				*)
 					# if no options spec was defined, assume flags are parsed elsewhere
@@ -182,8 +264,7 @@ _args_options_parse() {
 		fi
 
 		value="${value:-$(value "$1")}"
-		shift
-		((i++))
+		__shift
 
 		if [[ $type = bool ]]; then
 			value="${value:-true}"
@@ -195,8 +276,7 @@ _args_options_parse() {
 
 		if [[ -z "$value" ]]; then
 			value="$1"
-			shift
-			((i++))
+			__shift
 		fi
 
 		eval "$arg='${value//\'/\'\\\'\'}'" # escape any single quotes within value
@@ -204,6 +284,7 @@ _args_options_parse() {
 	done
 	_opt_count=$i
 }
+unalias __shift
 
 
 zsh_run unsetopt GLOB
@@ -371,11 +452,12 @@ print_options() {
 }
 
 print_doc() {
+	# run docs in subshell so we don't clobber variables
 	[[ "$(@func_info
 		about='print semantically-structured docs from standardised variables'
 		usage=()
 		args_parse
-		echo end
+		echo end # if no echo, we know args_parse exited early.
 	)" ]] || return $?
 
 	exec >&2
@@ -434,8 +516,6 @@ print_usage() {
 	printf >&2 "%s\n" "Usage: $name $usage"
 }
 
-# 
-#
 print_args() {
 	@func_info
 	about='Output the args of a script file.
