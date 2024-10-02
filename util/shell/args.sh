@@ -399,7 +399,8 @@ print_doc() {
 			fi
 			printf '\t%s%s\n' "$func ${options[1]:+[options] }" "$line"
 		done
-	elif isFunction usage; then
+	elif isFunction usage &&
+		awk "/${func:+"$func *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
 		usage
 	else
 		echo >&2 "No Usage line provided. However, here are the options:"
