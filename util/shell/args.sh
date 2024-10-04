@@ -570,7 +570,7 @@ print_args() {
 	if [[ -n "$function" ]]; then
 		# Note this runs on to the next function if no match found.
 		# parsing the function end is tricky.
-		sed -En "/$function().*\{/,$ { $printArgs }" "$file"
+		sed -En "/$function().*\{/,/^\}/ { $printArgs }" "$file"
 	else
 		sed -En "$printArgs" "$file"
 	fi
