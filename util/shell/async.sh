@@ -4,10 +4,41 @@ check_is_sourced
 use_tool util/shell/shell.sh
 use_tool util/shell/random.sh
 
-ASYNC_TMP=/tmp/$USER/tools/async
+ASYNC_TMP=/tmp/${USER:-$user}/tools/async
 SEMS=$ASYNC_TMP/semaphores
 mkdir -p $SEMS
 
+flock() {
+	if command flock --version >/dev/null 2>&1; then
+		command flock "$@"
+	else
+		local path lock
+		path="$(realpath -m "$1")"
+		shift
+		lock="$ASYNC_TMP/flock/$path/LOCK"
+
+		if [[ "$1" =~ [0-9]+ ]]; then
+			error -p 1 "flock: file descriptors unsupported"
+			return 9
+		fi
+
+		while true; do
+			if ! [[ -d "$lock" ]]; then
+				if [[ "$(mkdir -v -p "$lock")" ]]; then
+					(
+					trap 'rmdir "$lock"' EXIT
+					if [[ "$1" = "-c" ]]; then
+						set -- sh "$@"
+					fi
+					"$@"
+					return
+					)
+					break
+				fi
+			fi
+		done
+	fi
+}
 
 # modified from https://unix.stackexchange.com/a/216475
 
@@ -48,6 +79,7 @@ async_wait() {
 	fi
 
 	_tools_trace "Awaiting sem '$1' to be freed"
+	flock "$SEMS/$1" true
 	read -N 3 <"$SEMS/$1"
 	local exit=$?
 	if [[ $exit -ne 0 ]]; then
@@ -113,13 +145,14 @@ async_batch() {
 			shift
 	@ENDARGS
 
-	if [ "$TOOLS_TRACE" ]; then
+	if [[ "$TOOLS_TRACE" ]]; then
 		verbose=true
 	fi
 
-	threads="${threads:-$(lscpu | awk '/^CPU\(s):/ {print $2}')}"
+	threads="${threads:-$(lscpu 2>/dev/null | awk '/^CPU\(s):/ {print $2}')}"
+	threads="${threads:-8}"
 
-	if [ -n "$file" ]; then
+	if [[ -n "$file" ]]; then
 		command="$(cat "$file")"
 	else
 		command="$1"
@@ -139,15 +172,17 @@ async_batch() {
 	fi
 
 	local ASYNC_BATCH_SEM=$queueId
-	if [[ -z "$queueId" ]]; then
+	if [[ -z "$queueId" && $# > $threads ]]; then
 		async_sem $threads ASYNC_BATCH_SEM || return 9
 	fi
 	declare -r ASYNC_BATCH_SEM
 
-	local ASYNC_BATCH_INDEX=1 ASYNC_BATCH_ELEMENT
+	local ASYNC_BATCH_INDEX=0 ASYNC_BATCH_ELEMENT
 	for ASYNC_BATCH_ELEMENT in "$@"; do
+		((ASYNC_BATCH_INDEX++))
 
-		if [ -n "$variable" ]; then
+		local vars=''
+		if [[ -n "$variable" ]]; then
 
 			if ! [[ "$command" =~ "$"\{?"$variable" ]]; then
 				error "parameter '$variable' requested, but not found in given command."
@@ -158,11 +193,10 @@ async_batch() {
 				return 1
 			fi
 
-			local "$variable=$ASYNC_BATCH_ELEMENT" || return 1
-			debug "variable '$variable' is ${!variable}"
+			vars+=" $variable=$(args_quoted "$ASYNC_BATCH_ELEMENT")"
 		fi
 
-		if [ "$indexVar" ]; then
+		if [[ "$indexVar" ]]; then
 
 			if ! [[ "$command" =~ \${?$indexVar ]]; then
 				error "parameter '$indexVar' requested, but not found in given command."
@@ -173,9 +207,18 @@ async_batch() {
 				return 1
 			fi
 
-			local "$indexVar=$ASYNC_BATCH_INDEX" || return 1
+			vars+=" $indexVar=$(args_quoted "$ASYNC_BATCH_INDEX")"
 
 		fi
+
+		debug "variables are $vars"
+
+		if [[ -z "$ASYNC_BATCH_SEM" ]]; then
+			# no queue, just run
+			eval "(${vars:+ $vars &&} $command) &"
+			continue
+		fi
+
 		if ! async_wait $ASYNC_BATCH_SEM; then
 			local code=$?
 			if isTrue $exit; then
@@ -184,23 +227,23 @@ async_batch() {
 			fi
 		fi
 
-
 		if isTrue $verbose; then
 			echo >&2 Batching item '$ASYNC_BATCH_INDEX', value '$ASYNC_BATCH_ELEMENT'
 		fi
 
 		_batch_done() {
+			local exit=$?
 			async_done $ASYNC_BATCH_SEM
 			
 			if isTrue $verbose; then
 				echo >&2 Done item '$ASYNC_BATCH_INDEX', value '$ASYNC_BATCH_ELEMENT'
 			fi
+			return $exit
 		}
-		eval "{ ($command); _batch_done; } &"
-		((ASYNC_BATCH_INDEX++))
+		eval "{ (${vars:+ $vars &&} $command); _batch_done; } &"
 	done 
 
-	if [[ -z "$queueId" ]]; then
+	if [[ -z "$queueId" && $ASYNC_BATCH_SEM ]]; then
 		async_close $ASYNC_BATCH_SEM
 	fi
 
@@ -213,14 +256,14 @@ async_cat() {
 	debug "Temp dir is '$dir'"
 
 	__cleanup() {
-		rm $catQueue
+		rm -f $catQueue
 		if ! isTrue $DEBUG; then
 			rm -r $dir
 		fi
 	}
 
 	local ordered
-	local threads variable indexVar exit verbose file
+	local threads variable exit verbose file
 	@ARGS
 
 		-o | --preserve-order ) ordered=true
@@ -228,7 +271,7 @@ async_cat() {
 			;;
 
 		# output is a stream of json objects (one per line)
-		--json ) ordered=true
+		--json ) json=true
 			shift
 			;;
 
@@ -263,7 +306,7 @@ async_cat() {
 			shift
 	@ENDARGS
 
-	if [ -n "$file" ]; then
+	if [[ -n "$file" ]]; then
 		command="$(cat "$file")"
 	else
 		command="$1"
@@ -275,9 +318,10 @@ async_cat() {
 	file="$dir/\$ASYNC_BATCH_INDEX"
 	(
 	async_batch $(arg_bool exit verbose) -t "$threads" --for "$variable" -q "$queueId" "
+		command=$(args_quoted "$command")
 		
 		if isTrue $json; then
-			{ $command; } | jq -s 'flatten | .[]'
+			{ $command; } | jq -sc 'flatten | .[]'
 			exit $?
 		fi
 

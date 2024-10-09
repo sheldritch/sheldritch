@@ -30,7 +30,7 @@ complete_file_path() {
 	)
 }
 
-# Example use of the function above
+# Example use of the function above...
 _complete_file_path() {
 	local IFS=$'\n'
 	COMPREPLY=($(complete_file_path . ${COMP_WORDS[COMP_CWORD]}))
@@ -39,5 +39,5 @@ _complete_file_path() {
 		bash_run compopt -o nospace
 	fi
 }
-# To auto-complete itself
+# ...to auto-complete itself
 complete -F _complete_file_path complete_file_path

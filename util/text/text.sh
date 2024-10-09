@@ -3,9 +3,21 @@ check_is_sourced
 
 use_tool util/shell/args.sh
 
-# Count lines.
-# Any text past the final newline counts as a line, unlike raw `wc -l`
+deindent() {
+	@func_info
+	about="prints lines from stdin, deindented from the given first line"
+	args_parse
+
+	if [[ "$*" =~ $'\n'($'\t'| )+ ]]; then
+		printf "%s\n" "${*//"${BASH_REMATCH[0]}"/$'\n'}"
+	else
+		printf "%s\n" "$*"
+	fi
+}
+
 lines() {
+	local about='Count lines. Any text past the final newline counts as a line, unlike raw `wc -l`'
+	@DEFAULT_ARGS
 	echo -n "$*" | awk '{print}' | wc -l
 }
 

@@ -18,7 +18,7 @@ jqj() {
 	local json="$1"
 	shift
 
-	if echo "$json" | grep -q ^-; then
+	if [[ "$json" =~ ^- ]]; then
 		echo >&2 "Error: first argument to jqj should always be json."
 	fi
 
@@ -35,6 +35,25 @@ json_obj() {
 		query+=".$key = $value | "
 	done
 	jq -n "$query ."
+}
+
+json_field() {
+	jqj "$1" -re ".$2 // empty"
+}
+jf() {
+	json_field "$@"
+}
+
+jbool() {
+	isTrue "$(jqj "$1" "($2) == true")"
+}
+
+jtype() {
+	if [[ $# -eq 2 ]]; then
+		isTrue "$(jqj "$1" "type == \"$2\"")"
+	else
+		jqj "$1" -r type
+	fi
 }
 
 # Iterate over given JSON values
