@@ -12,6 +12,8 @@
 source "$TOOLS"/util/shell/base.sh || return 1
 check_is_sourced
 
+# NOTE: There's a use_tool declaration at the bottom, once all the aliases have been properly declared
+
 #
 # arg parsing frameworks
 #
@@ -26,7 +28,7 @@ alias args_parse='
 
 	_args_options_gen "${options[@]}" || return $?
 
-	local _opt_count "${_opts[@]}" "${_opts_bool[@]}"
+	declare _opt_count "${_opts[@]}" "${_opts_bool[@]}"
 
 	_args_options_parse "$@" || return $?
 
@@ -43,7 +45,7 @@ alias args_parse='
 			error "INTERNAL ERR: args_req must be locally defined"
 			safe_quit 9
 		fi
-		local $args_req
+		declare $args_req
 		_args_req "$@" || safe_quit $?
 	fi
 '
@@ -575,3 +577,5 @@ print_args() {
 		sed -En "$printArgs" "$file"
 	fi
 }
+
+use_tool util/text/text.sh || return 1
