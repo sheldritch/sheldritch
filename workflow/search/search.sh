@@ -5,24 +5,26 @@ use_tool util/shell/shell.sh
 
 # Use FZF to search a JSON array for a particular field match
 fzf_json() {
-	local key
-	@ARGS
-		# The key of the  JSON field to search within
-		-k | --key ) key="$2"
-			shift
-			shift
-			;;
-		# A pre-processing query of the JSON
-		-q | --jq | --query ) query="$2"
-			shift
-			shift
-	@ENDARGS
+	@func_info
+	options=(
+		-k --key=KEY "The key of the JSON field to search within"
+		-i --id=ID "a json field which identifies each object in the array"
+		-q --jq --query=QUERY "A pre-processing query of the JSON"
+	)
+	args_parse
 
 	if [ -z "$key" ]; then
 		echo >&2 "Error: fzf_json: key required"
-		usage
+		print_doc
 		return 1
 	fi
+	if [ -z "$id" ]; then
+		error "id required"
+		print_doc
+		return 1
+	fi
+
+	local input
 
 	if [ $# -ge 1 ]; then
 		input="$*"
@@ -30,19 +32,21 @@ fzf_json() {
 		input="$(cat)"
 	fi
 
-	if [ "$query" ]; then
-		input="$(jqj "$input" "$query")"
+	if [ -n "$query" ]; then
+		input="$(jqj "$input")"
 	fi
 
 	mkdir -p /tmp/tools
 	file="$(mktemp tools/fzf_jzon.XXXXX --tmpdir)"
 	echo "$input" > "$file"
 
+	# shellcheck disable=SC2016
+	lineTest='flatten | .[] | select(.id as $id | $line | test("\($id)"))'
 	match="$(
-		jqj "$input" -r '.[].title' |
-			fzf --sync --preview 'cat '"$file"' | jq ".[] | select(.'$key' == \""{}"\")"'
+		jqj "$input" -r '.[] | "\(.'"$id) \\(.$key)\"" |
+			fzf --sync --preview 'cat "'"$file"'" | jq -s --arg line {} '"'$lineTest'"
 	)"
 
-	jqj "$input" ".[] | select(.$key == \"$match\")"
+	jqj "$input" --arg line "$match" "$lineTest"
 	rm "$file"
 }
