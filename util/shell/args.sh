@@ -28,7 +28,7 @@ alias args_parse='
 
 	_args_options_gen "${options[@]}" || return $?
 
-	declare _opt_count "${_opts[@]}" "${_opts_bool[@]}"
+	declare _opt_count ${_opts[@]//[^[:alnum:]]/ } "${_opts_bool[@]}"
 
 	_args_options_parse "$@" || return $?
 
@@ -79,11 +79,24 @@ tools_args_example() {
 		# note the declared value name EXAMPLE_TYPE. This is *always* on the last flag. This will create a variable called `exampleType`
 		-x --eg --example=EXAMPLE_TYPE "Print out what the option def format would look like for the given type"
 
+		# Any symbols within the variable name will split it into separate variables (here we get target, val1 and val2 all as separate variables)
+		'--equals-or=TARGET=VAL1||VAL2' 'show that multiple vars can be auto-parsed if separated by symbols (other than - or _)'
+
 		# PERFORMANCE: each additional option adds about 33 microseconds to command runtime
 		# If you expect your function to be run hundreds of times, consider parsing args manually:
 		# https://mywiki.wooledge.org/BashFAQ/035
 	)
 	args_parse
+
+	if [[ "$target$val1$val2" ]]; then
+		echo "equals or!! checking to see if '$target' equals either '$val1' or '$val2'..."
+		case "$target" in
+			"$val1" )
+				echo "'$target' equals the first value, $val1!";&
+			"$val2" )
+				echo "'$target' equals the second value, $val2!";&
+		esac
+	fi
 
 	# variables are automatically declared in args_parse
 	if [[ "$printVars" = true ]]; then
@@ -103,7 +116,7 @@ tools_args_example() {
 	# if the command didn't specify, flag variables are empty (''), including boolean flags
 	# so be careful in your boolean checks -- if var='', then [[ "$var" = true ]] is false and [[ "$var" != false ]] is true
 	if [[ "$printHelp" = true ]]; then
-		print_docs
+		print_doc
 		return
 	fi
 
@@ -165,7 +178,7 @@ _args_req() {
 _args_name_to_camel() {
 	local in="${1,,}"
 
-	while [[ "$in" =~ ([_.-])(.) ]]; do
+	while [[ "$in" =~ ([_-])(.) ]]; do
 		local separator="${BASH_REMATCH[1]}"
 		local match="${BASH_REMATCH[2]}"
 
@@ -265,7 +278,9 @@ _args_options_parse() {
 			esac
 		fi
 
-		value="${value:-$(value "$1")}"
+		if [[ -z "$value" && "$1" =~ =(.+)$ ]]; then
+			value="${value:-$(value "$1")}"
+		fi
 		__shift
 
 		if [[ $type = bool ]]; then
@@ -281,7 +296,22 @@ _args_options_parse() {
 			__shift
 		fi
 
-		eval "$arg='${value//\'/\'\\\'\'}'" # escape any single quotes within value
+		# escape any single quotes within value so we can assign with eval
+		value="${value//\'/\'\\\'\'}"
+
+		if [[ "$type" = string ]]; then
+			while [[ "$arg" =~ [^[:alnum:]]+ ]]; do
+				local separator="${BASH_REMATCH[0]}"
+
+				eval "${arg%%"$separator"*}='${value%%"$separator"*}'"
+
+				arg="${arg#*"$separator"}"
+				[[ "$value" =~ "$separator" ]] || value=''
+				value="${value#*"$separator"}"
+			done
+		fi
+
+		eval "$arg='$value'"
 
 	done
 	_opt_count=$i
