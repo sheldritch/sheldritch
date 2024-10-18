@@ -32,7 +32,7 @@ json_obj() {
 		if ! jq -n "$value" >/dev/null 2>&1; then
 			value="\"$value\""
 		fi
-		query+=".$key = $value | "
+		query+=".[\"$key\"] = $value | "
 	done
 	jq -n "$query ."
 }
