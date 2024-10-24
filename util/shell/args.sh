@@ -21,10 +21,12 @@ check_is_sourced
 # aliases needs to be first to ensure later functions can use it
 alias @func_info='declare about args_req
 declare -a usage options
-declare -A _opts _opts_bool'
+declare -A _opts _opts_bool
+'
 
 # shellcheck disable=SC2142
 alias args_parse='
+	_tools_trace "+$(funcname || echo "$0") $(args_quoted "$@")"
 
 	_args_options_gen "${options[@]}" || return $?
 
@@ -373,7 +375,9 @@ ARGS_END="$ARGS_UTIL"'
 	'*' )
 		break
 		;;
-esac; done'
+esac; done
+_tools_trace "+$(funcname || echo "$0") $(args_quoted "$@")"
+'
 alias @ARGS_END="$ARGS_END"
 
 alias '@ENDARGS='"$ARGS_END"
