@@ -141,7 +141,7 @@ tool_edit() {
 			&& grep -q check_is_sourced "$file" \
 			&& echo "$file" | grep -q "\.sh$"
 		then
-			source "$file"
+			source "$file" --force
 		fi
 	done
 }

@@ -240,6 +240,11 @@ _genfunc_log() {
 	eval "$1"'() {
 		@func_use_parent
 		echo '"$2"'": ${func:+$func: }$*" >&2
+
+		local trace="${STACKTRACE:-$DEBUG}"
+		if [[ "${trace,,}" =~ ^true|1$ || $- =~ x ]]; then
+			local i=0; while caller $i; do ((i++)); done
+		fi
 	}
 	'
 }
@@ -250,8 +255,8 @@ _genfunc_log _debug Debug
 
 # Echo stderr debug line if turned on
 debug() {
-	if [[ "${DEBUG,,}" = true ]]; then
-		_debug -p 1 "$@"
+	if [[ "${DEBUG,,}" =~ ^true|1$ ]]; then
+		STACKTRACE=false _debug -p 1 "$@"
 	fi
 }
 
