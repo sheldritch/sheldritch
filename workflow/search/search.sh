@@ -32,21 +32,17 @@ fzf_json() {
 		input="$(cat)"
 	fi
 
-	if [ -n "$query" ]; then
-		input="$(jqj "$input")"
-	fi
-
 	mkdir -p /tmp/tools
 	file="$(mktemp tools/fzf_jzon.XXXXX --tmpdir)"
-	echo "$input" > "$file"
+	jqj "$input" -sc "flatten | .[] | ${query:-.}" > "$file"
 
 	# shellcheck disable=SC2016
-	lineTest='flatten | .[] | select(.id as $id | $line | test("\($id)"))'
+	lineTest='select(.id as $id | $line | test("\($id)"))'
 	match="$(
-		jqj "$input" -r '.[] | "\(.'"$id) \\(.$key)\"" |
-			fzf --sync --preview 'cat "'"$file"'" | jq -s --arg line {} '"'$lineTest'"
+		jq -r '"\('".$id) \\(.$key)\"" "$file" |
+			fzf --sync --preview 'cat "'"$file"'" | jq --arg line {} '"'$lineTest'"
 	)"
 
-	jqj "$input" --arg line "$match" "$lineTest"
+	jq --arg line "$match" "$lineTest" "$file"
 	rm "$file"
 }

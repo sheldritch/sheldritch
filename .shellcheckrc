@@ -1,1 +1,5 @@
 shell=bash
+source-path=SCRIPTDIR
+source-path=.
+
+disable=SC2142 # positional params in aliases

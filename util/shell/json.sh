@@ -18,11 +18,12 @@ jqj() {
 	local json="$1"
 	shift
 
-	if [[ "$json" =~ ^- ]]; then
-		echo >&2 "Error: first argument to jqj should always be json."
+	if [[ ! "$json" =~ ^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$ ]]; then
+		error -p 1 "jqj: expected JSON as first argument, instead got '$json'."
+		return 9
 	fi
 
-	echo "$json" | jq "$@"
+	jq "$@" <<<"$json"
 }
 
 json_obj() {
@@ -32,7 +33,7 @@ json_obj() {
 		if ! jq -n "$value" >/dev/null 2>&1; then
 			value="\"$value\""
 		fi
-		query+=".$key = $value | "
+		query+=".[\"$key\"] = $value | "
 	done
 	jq -n "$query ."
 }
