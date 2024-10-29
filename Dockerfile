@@ -32,6 +32,7 @@ WORKDIR $HOME
 # Install anything we can get from apt
 # Keep alphabetical please!
 RUN apt-get update -q=3 && apt-get install -q=3 --no-install-recommends \
+	apache2-utils \
 	atool \
 	curl \
 	file \
