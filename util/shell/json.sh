@@ -39,7 +39,7 @@ json_obj() {
 }
 
 json_field() {
-	jqj "$1" -re ".$2 // empty"
+	jqj "$1" -re ".[\"${2/\"/\\\"}\"] // empty"
 }
 jf() {
 	json_field "$@"
