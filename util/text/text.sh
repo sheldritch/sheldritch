@@ -44,32 +44,52 @@ tgrep() {
 # so excuse the weird structure
 replace() {
 
+	local in="$1"
+	shift
+
 	# Okay, I know I just said 'very optimised', but like, it does not scale in the slightest.
-	if [[ "${#3}" -gt 500 ]]; then
-		printf "%s" | sed -E "s/$1/$2"
-		return
+	# For long strings, just use sed...
+	if [[ "${#in}" -gt 500 ]]; then
+		declare -a args=()
+		while [[ $# -gt 1 ]]; do
+			args+=(-e "s/$1/$2/g")
+		done
+		sed -E "${args[@]}" <<<"$in"
+		return $?
 	fi
 
-	local match="$1" replacement="$2"
-	local in="$3" out="" captures=""
+	while [[ $# -gt 1 ]]; do
+		local out="" captures=""
+		local match="$1" replacement="$2"
 
-	for x in {0..9}; do
-		if [[ "$replacement" =~ \\$x ]]; then
-			captures+=" $x"
+		if [[ "$replacement" =~ \\[0-9].* ]]; then
+			# filter out non-capture characters to speed up '=~' check below
+			# non-escaped digits are left in (faster to do so), but since we only handle 0-9 those are fine
+			local escapes="${BASH_REMATCH[0]//\\[^0-9]/}"
+			escapes="${escapes//[^\\0-9]/}"
+
+			for x in {0..9}; do
+				if [[ "$replacement" =~ \\$x ]]; then
+					captures+=" $x"
+				fi
+			done
 		fi
-	done
 
-	while [[ "$in" =~ $1 ]]; do
-		local match="${BASH_REMATCH[0]}" sub="$2"
 
-		for x in $captures; do
-			sub="${sub//\\$x/${BASH_REMATCH[$x]}}"
+		while [[ "$in" =~ $match ]]; do
+			local capture="${BASH_REMATCH[0]}" sub="$replacement"
+
+			for x in $captures; do
+				sub="${sub//\\$x/${BASH_REMATCH[$x]}}"
+			done
+
+			out+="${in%%"$capture"*}$sub"
+			in="${in#*"$capture"}"
 		done
-
-		out+="${in%%"$match"*}$sub"
-		in="${in#*"$match"}"
+		in="$out$in"
+		shift 2
 	done
-	printf '%s%s\n' "$out" "$in"
+	printf '%s\n' "$in"
 }
 s() { replace "$@"; }
 
