@@ -15,15 +15,12 @@ fi
 # 
 # Slightly shorter than echoing yourself
 jqj() {
-	local json="$1"
-	shift
-
-	if [[ ! "$json" =~ ^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$ ]]; then
-		error -p 1 "jqj: expected JSON as first argument, instead got '$json'."
+	if [[ ! "$1" =~ ^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$ ]]; then
+		error -p 1 "jqj: expected JSON as first argument, instead got '$1'."
 		return 9
 	fi
 
-	jq "$@" <<<"$json"
+	jq "${@:2}" <<<"$1"
 }
 
 json_obj() {
@@ -39,11 +36,11 @@ json_obj() {
 }
 
 json_field() {
-	jqj "$1" -re ".[\"${2/\"/\\\"}\"] // empty"
+	local query="$(replace "$2"  \" '\"'  '(([^.]|\\.)+)' '["\1"]'  '\\\.' .)"
+	jqj "$1" -re ".$query // empty"
 }
-jf() {
-	json_field "$@"
-}
+alias jfield=json_field
+alias jf=json_field
 
 jbool() {
 	isTrue "$(jqj "$1" "($2) == true")"
@@ -91,26 +88,67 @@ json_it() {
 	esac
 }
 
-alias jq_extract_match=json_extract_match
-# For each object in a JSON array (STDIN),
-#    Find a substring in value of SOURCE_FIELD matching REGEX,
-#    and set DESTINATION_FIELD to that found value.
-json_extract_match() {
+json2vars() {
+	@func_info
+	about=''
+	options=(
+		-A --dict=DICT "Save variables into an associative array"
+		-f --filter=FILTER "jq to apply to the JSON before retrieving values"
+		-c --check "ensure that each variable is set"
+	)
+	args_req='__json'
+	args_parse
 
-	usage() {
-		print_usage "SOURCE_FIELD REGEX DESTINATION_FIELD"
-	}
+	if [[ -n "$dict" ]]; then
+		error 'associative array support not currently impelemented. Sorry!'
+		return 9
+	fi
 
-	sourceField="$1"
-	regex="$2"
-	destField="$3"
+	if ! var_is_declared "${@//=*/}"; then
+		error "variables must be declared beforehand"
+		error "please call 'local $*' above this function call."
+		return 9
+	fi
 
-	for arg in sourceField regex destField; do
-		if [ -z "${!arg}" ]; then
-			usage
-			return 1
+	local __var __exit=0
+	__json="$(jqj "$__json" "${filter:-.}")" || return 1
+	for __var in "$@"; do
+		if [[ "$__var" =~ ([^=]+)=(.+) ]]; then
+			eval "${BASH_REMATCH[1]}="'"$(json_field "$__json" ${BASH_REMATCH[2]})"' || __exit=$?
+		else
+			eval "$__var="'"$(json_field "$__json" $__var)"' || __exit=$?
 		fi
 	done
+	if isTrue $check; then
+		return $__exit
+	fi
+}
+
+json_stream() {
+	# the dual 'flatten | .[]' supports complex filtering scenarios and flexible array inputs
+	jqj "$1" --slurp --compact-output "flatten | .[] | [${2:-.}] | flatten | .[]"
+}
+alias jstream=json_stream
+
+json_read() {
+	local __item
+	read -r __item
+	__item="$(jqj "$__item" -re .)" || return 1
+	json2vars "$__item" "$@"
+}
+alias jread=json_read
+
+alias jq_extract_match=json_extract_match
+json_extract_match() {
+	@func_info
+	about='
+	For each object in a JSON array (STDIN):
+	   - Find a substring in value of SOURCE_FIELD matching REGEX
+	   - Set DESTINATION_FIELD to that found value
+	'
+	usage='SOURCE_FIELD REGEX DESTINATION_FIELD'
+	args_req='sourceField regex destField'
+	args_parse
 
 	jq "map((.$sourceField | sub(\".*(?<m>$regex).*\"; .m)) as \$match | if (\$match | test(\"$regex\")) then .$destField=\$match else . end )"
 }
