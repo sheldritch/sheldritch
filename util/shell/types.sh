@@ -147,12 +147,21 @@ contains() {
 }
 
 item() {
-	usage() {
-		print_usage "perform a check or operation of a single value against a given list"
-	}
-	@ARGS_DEFAULT
+	@func_info
+	about="perform a check or operation of a single value against a given list"
+	usage=(
+		"ITEM not OPERATOR ELEMENTS..."
+		"ITEM in ELEMENTS..."
+	)
+	if [[ $# -eq 1 && "$1" =~ (-h|--help) ]]; then
+		print_docs 2>&1
+	fi
+
 	local item="$1" operator="$2"
-	shift 2 || return 1
+	if ! shift 2; then
+		print_docs
+		return 1
+	fi
 
 	case "$operator" in
 		not)

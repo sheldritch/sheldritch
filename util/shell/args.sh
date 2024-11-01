@@ -48,7 +48,10 @@ alias args_parse='
 			safe_quit 9
 		fi
 		declare $args_req
-		_args_req "$@" || safe_quit $?
+		for x in $args_req; do
+			_args_req "$x" "$1" || safe_quit $?
+			shift
+		done
 	fi
 '
 
@@ -159,22 +162,20 @@ tools_args_example() {
 }
 
 _args_req() {
-	local arg
-	for arg in $args_req; do
-		if [[ -z "$1" ]]; then
-			error -p 1 "arg '$arg' must be set"
+	local arg="$1"
+	shift
+	if [[ -z "$1" ]]; then
+		error -p 1 "arg '$arg' must be set"
 
-			if var_is_declared usage; then
-				print_usage "$usage" >&2
-			else
-				print_usage "$(case_big_snake $args_req)"
-			fi
-			return 1
+		if var_is_declared usage; then
+			print_doc
+		else
+			print_usage "$(case_big_snake $args_req)"
 		fi
+		return 1
+	fi
 
-		eval "$arg"'="$1"'
-		shift
-	done
+	eval "$arg"'="$1"'
 }
 
 _args_name_to_camel() {
