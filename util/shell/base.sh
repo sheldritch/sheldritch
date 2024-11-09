@@ -215,6 +215,7 @@ alias safe_quit="return 2> /dev/null || exit"
 quiet() { "$@" >/dev/null 2>/dev/null; }
 stderr() { "$@" >&2; }
 
+# shellcheck disable=SC2154
 alias @func_use_parent='
 	local parent
 	while [[ -n "$1" ]]; do
@@ -238,12 +239,17 @@ alias @func_use_parent='
 
 _genfunc_log() {
 	eval "$1"'() {
+		local trace="${STACKTRACE:-$DEBUG}" set
+		if [[ $- =~ x ]]; then
+			set +x
+			set=x
+		fi
 		@func_use_parent
 		echo '"$2"'": ${func:+$func: }$*" >&2
 
-		local trace="${STACKTRACE:-$DEBUG}"
-		if [[ "${trace,,}" =~ ^true|1$ || $- =~ x ]]; then
-			local i=0; while caller $i; do ((i++)); done
+		if [[ "${trace,,}" =~ ^true|1$ || -n "$set" ]]; then
+			local i=0; while caller $i >&2; do ((i++)); done
+			set -$set
 		fi
 	}
 	'

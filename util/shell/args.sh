@@ -26,6 +26,11 @@ declare -A _opts _opts_bool
 
 # shellcheck disable=SC2142
 alias args_parse='
+	declare _args_set
+	if [[ $- =~ x ]]; then
+		_args_set=x
+		set +x
+	fi
 	_tools_trace "+$(funcname || echo "$0") $(args_quoted "$@")"
 
 	_args_options_gen "${options[@]}" || return $?
@@ -53,6 +58,8 @@ alias args_parse='
 			shift
 		done
 	fi
+
+	set -$_args_set
 '
 
 tools_args_example() {
