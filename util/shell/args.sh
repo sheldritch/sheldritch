@@ -48,8 +48,8 @@ alias args_parse='
 	shift "${_opt_count:-0}" # set by _args_options_parse
 
 	if [[ "$args_req" ]]; then
-		if ! var_is_local args_req; then
-			error "INTERNAL ERR: args_req must be locally defined"
+		if ! var_is_declared args_req; then
+			error "INTERNAL ERR: args_req must be declared"
 			safe_quit 9
 		fi
 		declare $args_req
