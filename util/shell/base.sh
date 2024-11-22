@@ -14,7 +14,7 @@ elif [[ "$ZSH_VERSION" ]]; then
 	setopt aliases
 fi
 
-if [[ "$TOOLS_SOURCES" =~ "base.sh" && -z "$TOOLS_RESET" && "$1" != "--force" ]]
+if [[ "$TOOLS_SOURCES" = *base.sh* && -z "$TOOLS_RESET" && "$1" != "--force" ]]
 then
 	return
 else
@@ -50,7 +50,7 @@ fi
 
 add_to_path() {
 	for Path in "$@"; do
-		if ! [[ "$PATH" =~ "$Path" ]]; then
+		if ! [[ "$PATH" = *"$Path"* ]]; then
 			export PATH="$PATH:$Path"
 		fi
 	done
@@ -58,11 +58,11 @@ add_to_path() {
 
 source_once() {
 	local Path="$1"
-	if ! [[ "$Path" =~ ^/ ]]; then
+	if ! [[ "$Path" = /* ]]; then
 		Path="$(realpath -s "$1")"
 	fi
 
-	if [[ "$TOOLS_SOURCES" =~ "$Path" ]]; then
+	if [[ "$TOOLS_SOURCES" = *"$Path"* ]]; then
 		_tools_trace "source_once: skipping export '$Path': Already sourced"
 		return
 	fi
@@ -106,7 +106,7 @@ use_tool() {
 	for tool in "$@"; do
 		tool="$TOOLS/$tool"
 
-		if [[ "$TOOLS_SOURCES" =~ "$tool" ]]; then
+		if [[ "$TOOLS_SOURCES" = *"$tool"* ]]; then
 			continue
 		fi
 
@@ -240,14 +240,14 @@ alias @func_use_parent='
 _genfunc_log() {
 	eval "$1"'() {
 		local trace="${STACKTRACE:-$DEBUG}" set
-		if [[ $- =~ x ]]; then
+		if [[ $- = *x* ]]; then
 			set +x
 			set=x
 		fi
 		@func_use_parent
 		echo '"$2"'": ${func:+$func: }$*" >&2
 
-		if [[ "${trace,,}" =~ ^true|1$ || -n "$set" ]]; then
+		if [[ "${trace,,}" = true || "$trace" = 1 || -n "$set" ]]; then
 			local i=0; while caller $i >&2; do ((i++)); done
 			set -$set
 		fi
@@ -261,9 +261,9 @@ _genfunc_log _debug Debug
 
 # Echo stderr debug line if turned on
 debug() {
-	if [[ "${DEBUG,,}" =~ ^true|1$ ]]; then
-		STACKTRACE=false _debug -p 1 "$@"
-	fi
+	case "${DEBUG,,}" in
+		true | 1 ) STACKTRACE=false _debug -p 1 "$@"
+	esac
 }
 
 alias var_is_local='local >/dev/null 2>&1 -p'
