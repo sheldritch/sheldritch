@@ -1,12 +1,12 @@
 {
-    "perl" : "6.d",
-    "name" : "WorkingMouse::Tools",
-    "depends" : [
-		"JSON::Fast:ver<0.19>",
-		"YAMLish"
-	],
-    "source-url" : "git://gitlab.workingmouse.com.au/workingmouse/internal/tools.git",
-	"provides" : {
-        "Tools::Util::Shell" : "util/shell/Shell.rakumod"
-    }
+  "perl" : "6.d",
+  "name" : "Sheldritch",
+  "depends" : [
+    "JSON::Fast:ver<0.19>",
+    "YAMLish"
+  ],
+  "source-url" : "git://github.com/michaelruigrok/sheldritch.git",
+  "provides" : {
+    "Sheldritch" : "lang/Sheldritch.rakumod"
+  }
 }
