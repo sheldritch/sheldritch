@@ -31,7 +31,7 @@ alias args_parse='
 		_args_set=x
 		set +x
 	fi
-	_tools_trace "+$(funcname || echo "$0") $(args_quoted "$@")"
+	_tools_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
 	_args_options_gen "${options[@]}" || return $?
 
@@ -47,6 +47,8 @@ alias args_parse='
 
 	shift "${_opt_count:-0}" # set by _args_options_parse
 
+	# TODO: allow mixing of options and required arguments by parsing these in _args_options_parse
+	# Might need to consider how variadic arguments interact with this
 	if [[ "$args_req" ]]; then
 		if ! var_is_local args_req; then
 			error "INTERNAL ERR: args_req must be locally defined"
