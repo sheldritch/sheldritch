@@ -90,11 +90,16 @@ json_it() {
 
 json2vars() {
 	@func_info
-	about=''
+	about='Extract values from the given JSON object into the specified versions.
+	Arguments of form A=B will access the value of JSON key B and assign it to A.
+	Arguments of form A will use A both as the JSON key name and the assigned variable name.
+	'
+	usage='JSON [VAR_NAME=]JSON_KEY...'
 	options=(
-		-A --dict=DICT "Save variables into an associative array"
-		-f --filter=FILTER "jq to apply to the JSON before retrieving values"
-		-c --check "ensure that each variable is set"
+		-A --dict=DICT       "Save variables into an associative array"
+		-E --export          "Export the variables created"
+		-f --filter=FILTER   "jq to apply to the JSON before retrieving values"
+		-c --check           "ensure that each variable is set"
 	)
 	args_req='__json'
 	args_parse
@@ -104,7 +109,15 @@ json2vars() {
 		return 9
 	fi
 
-	if ! var_is_declared "${@//=*/}"; then
+	local __directive x
+	for x in export; do
+		if isTrue ${!x}; then
+			__directive=$x
+			break
+		fi
+	done
+
+	if [[ -z "$__directive" ]] && ! var_is_declared "${@//=*/}"; then
 		error "variables must be declared beforehand"
 		error "please call 'local $*' above this function call."
 		return 9
@@ -114,9 +127,9 @@ json2vars() {
 	__json="$(jqj "$__json" "${filter:-.}")" || return 1
 	for __var in "$@"; do
 		if [[ "$__var" =~ ([^=]+)=(.+) ]]; then
-			eval "${BASH_REMATCH[1]}="'"$(json_field "$__json" ${BASH_REMATCH[2]})"' || __exit=$?
+			eval "$__directive ${BASH_REMATCH[1]}="'"$(json_field "$__json" ${BASH_REMATCH[2]})"' || __exit=$?
 		else
-			eval "$__var="'"$(json_field "$__json" $__var)"' || __exit=$?
+			eval "$__directive $__var="'"$(json_field "$__json" $__var)"' || __exit=$?
 		fi
 	done
 	if isTrue $check; then
@@ -162,10 +175,6 @@ json_extract_match() {
 #
 # Does not set or modify dynamic variables if no attribute is found, unless -f is set. outputVar is always set.
 json_pop() {
-	if ! in_tools_base_context; then
-		echo >&2 "Warning: json_pop must not be run in a subshell or a pipe."
-		echo >&2 "	   If you do this, you will not be able to retrieve the resulting values."
-	fi
 
 	local force
 	@ARGS
@@ -235,6 +244,12 @@ json_pop() {
 			var=arr$var
 		fi
 
+		if ! var_is_declared "$var"; then
+			error "variables must be declared beforehand"
+			error "please call 'local $*' above this function call."
+			return 9
+		fi
+
 		result="$(echo "$JSON" | jq -r ".[$match]")"
 		if [ "$result" == null ] && [ "$force" != true ]; then
 			echo >&2 "json_pop: $var not found"
@@ -246,14 +261,14 @@ json_pop() {
 			unset result
 		fi
 
-		declare -g $var="$result"
+		eval $var='"$result"'
 		debug "var '$var' set to '${!var}'"
 
 		JSON="$(echo "$JSON" | jq "del(.[$match])")"
 	done
 
 	if [ -n "$outputVar" ]; then
-		declare -g $outputVar="$JSON"
+		eval $outputVar='"$JSON"'
 
 		if [ "$JSON" != "${!outputVar}" ]; then
 			echo >&2 "ERROR: json_pop: \$$outputVar is set as a local variable in the scope above it."
