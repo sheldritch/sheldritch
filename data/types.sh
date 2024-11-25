@@ -77,6 +77,12 @@ alias_funcs() {
 	alias $(funcs | sed -E -n "s/.*/&=&/; s/$functionMatch/$replacement/p")
 }
 
+# Print the contents of a given alias. Used for nested aliases.
+alias_print() {
+	eval "alias=$(alias $1 | sed -E 's/^(alias )?'"$1"'=//' )"
+	echo "$alias"
+}
+
 #
 # Booleans
 #
@@ -234,11 +240,28 @@ ternary() {
 }
 
 ifdef() {
-       if [[ $# -gt 3 ]]; then
-               error -p 2 "wrong argument count to ifdef (:+)"
-               return 9
-       fi
-       [[ -n "$1" ]] && echo "$2" || echo "$3"
+	if [[ $# -gt 3 ]]; then
+		error -p 2 "wrong argument count to ifdef (:+)"
+		return 9
+	fi
+	[[ -n "$1" ]] && echo "$2" || echo "$3"
 }
 :+ () { ifdef "$@"; }
 
+safe_set() {
+	if ! declare -p $1 >/dev/null; then
+		error "variable '$1' must be declared beforehand"
+		echo >&2 "Please call 'local $1' above this function call, and 'declare -r $1' afterwards."
+		return 9
+
+	elif [[ -n "${!1}" ]]; then
+		error "'$1' Must be a fresh variable, do not set it to some initial value."
+		return 9
+
+	elif [[ "$1" = "$2" ]]; then
+		error variable cannot be "$2"
+		return 9
+	fi
+
+	eval $1="${!2}"
+}

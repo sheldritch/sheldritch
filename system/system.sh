@@ -28,6 +28,12 @@ alias '@OS_CASE_END_ERROR=
 esac'
 zsh_run setopt GLOB
 
+if [[ $OS = mac ]] && ! command -v brew >/dev/null; then
+	echo >&2 "Error: Homebrew not found in Mac install. Ensure it is installed and initialised before using the tools repo."
+	return 1
+fi
+
+
 export MSYS=winsymlinks:nativestrict
 local iop=/proc/sys/fs/binfmt_misc/WSLInterop
 if [[ -f "$iop" ]] && grep -sq enabled "$iop"; then
@@ -40,7 +46,7 @@ fi
 
 url_open() {
 	link="$1"
-	if [ "$XDG_SESSION_TYPE" = tty ]; then
+	if [[ "$XDG_SESSION_TYPE" = tty ]]; then
 		echo >&2 "Open the following link in your browser:"
 		echo >&2 "$link"
 		return

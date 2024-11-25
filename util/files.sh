@@ -14,3 +14,20 @@ fopen() {
 
 	eval "exec ${_sem}<>$SEMS/$1"
 }
+
+su_write() {
+	if [ $# -ne 1 ]; then
+		error "requires one file name as argument"
+		return 1
+	fi
+	sudo tee > /dev/null "$1"
+}
+
+su_append() {
+	if [ $# -ne 1 ]; then
+		error "requires one file name as argument"
+		return 1
+	fi
+	sudo tee > /dev/null -a "$1"
+}
+

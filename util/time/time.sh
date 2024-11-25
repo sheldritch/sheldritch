@@ -3,6 +3,8 @@ check_is_sourced
 
 use_tool util/shell/shell.sh
 
+now() { echo "$(date +%s.%N)"; }
+
 table_date_comp() {
 	local doc='prints all rows from stdin'
 	local usage='[options] OPERATOR DATE'

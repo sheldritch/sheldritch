@@ -64,6 +64,21 @@ path_search() {
 	done <<<"$Path"
 }
 
+find_bin() {
+	for x in ${PATH//://*${1}* }*${1}*; do
+		[ -f "$x" ] && echo $x
+	done
+}
+
+path_add() {
+	for Path in "$@"; do
+		if ! [[ "$PATH" = *"$Path"* ]]; then
+			export PATH="$PATH:$Path"
+		fi
+	done
+}
+
+
 source "$SHELDRITCH/system/xdg.sh"
 
 

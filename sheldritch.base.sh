@@ -21,19 +21,11 @@ fi
 
 alias zsh_run='[[ -z "$ZSH_VERSION" ]] || '
 alias bash_run='[[ -z "$BASH_VERSION" ]] || '
-alias _tools_trace='[[ -v TOOLS_TRACE && "$TOOLS_TRACE" ]] && echo >&2 '
+alias _trace='[[ -v TRACE && "$TRACE" ]] && echo >&2 '
 
 if ! command -v complete >/dev/null 2>/dev/null; then
 	complete() { return; }
 fi
-
-add_to_path() {
-	for Path in "$@"; do
-		if ! [[ "$PATH" = *"$Path"* ]]; then
-			export PATH="$PATH:$Path"
-		fi
-	done
-}
 
 # temporarily unset aliases, so they don't interfere with a helper script
 disable_previous_aliases() {
@@ -54,8 +46,7 @@ enable_previous_aliases() {
 zsh_run zmodload zsh/parameter
 
 self_file() {
-	local level
-	level="${1:-0}"
+	local level="${1:-0}"
 	bash_run caller "$level" | awk '{print $3; exit}'
 	# shellcheck disable=all
 	zsh_run echo ${funcfiletrace[$(($level + 1 ))]} | cut -d : -f 1
@@ -66,7 +57,7 @@ self_dir() {
 }
 
 if [[ -z "$SHELDRITCH" ]]; then
-	export SHELDRITCH="$(realpath -s $(self_dir)/../../)"
+	export SHELDRITCH="$(realpath -s $(self_dir))"
 fi
 
 # /tmp/tools for tool-related temporary files
