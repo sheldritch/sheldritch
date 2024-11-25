@@ -117,27 +117,6 @@ diff_confirm() {
 	test "$confirm" = "y"
 }
 
-url_open() {
-	link="$1"
-	if [ "$XDG_SESSION_TYPE" = tty ]; then
-		echo >&2 "Open the following link in your browser:"
-		echo >&2 "$link"
-		return
-	fi
-
-	echo >&2 "Trying to open link in your browser..."
-	echo >&2 "If you don't see the browser open up, manually open the following link in your browser:"
-	echo >&2 "$link"
-
-	if grep -sq enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
-		(cd /mnt/c || cd /c && cmd.exe /c start "$link")
-	elif command -v xdg-open ; then
-		xdg-open "$link"
-	else
-		echo >&2 "Error: no link opener available. Please do so manually."
-	fi
-}
-
 # TODO: replace with args.sh case_
 fmtvar() {
 	@ARGS

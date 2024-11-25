@@ -28,3 +28,34 @@ alias '@OS_CASE_END_ERROR=
 esac'
 zsh_run setopt GLOB
 
+export MSYS=winsymlinks:nativestrict
+local iop=/proc/sys/fs/binfmt_misc/WSLInterop
+if [[ -f "$iop" ]] && grep -sq enabled "$iop"; then
+	__browser="cmd.exe /c start"
+	if [[ "$BROWSER" && "$BROWSER" != "$__browser" ]]; then
+		echo >&2 "Warning: setting BROWSER as '$__browser' for WSL. To quash this warning, unset BROWSER or set it as '$__browser' yourself."
+	fi
+	export BROWSER="$__browser"
+fi
+
+url_open() {
+	link="$1"
+	if [ "$XDG_SESSION_TYPE" = tty ]; then
+		echo >&2 "Open the following link in your browser:"
+		echo >&2 "$link"
+		return
+	fi
+
+	echo >&2 "Trying to open link in your browser..."
+	echo >&2 "If you don't see the browser open up, manually open the following link in your browser:"
+	echo >&2 "$link"
+
+	if grep -sq enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
+		(cd /mnt/c || cd /c && cmd.exe /c start "$link")
+	elif command -v xdg-open ; then
+		xdg-open "$link"
+	else
+		echo >&2 "Error: no link opener available. Please do so manually."
+	fi
+}
+
