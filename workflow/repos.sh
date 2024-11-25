@@ -3,6 +3,17 @@
 source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
 
+# Directories storing repos
+if [[ -z "$REPOS" ]]; then
+	# sensibly set REPO_DIR based on the first existing directory
+	# Feel free to add your own repo here
+	for dir in "$HOME"/{repos,git,code,projects}; do
+		if [[ -d "$dir" ]]; then
+			[[ -z "$REPOS" ]] && REPOS="$dir" || REPOS="$REPOS:$dir"
+		fi
+	done
+fi
+
 repo_list() {
 	usage() {
 		echo "repo_list: prints directories from all repos"

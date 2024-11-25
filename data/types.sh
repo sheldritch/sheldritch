@@ -83,6 +83,19 @@ alias_print() {
 	echo "$alias"
 }
 
+# temporarily unset aliases, so they don't interfere with a helper script
+disable_previous_aliases() {
+	PRE_UTIL_ALIASES="$(alias)"
+	for alias in $(alias | perl -ne "/alias (\w+)='*/ && print "'"$1\n"'); do
+		unalias "$alias"
+	done
+}
+
+# Must be run at the end of a script that disabled previous aliases
+enable_previous_aliases() {
+	eval "$PRE_UTIL_ALIASES"
+}
+
 #
 # Booleans
 #

@@ -23,30 +23,13 @@ alias zsh_run='[[ -z "$ZSH_VERSION" ]] || '
 alias bash_run='[[ -z "$BASH_VERSION" ]] || '
 alias _trace='[[ -v TRACE && "$TRACE" ]] && echo >&2 '
 
-if ! command -v complete >/dev/null 2>/dev/null; then
-	complete() { return; }
-fi
-
-# temporarily unset aliases, so they don't interfere with a helper script
-disable_previous_aliases() {
-	PRE_UTIL_ALIASES="$(alias)"
-	for alias in $(alias | perl -ne "/alias (\w+)='*/ && print "'"$1\n"'); do
-		unalias "$alias"
-	done
-}
-
-# Must be run at the end of a script that disabled previous aliases
-enable_previous_aliases() {
-	eval "$PRE_UTIL_ALIASES"
-}
-
-
 # Directories/Environment
 
 zsh_run zmodload zsh/parameter
 
 self_file() {
 	local level="${1:-0}"
+	# TODO: remove pipes here
 	bash_run caller "$level" | awk '{print $3; exit}'
 	# shellcheck disable=all
 	zsh_run echo ${funcfiletrace[$(($level + 1 ))]} | cut -d : -f 1
@@ -62,21 +45,17 @@ fi
 
 # /tmp/tools for tool-related temporary files
 ! [[ -d /tmp/tools ]] && mkdir -p /tmp/tools
-
-# Directories storing repos
-if [[ -z "$REPOS" ]]; then
-	# sensibly set REPO_DIR based on the first existing directory
-	# Feel free to add your own repo here
-	for dir in "$HOME"/{repos,git,code,projects}; do
-		if [[ -d "$dir" ]]; then
-			[[ -z "$REPOS" ]] && REPOS="$dir" || REPOS="$REPOS:$dir"
-		fi
-	done
-fi
+tmp_dir() {
+	xdg_tmp
+}
 
 SHELDRITCH_SUBSHELL=$BASH_SUBSHELL
 
 # Base Helpers
+
+if ! command -v complete >/dev/null 2>/dev/null; then
+	complete() { return; }
+fi
 
 alias safe_quit="return 2> /dev/null || exit"
 
