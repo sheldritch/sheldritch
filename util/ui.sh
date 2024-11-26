@@ -1,3 +1,8 @@
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
+check_is_sourced
+
+summon sheldritch/util/args.sh
+
 confirm() {
 	usage() {
 		echo "confirm: prompt user for yes/no and return the response as an exit code."
@@ -52,10 +57,11 @@ confirm() {
 			promptOpts=y/N
 		fi
 
-		read -rp "${question:+$question [$promptOpts]: }" TOOLS_CONFIRM < /dev/tty
+		local confirm
+		read -rp "${question:+$question [$promptOpts]: }" confirm < /dev/tty
 
 		local response
-		if response="$(yesNoToBool "${TOOLS_CONFIRM:-$default}")"; then
+		if response="$(yesNoToBool "${confirm:-$default}")"; then
 
 			if ! [ -t 0 -o -t 1 ]; then
 				if isTrue "$response"; then

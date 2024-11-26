@@ -1,7 +1,9 @@
 # move around between certain repos
 
-source "$TOOLS/util/shell/base.sh" || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
+
+summon sheldritch/util/complete.sh
 
 # Directories storing repos
 if [[ -z "$REPOS" ]]; then

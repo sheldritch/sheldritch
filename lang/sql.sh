@@ -1,10 +1,10 @@
 #!/bin/bash
 # Common helpers for database management
 
-source "$TOOLS/util/shell/base.sh" || return 1
+source "$SHELDRITCH/shelldritch.base.sh" || return 1
 check_is_sourced
 
-use_tool util/shell/shell.sh
+summon sheldritch/util/args.sh
 
 sql_query() {
 	local select table where order limit

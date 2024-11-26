@@ -1,7 +1,5 @@
-source "$TOOLS/util/shell/base.sh" || return 1
+source "$SHELDRITCH/sheldritch.sh" || return 1
 check_is_sourced
-
-use_tool util/shell/shell.sh
 
 # Use FZF to search a JSON array for a particular field match
 fzf_json() {

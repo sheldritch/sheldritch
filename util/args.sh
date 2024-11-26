@@ -12,7 +12,9 @@
 source "$SHELDRITCH"/sheldritch.base.sh || return 1
 check_is_sourced
 
-# NOTE: There's a use_tool declaration at the bottom, once all the aliases have been properly declared
+main() {
+	summon sheldritch/util/text/text.sh || return 1
+}
 
 #
 # arg parsing frameworks
@@ -622,4 +624,4 @@ print_args() {
 	fi
 }
 
-use_tool util/text/text.sh || return 1
+main "$@"

@@ -1,8 +1,7 @@
-source "$TOOLS/util/shell/base.sh" || return 1
+source "$SHELDRITCH/sheldritch.sh" || return 1
 check_is_sourced
 
-use_tool util/shell/shell.sh
-use_tool util/shell/random.sh
+summon sheldritch/util/random.sh
 
 ASYNC_TMP=/tmp/${USER:-$user}/tools/async
 SEMS=$ASYNC_TMP/semaphores
@@ -78,7 +77,7 @@ async_wait() {
 		return 9
 	fi
 
-	_tools_trace "Awaiting sem '$1' to be freed"
+	_trace "Awaiting sem '$1' to be freed"
 	flock "$SEMS/$1" true
 	read -N 3 <"$SEMS/$1"
 	local exit=$?
@@ -97,7 +96,7 @@ async_done() {
 	flock "$SEMS/$sem" printf '%.3d' $exit >>"$SEMS/$sem" &
 	disown
 	)
-	_tools_trace "async: released semaphore $sem"
+	_trace "async: released semaphore $sem"
 }
 
 async_batch() {
@@ -145,7 +144,7 @@ async_batch() {
 			shift
 	@ENDARGS
 
-	if [[ "$TOOLS_TRACE" ]]; then
+	if [[ "$TRACE" ]]; then
 		verbose=true
 	fi
 
@@ -329,9 +328,9 @@ async_cat() {
 
 		ASYNC_CAT_EXIT=$?
 		if ! isTrue $ordered; then
-			_tools_trace async_cat: ${queueId:-$dir} awaiting lock for i=$file
+			_trace async_cat: ${queueId:-$dir} awaiting lock for i=$file
 			flock $catQueue cat $file
-			_tools_trace async_cat: ${queueId:-$dir} freed by i=$file
+			_trace async_cat: ${queueId:-$dir} freed by i=$file
 		fi
 		(exit \$ASYNC_CAT_EXIT)
 	" "$@"

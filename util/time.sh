@@ -1,7 +1,7 @@
-source "$TOOLS/util/shell/base.sh" || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-use_tool util/shell/shell.sh
+summon sheldritch/util/args.sh
 
 now() { echo "$(date +%s.%N)"; }
 

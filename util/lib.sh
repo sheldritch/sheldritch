@@ -102,6 +102,12 @@ path_add() {
 # We need to be careful about assuming that .local/lib is the best place for stuff, if
 # .local/share is already being used but ./lib is not.
 find_lib() {
+
+	if [[ "$1" = sheldritch/* && -n "$SHELDRITCH" ]]; then
+		printf "%s" "$SHELDRITCH/${1#sheldritch/}"
+		return
+	fi
+
 	local libs
 	if [[ -n "$LIBS" ]]; then
 		libs="$LIBS"

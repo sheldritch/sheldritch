@@ -1,10 +1,11 @@
 # meta-utilities for dealing with the tools repo
 
-source "$TOOLS/util/shell/base.sh" || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-use_tool util/shell/shell.sh
-use_tool util/text/text.sh
+summon sheldritch/data/text.sh
+
+# TODO: needs a full redesign
 
 # Completion for files in $TOOLS
 # TODO: make a generic helper to list files in this format

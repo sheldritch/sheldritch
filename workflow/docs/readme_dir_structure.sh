@@ -8,8 +8,8 @@
 # Does this recursively for all READMEs beneath the current directory.
 
 shopt -s globstar
-source "$TOOLS/util/shell/base.sh" || exit 1
-use_tool util/text/print-first-block.pl
+source "$SHELDRITCH/sheldritch.base.sh" || exit 1
+summon  sheldritch/data/text/print_first_block.pl
 
 directory="${1:-.}"
 
@@ -72,10 +72,10 @@ for readme in $(getDirectoryReadmes "$directory"); do
 
 
 		elif typeis "directory"; then
-			summary="$name -- $(print-first-block.pl '^\w+' "$child/README.md")"
+			summary="$name -- $(print_first_block.pl '^\w+' "$child/README.md")"
 
 		elif typeis "script" || nameis "\.sh$"; then
-			summary="$name -- $(print-first-block.pl '^# \w+' "$child" | sed 's/# //')"
+			summary="$name -- $(print_first_block.pl '^# \w+' "$child" | sed 's/# //')"
 
 		else
 			echo >&2 "unhandled filetype: $child"
