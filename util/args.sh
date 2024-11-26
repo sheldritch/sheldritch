@@ -9,7 +9,7 @@
 
 # shellcheck disable=SC2154,SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031
 
-source "$TOOLS"/util/shell/base.sh || return 1
+source "$SHELDRITCH"/sheldritch.base.sh || return 1
 check_is_sourced
 
 # NOTE: There's a use_tool declaration at the bottom, once all the aliases have been properly declared
@@ -31,7 +31,7 @@ alias args_parse='
 		_args_set=x
 		set +x
 	fi
-	_tools_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
+	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
 	_args_options_gen "${options[@]}" || return $?
 
@@ -386,7 +386,7 @@ ARGS_END="$ARGS_UTIL"'
 		break
 		;;
 esac; done
-_tools_trace "+$(funcname || echo "$0") $(args_quoted "$@")"
+_trace "+$(funcname || echo "$0") $(args_quoted "$@")"
 '
 alias @ARGS_END="$ARGS_END"
 

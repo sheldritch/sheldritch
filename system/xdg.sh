@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# helpers relating to the XDG OpenDesktop specification
+#
+# This is a no-dependency file.
 
 xdg() {
 	local data="${XDG_DATA_HOME:-$HOME/.local/share}" config="${XDG_CONFIG_HOME:-$HOME/.config}"

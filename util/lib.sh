@@ -2,6 +2,7 @@
 #
 # Functions for importing and handling shell scripts like libraries
 #
+# This file does not depend on base.
 
 # DESIGN:
 #
@@ -19,9 +20,16 @@
 #
 # Other tools we want to support:
 # - sheldon https://github.com/rossmacarthur/sheldon?tab=readme-ov-file#plugin-options
-# - bpkg www.bpkg.sh
 # - basher https://github.com/basherpm/basher
+#
+# Tools which don't fit our format
+# - bpkg www.bpkg.sh -- installs direct to bin
 
+if [[ "$BASH_VERSION" ]]; then
+	shopt -s expand_aliases
+elif [[ "$ZSH_VERSION" ]]; then
+	setopt aliases
+fi
 
 # shellcheck disable=SC2142
 alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
@@ -32,6 +40,16 @@ alias check_is_sourced="if ! script_is_sourced; then
 	exit 1
 fi"
 check_is_sourced
+
+if [[ -z "$SHELDRITCH" ]]; then
+	echo >&2 "Error: sheldritch lib.sh: SHELDRITCH must be set to its directory"
+	return 1
+fi
+
+main() {
+	source_once "$SHELDRITCH/sheldritch.base.sh"
+	source_once "$SHELDRITCH/system/xdg.sh"
+}
 
 check_is_sourced_func() {
 	if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; then
@@ -78,8 +96,6 @@ path_add() {
 	done
 }
 
-
-source "$SHELDRITCH/system/xdg.sh"
 
 
 # TODO: If we use .local/lib, there might be stuff in .local/share we also want to use
@@ -145,7 +161,7 @@ summon() {
 		esac
 	done
 
-	SHELDRITCH_RESET="$FORCE"
+	SHELDRITCH_CLEAN="$FORCE"
 
 	if [[ "$HELP" = true ]]; then
 		echo >&2 "summon -- imports the library/file (relative to the library dir)"
@@ -169,7 +185,7 @@ summon() {
 			# shellcheck disable=SC2139
 			alias "$(basename "$lib")=$lib"
 		else
-			if [[ "$SHELDRITCH_RESET" = true ]]; then
+			if [[ "$SHELDRITCH_CLEAN" = true ]]; then
 				_trace "Force source lib '$lib'"
 				source "$lib"
 			else
@@ -179,7 +195,9 @@ summon() {
 	done
 
 	if [[ "$FORCE" ]]; then
-		SHELDRITCH_RESET=""
+		SHELDRITCH_CLEAN=""
 	fi
 
 }
+
+main "$@"

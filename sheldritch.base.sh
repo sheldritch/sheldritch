@@ -12,11 +12,9 @@ elif [[ "$ZSH_VERSION" ]]; then
 	setopt aliases
 fi
 
-if [[ "$TOOLS_SOURCES" = *base.sh* && -z "$TOOLS_RESET" && "$1" != "--force" ]]
+if [[ -n "$SHELDRITCH_SUBSHELL" && -z "$SHELDRITCH_CLEAN" && "$1" != "--force" ]]
 then
 	return
-else
-	TOOLS_SOURCES+="$(echo -e "\nbase.sh")"
 fi
 
 alias zsh_run='[[ -z "$ZSH_VERSION" ]] || '
@@ -30,6 +28,7 @@ zsh_run zmodload zsh/parameter
 self_file() {
 	local level="${1:-0}"
 	# TODO: remove pipes here
+	# FIXME: fails if called outside of function
 	bash_run caller "$level" | awk '{print $3; exit}'
 	# shellcheck disable=all
 	zsh_run echo ${funcfiletrace[$(($level + 1 ))]} | cut -d : -f 1
@@ -42,14 +41,13 @@ self_dir() {
 if [[ -z "$SHELDRITCH" ]]; then
 	export SHELDRITCH="$(realpath -s $(self_dir))"
 fi
+SHELDRITCH_SUBSHELL="$BASH_SUBSHELL$ZSH_SUBSHELL"
 
 # /tmp/tools for tool-related temporary files
 ! [[ -d /tmp/tools ]] && mkdir -p /tmp/tools
 tmp_dir() {
 	xdg_tmp
 }
-
-SHELDRITCH_SUBSHELL=$BASH_SUBSHELL
 
 # Base Helpers
 
@@ -115,3 +113,5 @@ debug() {
 
 alias var_is_local='local >/dev/null 2>&1 -p'
 alias var_is_declared='declare >/dev/null 2>&1 -p'
+
+source "$SHELDRITCH/util/lib.sh"

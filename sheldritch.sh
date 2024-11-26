@@ -1,3 +1,5 @@
+__FILE="${BASH_SOURCE[0]:-${(%):-%x}}"
+source "${__FILE%.sh}.base.sh"
 
 use_tool util/shell/json.sh
 use_tool util/shell/random.sh
