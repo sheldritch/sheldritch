@@ -1,6 +1,6 @@
 # Makes all the shell scripts in `tools` available to the shell
 #
-source "$TOOLS/util/shell/base.sh" "$@" || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 tool_sync() {

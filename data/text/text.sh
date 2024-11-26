@@ -1,7 +1,8 @@
-source "$TOOLS/util/shell/base.sh" || return 1
+#1/bin/bash
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-use_tool util/shell/args.sh
+summon sheldritch/core/args.sh
 
 deindent() {
 	@func_info

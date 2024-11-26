@@ -1,7 +1,7 @@
 source "$SHELDRITCH/sheldritch.sh" || return 1
 check_is_sourced
 
-summon sheldritch/util/random.sh
+summon sheldritch/data/random.sh
 
 ASYNC_TMP=/tmp/${USER:-$user}/tools/async
 SEMS=$ASYNC_TMP/semaphores

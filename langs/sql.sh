@@ -4,7 +4,7 @@
 source "$SHELDRITCH/shelldritch.base.sh" || return 1
 check_is_sourced
 
-summon sheldritch/util/args.sh
+summon sheldritch/core/args.sh
 
 sql_query() {
 	local select table where order limit

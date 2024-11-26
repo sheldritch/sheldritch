@@ -3,7 +3,7 @@
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-summon sheldritch/data/text.sh
+summon sheldritch/data/text
 
 # TODO: needs a full redesign
 

@@ -2,10 +2,10 @@
 # Random generation utilities
 #
 
-source "$TOOLS/util/shell/base.sh" || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-use_tool util/shell/shell.sh
+use_tool sheldritch/core/args.sh
 
 random_word() {
 	local count

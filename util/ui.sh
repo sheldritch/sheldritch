@@ -1,7 +1,7 @@
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-summon sheldritch/util/args.sh
+summon sheldritch/core/args.sh
 
 confirm() {
 	usage() {

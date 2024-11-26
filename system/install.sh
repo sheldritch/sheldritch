@@ -1,11 +1,10 @@
 # Utilities for installing tools and their dependencies
 
-source "$TOOLS/util/shell/base.sh" || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-# minimal install set
-use_tool util/shell/args.sh
-use_tool util/system/system.sh
+summon sheldritch/core/args.sh
+summon sheldritch/system/
 
 _tool_install() {
 	usage() {

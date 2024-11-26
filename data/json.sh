@@ -1,13 +1,12 @@
 # Utils for transforming JSON
 
-source "$TOOLS"/util/shell/base.sh || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-# NOTE: common imports this file, but use_tool prevents infinite loop
-use_tool util/shell/shell.sh
+summon sheldritch/core/args.sh
 
 if ! command -v jq >/dev/null; then
-	echo >&2 "Error: util/json.sh: jq not installed."
+	echo >&2 "Error: sheldritch/util/json.sh: jq not installed."
 	return
 fi
 

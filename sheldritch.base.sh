@@ -114,4 +114,4 @@ debug() {
 alias var_is_local='local >/dev/null 2>&1 -p'
 alias var_is_declared='declare >/dev/null 2>&1 -p'
 
-source "$SHELDRITCH/util/lib.sh"
+source "$SHELDRITCH/core/lib.sh"

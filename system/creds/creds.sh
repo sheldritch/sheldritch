@@ -1,8 +1,9 @@
 # Helpers for credential management
 
-source "$TOOLS"/util/shell/base.sh || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
-use_tool util/shell/shell.sh
+
+summon sheldritch/core/args.sh
 
 TOOLS_KEYSTORE="/tmp/tools/keystore-$(whoami)"
 

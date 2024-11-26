@@ -103,7 +103,7 @@ path_add() {
 # .local/share is already being used but ./lib is not.
 find_lib() {
 
-	if [[ "$1" = sheldritch/* && -n "$SHELDRITCH" ]]; then
+	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
 		printf "%s" "$SHELDRITCH/${1#sheldritch/}"
 		return
 	fi
@@ -183,9 +183,9 @@ summon() {
 		fi
 
 		if [[ -d "$lib" ]]; then
-			_trace "Importing tools in directory '$lib'"
-			export PATH="$(find "$lib" -type d -printf "%p:")$PATH"
-			source_once "$lib"/*
+			_trace "Importing module '$lib'"
+			#export PATH="$(find "$lib" -type d -printf "%p:")$PATH"
+			source_once "$lib/$(basename "$lib").sh"
 		elif [[ -x "$lib" ]]; then
 			_trace "Importing executable lib '$lib'"
 			# shellcheck disable=SC2139

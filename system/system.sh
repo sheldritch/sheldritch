@@ -1,4 +1,4 @@
-source "$TOOLS"/util/shell/base.sh || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 case $(uname | tr '[:upper:]' '[:lower:]') in

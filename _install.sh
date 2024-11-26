@@ -17,7 +17,7 @@ add_tools_envar() {
 	fi
 }
 add_tools_envar ~/.bashrc
-# non-interactive init files need $TOOLS when they source $TOOLS/util/base.sh
+# non-interactive init files need $TOOLS when they source the app
 add_tools_envar ~/.profile
 add_tools_envar ~/.bash_profile
 
@@ -25,7 +25,7 @@ grep -Eq 'source "\$TOOLS' ~/.bashrc || echo 'source "$TOOLS/tools.sh"' >> ~/.ba
 
 cat <<-EOF
 ###
-### Critical resources -- needed to run util/shell/base.sh
+### Critical resources -- needed to run base sheldritch
 ###
 EOF
 
@@ -50,7 +50,7 @@ case "$(uname -s)" in
     *)          machine="UNKNOWN:${unameOut}"
 esac
 
-source "$TOOLS/util/shell/base.sh"
+source "$SHELDRITCH/sheldritch.base.sh"
 
 set +e
 

@@ -1,7 +1,5 @@
-source "$TOOLS"/util/shell/base.sh || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
-
-use_tool util/shell/shell.sh
 
 # Markdown Metadata from front matter
 mdmd() {
@@ -34,7 +32,7 @@ mdmd() {
 
 	case "$type" in
 		json)
-			jqj "$frontMatter" "$@"
+			echo "$frontMatter" | jq "$@"
 			;;
 		yaml)
 			echo "$frontMatter" | yq "$@"
