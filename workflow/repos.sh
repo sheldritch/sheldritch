@@ -46,8 +46,8 @@ repo_dir() {
 repo() {
 
 	if ! dir="$(repo_dir "$1")"; then
-		cd "$(echo "$REPOS" | sed 's/:.*//')"
-		return
+		error "could not find directory '$1' in repos."
+		return 2
 	fi
 
 	cd "$dir/$2"
