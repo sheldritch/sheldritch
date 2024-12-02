@@ -51,6 +51,16 @@ main() {
 	source_once "$SHELDRITCH/system/xdg.sh"
 }
 
+alias glob_args='
+    declare _IFS_OLD
+	[[ -z "${IFS+x}" ]] || _IFS_OLD=${IFS}
+	IFS=''
+    set -- $@
+    IFS=${_IFS_OLD}
+	[[ -n "${_IFS_OLD+x}" ]] || unset IFS
+    unset _IFS_OLD
+'
+
 check_is_sourced_func() {
 	if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; then
 		echo "You aren't sourcing ${0}. Make sure you are to have its libs available to you."
@@ -96,16 +106,47 @@ path_add() {
 	done
 }
 
+source_once() {
+	local Path
 
+	for Path in "$@"; do
+		if ! [[ "$Path" = /* ]]; then
+			Path="$(realpath -s "$Path")"
+		fi
+
+		# TODO: test performance of array and hash in large tools context
+		if [[ "$SHELDRITCH_SOURCES" = *"$Path"* ]]; then
+			_trace "source_once: skipping export '$Path': Already sourced"
+			return
+		fi
+
+		if [[ -x "$Path" ]]; then
+			echo >&2 "Error: $Path is an executable, presumably not a sourced file."
+			return 1
+		fi
+
+		SHELDRITCH_SOURCES+=$'\n'"$Path" # before source to prevent dependency loops
+		_trace "source_once: sourcing '$Path'"
+		_trace ""
+		_trace "sources currently:"
+		_trace "$SHELDRITCH_SOURCES"
+		source "$1"
+	done
+}
 
 # TODO: If we use .local/lib, there might be stuff in .local/share we also want to use
 # We need to be careful about assuming that .local/lib is the best place for stuff, if
 # .local/share is already being used but ./lib is not.
-find_lib() {
+_summon_find_lib() {
 
 	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
-		printf "%s" "$SHELDRITCH/${1#sheldritch/}"
-		return
+		set -- "$SHELDRITCH/${1#sheldritch/}"
+		if [[ "$1" = *\** ]]; then
+			glob_args
+		fi
+		matches=("$@")
+		[[ -e "$1" ]]
+		return "$?"
 	fi
 
 	local libs
@@ -117,38 +158,18 @@ find_lib() {
 	fi
 
 	while read -rd : dir; do
-		if [[ -e "$dir/$1" ]]; then
-			printf "%s" "$dir/$1"
+		set -- "$dir/$1"
+		if [[ "$1" = *\** ]]; then
+			glob_args
+		fi
+		if [[ -e "$1" ]]; then
+			matches=("$@")
 			return
 		fi
 	done <<<"$libs"
 	return 1
 }
 
-source_once() {
-	local Path="$1"
-	if ! [[ "$Path" = /* ]]; then
-		Path="$(realpath -s "$1")"
-	fi
-
-	# TODO: test performance of array and hash in large tools context
-	if [[ "$SHELDRITCH_SOURCES" = *"$Path"* ]]; then
-		_trace "source_once: skipping export '$Path': Already sourced"
-		return
-	fi
-
-	if [[ -x "$Path" ]]; then
-		echo >&2 "Error: $Path is an executable, presumably not a sourced file."
-		return 1
-	fi
-
-	SHELDRITCH_SOURCES+=$'\n'"$Path" # before source to prevent dependency loops
-	_trace "source_once: sourcing '$Path'"
-	_trace ""
-	_trace "sources currently:"
-	_trace "$SHELDRITCH_SOURCES"
-	source "$1"
-}
 
 # imports the given library/file (relative to the library dir)
 summon() {
@@ -175,29 +196,38 @@ summon() {
 		return
 	fi
 
+	declare -a matches
 	for lib in "$@"; do
-		lib="$(find_lib "$lib")"
-
-		if [[ "$SHELDRITCH_SOURCES" = *"$lib"* ]]; then
+		if ! _summon_find_lib "$lib"; then
+			error "could not find library '$lib'"
 			continue
 		fi
 
-		if [[ -d "$lib" ]]; then
-			_trace "Importing module '$lib'"
-			#export PATH="$(find "$lib" -type d -printf "%p:")$PATH"
-			source_once "$lib/$(basename "$lib").sh"
-		elif [[ -x "$lib" ]]; then
-			_trace "Importing executable lib '$lib'"
-			# shellcheck disable=SC2139
-			alias "$(basename "$lib")=$lib"
-		else
-			if [[ "$SHELDRITCH_CLEAN" = true ]]; then
-				_trace "Force source lib '$lib'"
-				source "$lib"
-			else
-				source_once "$lib"
+		for lib in "${matches[@]}"; do
+
+			if [[ "$SHELDRITCH_SOURCES" = *"$lib"* ]]; then
+				continue
 			fi
-		fi
+
+			if [[ -d "$lib" ]]; then
+				_trace "Importing module '$lib'"
+				#export PATH="$(find "$lib" -type d -printf "%p:")$PATH"
+				source_once "$lib/$(basename "$lib").sh"
+			elif [[ -x "$lib" ]]; then
+				_trace "Importing executable lib '$lib'"
+				# shellcheck disable=SC2139
+				alias "$(basename "$lib")=$lib"
+			elif [[ "$lib" =~ \.(bash|fish|ksh|sh|zsh)$ ]]; then
+				if [[ "$SHELDRITCH_CLEAN" = true ]]; then
+					_trace "Force source lib '$lib'"
+					source "$lib"
+				else
+					source_once "$lib"
+				fi
+			else
+				error "Library '$lib' could not be interpreted."
+			fi
+		done
 	done
 
 	if [[ "$FORCE" ]]; then

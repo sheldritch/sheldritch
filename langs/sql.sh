@@ -1,7 +1,7 @@
 #!/bin/bash
 # Common helpers for database management
 
-source "$SHELDRITCH/shelldritch.base.sh" || return 1
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 summon sheldritch/core/args.sh
