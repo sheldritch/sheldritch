@@ -107,7 +107,7 @@ path_add() {
 }
 
 source_once() {
-	local Path
+	local Path exit
 
 	for Path in "$@"; do
 		if ! [[ "$Path" = /* ]]; then
@@ -117,7 +117,7 @@ source_once() {
 		# TODO: test performance of array and hash in large tools context
 		if [[ "$SHELDRITCH_SOURCES" = *"$Path"* ]]; then
 			_trace "source_once: skipping export '$Path': Already sourced"
-			return
+			return 0
 		fi
 
 		if [[ -x "$Path" ]]; then
@@ -130,23 +130,21 @@ source_once() {
 		_trace ""
 		_trace "sources currently:"
 		_trace "$SHELDRITCH_SOURCES"
-		source "$1"
+
+		source "$1" || exit=1
 	done
+	return $exit
 }
+
 
 # TODO: If we use .local/lib, there might be stuff in .local/share we also want to use
 # We need to be careful about assuming that .local/lib is the best place for stuff, if
 # .local/share is already being used but ./lib is not.
-_summon_find_lib() {
+find_lib() {
 
 	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
-		set -- "$SHELDRITCH/${1#sheldritch/}"
-		if [[ "$1" = *\** ]]; then
-			glob_args
-		fi
-		matches=("$@")
-		[[ -e "$1" ]]
-		return "$?"
+		printf "%s" "$SHELDRITCH/${1#sheldritch/}"
+		return 0
 	fi
 
 	local libs
@@ -158,17 +156,15 @@ _summon_find_lib() {
 	fi
 
 	while read -rd : dir; do
-		set -- "$dir/$1"
-		if [[ "$1" = *\** ]]; then
-			glob_args
-		fi
-		if [[ -e "$1" ]]; then
-			matches=("$@")
-			return
+		if [[ -e "$dir/$1" ]]; then
+			printf "%s" "$dir/$1"
+			return 0
 		fi
 	done <<<"$libs"
 	return 1
 }
+
+
 
 
 # imports the given library/file (relative to the library dir)
@@ -188,22 +184,31 @@ summon() {
 		esac
 	done
 
+	zsh_run setopt GLOB globsubst
 	SHELDRITCH_CLEAN="$FORCE"
 
 	if [[ "$HELP" = true ]]; then
 		echo >&2 "summon -- imports the library/file (relative to the library dir)"
-		echo >&2 "Usage: summon [--force] <lib>"
-		return
+		echo >&2 "Usage: summon [--force] <lib>/<file>.sh"
+		echo >&2 "       summon [--force] <lib>"
+		echo >&2 "       summon [--force] <lib>/*"
+		return 0
 	fi
 
-	declare -a matches
-	for lib in "$@"; do
-		if ! _summon_find_lib "$lib"; then
-			error "could not find library '$lib'"
+	for arg in "$@"; do
+		if ! lib="$(find_lib "${arg%%\*}")"; then
+			error -p 1 "Library '$lib' could not be found."
 			continue
 		fi
 
-		for lib in "${matches[@]}"; do
+		local globs="${arg##*[^*]}"
+
+		local shopt=''
+		if shopt="$(shopt -p globstar 2>/dev/null)"; then
+			shopt -s globstar
+		fi
+
+		for lib in "$lib"$globs; do
 
 			if [[ "$SHELDRITCH_SOURCES" = *"$lib"* ]]; then
 				continue
@@ -224,16 +229,21 @@ summon() {
 				else
 					source_once "$lib"
 				fi
-			else
+				[[ $? = 0 ]] || error -p 1 "failed sourcing lib '$lib'"
+
+			elif [[ -z "$globs" ]]; then
 				error "Library '$lib' could not be interpreted."
 			fi
+
 		done
+
 	done
 
-	if [[ "$FORCE" ]]; then
+	if [[ -n "$FORCE" ]]; then
 		SHELDRITCH_CLEAN=""
 	fi
 
+	$shopt
 }
 
 main "$@"
