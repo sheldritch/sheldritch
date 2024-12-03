@@ -58,7 +58,7 @@ funcname() {
 	}
 
 	local parentFunc="${FUNCNAME[$parent]}${funcstack[@]:$parent:1}"
-	if [ -z "$parentFunc" ] ||
+	if [[ -z "$parentFunc" || "$parentFunc" = source ]] ||
 		# Happens when run in shell script
 		[ "$parentFunc" = main -a -z "${FUNCNAME[$(($parent + 1))]}${funcstack[@]:$(($parent + 1)):1}" ]
 	then
