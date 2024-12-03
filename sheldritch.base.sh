@@ -86,6 +86,11 @@ alias @func_use_parent='
 	fi
 '
 
+lowercase() {
+	 zsh_run printf %s "${1:l}"
+	bash_run printf %s "${1,,}"
+}
+
 _genfunc_log() {
 	eval "$1"'() {
 		local trace="${STACKTRACE:-$DEBUG}" set
@@ -96,7 +101,7 @@ _genfunc_log() {
 		@func_use_parent
 		echo '"$2"'": ${parent:+$parent: }$*" >&2
 
-		if [[ "${trace,,}" = true || "$trace" = 1 || -n "$set" ]]; then
+		if [[ "$(lowercase "$trace")" = true || "$trace" = 1 || -n "$set" ]]; then
 			local i=0; while caller $i >&2; do ((i++)); done
 			set -$set
 		fi
@@ -110,7 +115,7 @@ _genfunc_log _debug Debug
 
 # Echo stderr debug line if turned on
 debug() {
-	case "${DEBUG,,}" in
+	case "$(lowercase "$debug")" in
 		true | 1 ) STACKTRACE=false _debug -p 1 "$@"
 	esac
 }
