@@ -16,7 +16,7 @@ isFunction() {
 }
 
 funcs() {
-	if [ "$ZSH_VERSION" ]; then
+	if [[ "$ZSH_VERSION" ]]; then
 		# shellcheck disable=SC2296
 		print -l ${(ok)functions}
 	else
@@ -52,7 +52,7 @@ funcname() {
 	parent="$(($parent + 1))" # this function, `funcname`, counts as an additional layer
 
 	print() {
-		if [ "$quiet" != true ]; then
+		if [[ "$quiet" != true ]]; then
 			echo "$@"
 		fi
 	}
@@ -60,9 +60,9 @@ funcname() {
 	local parentFunc="${FUNCNAME[$parent]}${funcstack[@]:$parent:1}"
 	if [[ -z "$parentFunc" || "$parentFunc" = source ]] ||
 		# Happens when run in shell script
-		[ "$parentFunc" = main -a -z "${FUNCNAME[$(($parent + 1))]}${funcstack[@]:$(($parent + 1)):1}" ]
+		[[ "$parentFunc" = main && -z "${FUNCNAME[$(($parent + 1))]}${funcstack[@]:$(($parent + 1)):1}" ]]
 	then
-		print >&2 "Error: funcname: no bash function found."
+		print >&2 "Error: funcname: no shell function found."
 		return 1
 	fi
 	print "$parentFunc"
@@ -119,7 +119,7 @@ isTrue() {
 }
 
 anyTrue() {
-	if [ $# -eq 0 ]; then
+	if [[ $# -eq 0 ]]; then
 		return 2
 	fi
 	for bool in "$@"; do
@@ -128,7 +128,7 @@ anyTrue() {
 }
 
 isNull() {
-	if [ $# -eq 0 ]; then
+	if [[ $# -eq 0 ]]; then
 		return 2
 	fi
 	for val in "$@"; do
@@ -158,7 +158,7 @@ contains() {
   shift
 
   for element in "$@"; do
-	  if [ "$element" = "$match" ]; then
+	  if [[ "$element" = "$match" ]]; then
 		  return 0
 	  fi
   done
@@ -221,26 +221,26 @@ join_by() {
 # Returns the key for a given key value pair
 key() {
 	local delimiter='='
-	if [ "$1" = '-d' ]; then
+	if [[ "$1" = '-d' ]]; then
 		delimiter="$2"
 		shift
 		shift
 	fi
 
-	local pair="$([ $# -eq 0 ] && cat || echo $1)"
+	local pair="$([[ $# -eq 0 ]] && cat || echo $1)"
 	printf '%s\n' "${pair%%=*}"
 }
 
 # Returns the value for a given key value pair
 value() {
 	local delimiter='='
-	if [ "$1" = '-d' ]; then
+	if [[ "$1" = '-d' ]]; then
 		delimiter="$2"
 		shift
 		shift
 	fi
 
-	local value pair="$([ $# -eq 0 ] && cat || echo $1)"
+	local value pair="$([[ $# -eq 0 ]] && cat || echo $1)"
 	[[ "$pair" =~ "$delimiter"(.*)$ ]] || return 2
 	printf '%s\n' "${BASH_REMATCH[1]}"
 }
