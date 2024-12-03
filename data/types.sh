@@ -248,9 +248,8 @@ value() {
 ternary() {
        eval "$1" && echo "$2" || echo "$3"
 }
-?:() {
-       ternary "$@"
-}
+bash_run ?:() { ternary "$@"; }
+zsh_run \?:() { ternary "$@"; }
 
 ifdef() {
 	if [[ $# -gt 3 ]]; then

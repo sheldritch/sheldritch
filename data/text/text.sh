@@ -99,7 +99,7 @@ case_sep() {
 	shift || return 9
 	local x="${*//[-_.]/$sep}"
 
-	if [[ "$x" =~ [a-z][A-Z]|[A-Z][A-Z]+[a-z] ]]; then
+	if [[ "$x" =~ ([a-z][A-Z]|[A-Z][A-Z]+[a-z]) ]]; then
 		echo "$x" | sed -E \
 			-e 's/([A-Z])([A-Z]+)([A-Z])/\1\L\2\U\3/g; # to handle "printURLName" style' \
 			-e "s/[A-Z]/$sep\L&/g"

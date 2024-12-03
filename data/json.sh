@@ -14,7 +14,7 @@ fi
 # 
 # Slightly shorter than echoing yourself
 jqj() {
-	if [[ ! "$1" =~ ^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$ ]]; then
+	if [[ ! "$1" =~ (^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$) ]]; then
 		error -p 1 "jqj: expected JSON as first argument, instead got '$1'."
 		return 9
 	fi
