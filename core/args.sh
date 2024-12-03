@@ -516,7 +516,7 @@ print_doc() {
 
 	if __has about; then
 		echo
-		echo "$func - $about"
+		echo "$parent - $about"
 		echo
 	fi
 
@@ -527,10 +527,10 @@ print_doc() {
 				printf '\t%s\n' "$line"
 				continue
 			fi
-			printf '\t%s%s\n' "$func ${options[1]:+[options] }" "$line"
+			printf '\t%s%s\n' "$parent ${options[1]:+[options] }" "$line"
 		done
 	elif isFunction usage &&
-		awk "/${func:+"$func *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
+		awk "/${parent:+"$parent *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
 		usage
 	else
 		echo >&2 "No Usage line provided. However, here are the options:"

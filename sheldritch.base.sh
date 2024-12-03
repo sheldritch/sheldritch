@@ -64,10 +64,10 @@ stderr() { "$@" >&2; }
 
 # shellcheck disable=SC2154
 alias @func_use_parent='
-	local parent
+	local parent parentLevel=0
 	while [[ -n "$1" ]]; do
 		case "$1" in
-			-p | --parent ) parent="$2"
+			-p | --parent ) parentLevel="$2"
 				shift
 				shift
 				;;
@@ -76,11 +76,13 @@ alias @func_use_parent='
 		esac
 	done
 
-	parent="$((${parent:-0} + 1))"
+	parentLevel="$((parentLevel + 1))"
 
-	local func
-	if funcname -p $parent -q 2>/dev/null; then
-		func="$(funcname -p $parent)"
+	local parent=''
+	if funcname -p $parentLevel -q 2>/dev/null; then
+		parent="$(funcname -p $parentLevel)"
+	else
+		parent="$(self_file "$parentLevel")"
 	fi
 '
 
@@ -92,7 +94,7 @@ _genfunc_log() {
 			set=x
 		fi
 		@func_use_parent
-		echo '"$2"'": ${func:+$func: }$*" >&2
+		echo '"$2"'": ${parent:+$parent: }$*" >&2
 
 		if [[ "${trace,,}" = true || "$trace" = 1 || -n "$set" ]]; then
 			local i=0; while caller $i >&2; do ((i++)); done
