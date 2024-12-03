@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Base script utilities
 #
@@ -26,12 +27,13 @@ alias _trace='[[ -v TRACE && "$TRACE" ]] && echo >&2 '
 zsh_run zmodload zsh/parameter
 
 self_file() {
-	local level="${1:-0}"
-	# TODO: remove pipes here
-	# FIXME: fails if called outside of function
-	bash_run caller "$level" | awk '{print $3; exit}'
-	# shellcheck disable=all
-	zsh_run echo ${funcfiletrace[$(($level + 1 ))]} | cut -d : -f 1
+	local level="$((${1:-0} + 1))"
+
+	if [[ "$BASH_VERSION" ]]; then
+		echo "${BASH_SOURCE[$level]}"
+	elif [[ "$ZSH_VERSION" ]]; then
+		echo "${funcfiletrace[$level]%%:*}"
+	fi
 }
 
 self_dir() {
