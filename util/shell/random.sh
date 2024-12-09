@@ -38,14 +38,21 @@ random_hex() {
 }
 
 random_char() {
-	local count
-	@ARGS
-	  -c | --count ) count="$2"
-		shift
-		shift
-	@ENDARGS
+	@func_info
+	usage='[ALLOWED_CHARACTERS]'
+	options=(
+		-c --count=COUNT "the number of random characters to output."
+		--safe "Use a safe subset of the allowed characters (based on URL escaping currently)"
+	)
+	args_parse
+	if [[ "$1" = \[[^:]*] ]]; then
+		warn 'square brackes are not needed around character range. They will be interpreted as raw characters.'
+		warn "If you want to use a character class, use the format '[:class:]' (1 pair of [])"
+	fi
 
-	tr -dc "${1:-[:print:]}" </dev/random | head -c "${count:-1}"
+	tr -dc "${1:-[:print:]}" </dev/random | {
+		isTrue $safe && tr -dc '[:alnum:]$_.+!*()-' || cat
+	} | head -c "${count:-1}"
 }
 
 random_symbol() {
