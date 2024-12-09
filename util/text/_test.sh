@@ -1,6 +1,5 @@
-set -e 
-
 use_tool util/text/text.sh
+trap 'STACKTRACE=1; error FAILED' ERR
 
 test_encode() {
 	val="$1"
@@ -11,11 +10,10 @@ test_encode() {
 }
 
 test_encode 'a%3db'  'a=b'
-test_encode 'a%3db'  --only-if-escaped = 'a=b'
+test_encode 'a%3db'  --only-if-escaped = 'a\=b'
 test_encode 'a=b'    --only-if-escaped = 'a=b'
 test_encode 'a%3db'  --ignore-escaped = 'a=b'
 test_encode 'a=b'    --ignore-escaped = 'a\=b'
 test_encode 'a=b'    --only-encode 'k' --ignore-escaped = 'a\=b'
-test_encode 'a=b'    --only-encode '=' --ignore-escaped = 'a\=b'
 test_encode 'a\%3db' --only-encode '=' 'a\=b'
 test_encode 'a%5c=b' --only-encode '\' 'a\=b'

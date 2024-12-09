@@ -248,9 +248,13 @@ _genfunc_log() {
 		echo '"$2"'": ${func:+$func: }$*" >&2
 
 		if [[ "${trace,,}" = true || "$trace" = 1 || -n "$set" ]]; then
-			local i=0; while caller $i >&2; do ((i++)); done
+			local i=$((parent - 1)) Caller
+			read line fu file < <(caller $i)
+			sed -n "${line}s/^/\\t/p" "$file"
+			while Caller="$(caller $i)"; do printf "\\t%s\\n" "$Caller"; ((i++)); done
+			printf \\n
 			set -$set
-		fi
+		fi >&2
 	}
 	'
 }

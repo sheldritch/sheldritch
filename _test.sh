@@ -1,12 +1,13 @@
 (
-trap 'echo >&2 FAILED: $BASH_SOURCE: $BASH_COMMAND; FAIL=1' ERR
-set -e
+trap 'STACKTRACE=1; error FAILED' ERR
 cd "$TOOLS"
 
+source "util/shell/base.sh"
 command -v aes_encryptor.sh
 
 for file in $(find */ -name '_test*.sh'); do
 	(
+	set -e
 	source "$TOOLS/util/shell/base.sh"
 	source "$file"
 	) || FAIL=1
