@@ -229,7 +229,7 @@ alias @func_use_parent='
 		esac
 	done
 
-	parent="$((${parent:-0} + 1))"
+	parent="$((parent + FUNC_PASSTHROUGH + 1))"
 
 	local func
 	if funcname -p $parent -q 2>/dev/null; then
