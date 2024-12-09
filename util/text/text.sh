@@ -2,6 +2,7 @@ source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
 
 use_tool util/shell/args.sh
+use_tool util/shell/types.sh
 
 deindent() {
 	@func_info
@@ -127,13 +128,17 @@ case_camel() {
 	echo "$x" | sed "s/_\(.\)/\U\1/g"
 }
 
-url_encode() {
-	usage() {
-		print_usage "[options] [TEXT_TO_ENCODE...]"
-	}
 
-	declare -a encodeIfEscaped ignoreIfEscaped onlyEncode
-	@ARGS
+url_encode() {
+	if [[ -t 1 ]]; then
+		@func_info
+		usage='TEXT_TO_ENCODE...'
+		args_parse
+	fi
+
+	declare -a EncodeIfEscaped IgnoreIfEscaped OnlyEncode
+
+	while [[ $# -ne 0 ]]; do case "$1" in
 		# If specified, only encode the characters that appear in this argument.
 		#
 		# Each argument may contain either multiple non-whitespace characters separated by whitespace,
@@ -141,10 +146,10 @@ url_encode() {
 		#
 		# May work in conjunction with --only-if-escaped or --ignore-escaped.
 		-o | --only | --only-encode )
-			if [ $(echo -n "$2" | wc -c) -eq 1 ]; then
-				onlyEncode+=("$2")
+			if ((${#2} == 1)); then
+				OnlyEncode+=("$2")
 			else
-				onlyEncode+=($2)
+				OnlyEncode+=($2)
 			fi
 			shift
 			shift
@@ -152,72 +157,71 @@ url_encode() {
 
 		# Only encode the given character if it's escaped with '\'
 		# Multiple characters may be given if separated by whitespace
-		--only-if-escaped) encodeIfEscaped+=($2)
+		--only-if-escaped) EncodeIfEscaped+=($2)
 			shift
 			shift
 			;;
 
 		# Only encode the given character if it's NOT escaped with '\'
 		# Multiple characters may be given if separated by whitespace
-		--ignore-escaped) ignoreIfEscaped+=($2)
+		--ignore-escaped) IgnoreIfEscaped+=($2)
 			shift
 			shift
+			;;
 
-	@ARGS_END
+		-- )
+			shift
+			break
+			;;
 
-	local args="$(args_or_stdin "$@")"
+		* ) break
+			;;
 
-	if [ "$onlyEncode" ]; then
-		local encodeChars
+	esac; done
 
-		# Find and replace individual characters with their encoded form
-		for char in "${onlyEncode[@]}"; do
-			local encoded matchPrefix replacePrefix
-			encoded="$(url_encode "$char")"
+	args_or_stdin "$@" >/dev/null
+	local String="$REPLY"
+	local StrLen=${#String}
+	local Encoded=""
+	local Pos In Out Escaped
 
-			if contains "$char" "${encodeIfEscaped[@]}"; then
-				matchPrefix='\\'
+	__encode() {
+		if (( ${#OnlyEncode[@]} )) && ! contains "$1" "${OnlyEncode[@]}"; then
+			Encoded+="$1"
+		else
+			printf -v Out '%%%02x' "'$1"
+			Encoded+="${Out}"
+		fi
+	}
 
-			elif contains "$char" "${ignoreIfEscaped[@]}"; then
-				matchPrefix='([^\\])'
-				replacePrefix='$1'
-			fi
+	for (( Pos=0 ; Pos < StrLen ; Pos++ )); do
+		In=${String:$Pos:1}
+		case "$In" in
+			[-_.~a-zA-Z0-9] ) Encoded+="$In" ;;
+			* )
+				if [[ "$Escaped" = 1 ]]; then
+					if contains "$In" "${EncodeIfEscaped[@]}"; then
+						__encode "$In"
+					elif contains "$In" "${IgnoreIfEscaped[@]}"; then
+						Encoded+="$In"
+					else
+						__encode '\'
+						__encode "$In"
+					fi
 
-			encodeChars+="s/$matchPrefix\\Q$char\\E/$replacePrefix$encoded/g; "
-			# remove leading slash from any remaining non-encoded instances
-			encodeChars+='s/\Q\'"$char"'\E/'"$char"'/g; '
-		done
+				elif [[ "$In" = '\' ]]; then
+					Escaped=1
 
-		echo "$args" | perl -pe "$encodeChars"
-		return $?
-	fi
-
-	# pre/post-processing
-	local preProc postProc
-
-	# escape single quotes, because we use them inside python.
-	preProc+='s/\\'\''/'\\\''/g; '
-
-	for i in $(seq ${#ignoreIfEscaped[@]}); do
-		# prevent escaped characters from being encoded
-		preProc+='s/\\'${ignoreIfEscaped[@]:$i:1}'/~URL_ENCODE_UNESCAPED_CHAR_'$i'~/g; '
-
-		postProc+='s/~URL_ENCODE_UNESCAPED_CHAR_'$i'~/\'${ignoreIfEscaped[@]}'/g; '
+				elif contains "$In" "${EncodeIfEscaped[@]}"; then
+					Encoded+="$In"
+				else
+					__encode "$In"
+				fi
+				;;
+		esac
 	done
-
-	for i in $(seq ${#ignoreIfEscaped[@]}); do
-		# _prevent_ un-escaped characters from being encoded
-		preProc+='s/([^\\])'${encodeIfEscaped[@]:$i:1}'/\1~URL_ENCODE_ESCAPED_CHAR_'$i'~/g; '
-		# remove extra escape from chars to be encoded
-		preProc+='s/\\('${encodeIfEscaped[@]:$i:1}')/\1/g; '
-
-		postProc+='s/~URL_ENCODE_ESCAPED_CHAR_'$i'~/\'${encodeIfEscaped[@]:$i:1}'/g; '
-	done
-
-	echo "'$args'" \
-		| perl -pe "$preProc" \
-		| xargs -I {} python3 -c "import sys, urllib.parse as ul; print (ul.quote('{}'))" \
-		| perl -pe "$postProc"
+	echo "${Encoded}"  # You can either set a return variable (FASTER)
+	REPLY="${Encoded}" #+or echo the result (EASIER)... or both... :p
 }
 
 url_decode() {

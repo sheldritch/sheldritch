@@ -24,6 +24,8 @@ declare -a usage options
 declare -A _opts _opts_bool
 '
 
+alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
+
 # shellcheck disable=SC2142
 alias args_parse='
 	declare _args_set
@@ -424,6 +426,7 @@ args_or_stdin() {
 		args="$*"
 	fi
 	echo "$args"
+	REPLY="$args"
 }
 
 
