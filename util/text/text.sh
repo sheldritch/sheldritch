@@ -128,13 +128,17 @@ case_camel() {
 	echo "$x" | sed "s/_\(.\)/\U\1/g"
 }
 
+
 url_encode() {
-	@func_info
-	usage='TEXT_TO_ENCODE...'
-	args_parse
+	if [[ -t 1 ]]; then
+		@func_info
+		usage='TEXT_TO_ENCODE...'
+		args_parse
+	fi
 
 	declare -a EncodeIfEscaped IgnoreIfEscaped OnlyEncode
-	@ARGS
+
+	while [[ $# -ne 0 ]]; do case "$1" in
 		# If specified, only encode the characters that appear in this argument.
 		#
 		# Each argument may contain either multiple non-whitespace characters separated by whitespace,
@@ -142,7 +146,7 @@ url_encode() {
 		#
 		# May work in conjunction with --only-if-escaped or --ignore-escaped.
 		-o | --only | --only-encode )
-			if [[ $(echo -n "$2" | wc -c) -eq 1 ]]; then
+			if ((${#2} == 1)); then
 				OnlyEncode+=("$2")
 			else
 				OnlyEncode+=($2)
@@ -163,18 +167,26 @@ url_encode() {
 		--ignore-escaped) IgnoreIfEscaped+=($2)
 			shift
 			shift
+			;;
 
-	@ARGS_END
+		-- )
+			shift
+			break
+			;;
 
-	local args="$(args_or_stdin "$@")"
+		* ) break
+			;;
 
-	local String="${1}"
+	esac; done
+
+	args_or_stdin "$@" >/dev/null
+	local String="$REPLY"
 	local StrLen=${#String}
 	local Encoded=""
 	local Pos In Out Escaped
 
 	__encode() {
-		if [[ -n "$OnlyEncode" ]] && item "$1" not in "${OnlyEncode[@]}"; then
+		if (( ${#OnlyEncode[@]} )) && ! contains "$1" "${OnlyEncode[@]}"; then
 			Encoded+="$1"
 		else
 			printf -v Out '%%%02x' "'$1"
@@ -182,15 +194,15 @@ url_encode() {
 		fi
 	}
 
-	for (( Pos=0 ; Pos<StrLen ; Pos++ )); do
+	for (( Pos=0 ; Pos < StrLen ; Pos++ )); do
 		In=${String:$Pos:1}
 		case "$In" in
 			[-_.~a-zA-Z0-9] ) Encoded+="$In" ;;
 			* )
-				if isTrue $Escaped; then
-					if item "$In" in "${EncodeIfEscaped[@]}"; then
+				if [[ "$Escaped" = 1 ]]; then
+					if contains "$In" "${EncodeIfEscaped[@]}"; then
 						__encode "$In"
-					elif item "$In" in "${IgnoreIfEscaped[@]}"; then
+					elif contains "$In" "${IgnoreIfEscaped[@]}"; then
 						Encoded+="$In"
 					else
 						__encode '\'
@@ -198,9 +210,9 @@ url_encode() {
 					fi
 
 				elif [[ "$In" = '\' ]]; then
-					Escaped=true
+					Escaped=1
 
-				elif item "$In" in "${EncodeIfEscaped[@]}"; then
+				elif contains "$In" "${EncodeIfEscaped[@]}"; then
 					Encoded+="$In"
 				else
 					__encode "$In"

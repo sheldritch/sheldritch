@@ -12,5 +12,6 @@ for file in $(find */ -name '_test*.sh'); do
 	) || FAIL=1
 done
 
+[[ -z "$FAIL" ]] && echo 'all tests passed'
 exit $FAIL
 ) >/dev/null

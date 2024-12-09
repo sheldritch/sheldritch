@@ -2,12 +2,20 @@ set -e
 
 use_tool util/text/text.sh
 
-[[ "$(url_encode 'a=b')" = 'a%3db' ]]
-[[ "$(url_encode --only-if-escaped = 'a=b')" = 'a%3db' ]]
-[[ "$(url_encode --only-if-escaped = 'a=b')" = 'a=b' ]]
-[[ "$(url_encode --ignore-escaped = 'a=b')" = 'a%3db' ]]
-[[ "$(url_encode --ignore-escaped = 'a\=b')" = 'a=b' ]]
-[[ "$(url_encode --only-encode 'k' --ignore-escaped = 'a\=b')" = 'a=b' ]]
-[[ "$(url_encode --only-encode '=' --ignore-escaped = 'a\=b')" = 'a=b' ]]
-[[ "$(url_encode --only-encode '=' 'a\=b')" = 'a\%3db' ]]
-[[ "$(url_encode --only-encode '\' 'a\=b')" = 'a%5c=b' ]]
+test_encode() {
+	val="$1"
+	shift
+	url_encode "$@" >/dev/null
+
+	[[ "$REPLY" = "$val" ]]
+}
+
+test_encode 'a%3db'  'a=b'
+test_encode 'a%3db'  --only-if-escaped = 'a=b'
+test_encode 'a=b'    --only-if-escaped = 'a=b'
+test_encode 'a%3db'  --ignore-escaped = 'a=b'
+test_encode 'a=b'    --ignore-escaped = 'a\=b'
+test_encode 'a=b'    --only-encode 'k' --ignore-escaped = 'a\=b'
+test_encode 'a=b'    --only-encode '=' --ignore-escaped = 'a\=b'
+test_encode 'a\%3db' --only-encode '=' 'a\=b'
+test_encode 'a%5c=b' --only-encode '\' 'a\=b'
