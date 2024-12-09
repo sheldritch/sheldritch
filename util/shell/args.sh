@@ -426,6 +426,7 @@ args_or_stdin() {
 		args="$*"
 	fi
 	echo "$args"
+	REPLY="$args"
 }
 
 

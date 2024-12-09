@@ -52,13 +52,13 @@ funcname() {
 	parent="$(($parent + 1))" # this function, `funcname`, counts as an additional layer
 
 	print() {
-		if [ "$quiet" != true ]; then
+		if [[ "$quiet" != true ]]; then
 			echo "$@"
 		fi
 	}
 
 	local parentFunc="${FUNCNAME[$parent]}${funcstack[@]:$parent:1}"
-	if [ -z "$parentFunc" ] ||
+	if [[ -z "$parentFunc" ]] ||
 		# Happens when run in shell script
 		[ "$parentFunc" = main -a -z "${FUNCNAME[$(($parent + 1))]}${funcstack[@]:$(($parent + 1)):1}" ]
 	then
@@ -100,7 +100,7 @@ isTrue() {
 }
 
 anyTrue() {
-	if [ $# -eq 0 ]; then
+	if [[ $# -eq 0 ]]; then
 		return 2
 	fi
 	for bool in "$@"; do
@@ -109,7 +109,7 @@ anyTrue() {
 }
 
 isNull() {
-	if [ $# -eq 0 ]; then
+	if [[ $# -eq 0 ]]; then
 		return 2
 	fi
 	for val in "$@"; do
@@ -139,7 +139,7 @@ contains() {
   shift
 
   for element in "$@"; do
-	  if [ "$element" = "$match" ]; then
+	  if [[ "$element" = "$match" ]]; then
 		  return 0
 	  fi
   done
@@ -202,7 +202,7 @@ join_by() {
 # Returns the key for a given key value pair
 key() {
 	local delimiter='='
-	if [ "$1" = '-d' ]; then
+	if [[ "$1" = '-d' ]]; then
 		delimiter="$2"
 		shift
 		shift
@@ -215,7 +215,7 @@ key() {
 # Returns the value for a given key value pair
 value() {
 	local delimiter='='
-	if [ "$1" = '-d' ]; then
+	if [[ "$1" = '-d' ]]; then
 		delimiter="$2"
 		shift
 		shift
