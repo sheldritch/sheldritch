@@ -202,6 +202,7 @@ summon() {
 		fi
 
 		local globs="${arg##*[^*]}"
+		globs="${globs:+[^_]$globs}"
 
 		local shopt=''
 		if shopt="$(shopt -p globstar 2>/dev/null)"; then
