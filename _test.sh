@@ -1,16 +1,20 @@
+__FILE="${BASH_SOURCE[0]:-${(%):-%x}}"
+source "${__FILE%/*}/sheldritch.base.sh"
+
 (
-cd "$TOOLS"
-trap 'echo >&2 FAILED: $BASH_SOURCE: $BASH_COMMAND; FAIL=1' ERR
+trap 'STACKTRACE=1; error FAILED' ERR
+cd "$SHELDRITCH"
+export SHELDRITCH
 
-command -v aes_encryptor.sh
-
-test "$(jqj "$(json_obj a 1 b 2 c 3)" .a)" = 1
-
-shopt -s globstar
+command -v self_file
 
 for file in $(find */ -name '_test*.sh'); do
-	source "$file" || FAIL=1
+	(
+	set -e
+	"./$file"
+	) || FAIL=1
 done
 
-return $FAIL
+[[ -z "$FAIL" ]] && echo 'all tests passed'
+exit $FAIL
 ) >/dev/null

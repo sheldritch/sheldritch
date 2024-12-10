@@ -277,3 +277,11 @@ safe_set() {
 
 	eval $1="${!2}"
 }
+
+filter_if() {
+	if eval "$1"; then
+		eval "${2:-cat}"
+	else
+		eval "${3:-cat}"
+	fi
+}

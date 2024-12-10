@@ -1,8 +1,14 @@
 
-timer_start() { _TIMER="$(now)"; }
+timer_start() { TOOLS_TIMER="${EPOCHREALTIME/./}" TOOLS_TIMER_LAP=''; }
 
 timer_lap() {
-	local now="$(now)"
-	echo "$(echo $now - ${_TIMER_LAP:$_TIMER} | bc)" >&2
-	_TIMER_LAP="$now"
+	local now="${EPOCHREALTIME/./}"
+	echo "${*:+$*: }$((now - ${TOOLS_TIMER_LAP:-$TOOLS_TIMER}))" >/dev/tty
+	TOOLS_TIMER_LAP="$now"
+}
+
+timer_total() {
+	local now="${EPOCHREALTIME/./}"
+	echo "${*:+$*: }$((now - TOOLS_TIMER))µs" >/dev/tty
+	TOOLS_TIMER_LAP="$now"
 }

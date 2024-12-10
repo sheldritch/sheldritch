@@ -76,7 +76,7 @@ alias @func_use_parent='
 		esac
 	done
 
-	parentLevel="$((parentLevel + 1))"
+	parentLevel="$((parentLevel + FUNC_PASSTHROUGH + 1))"
 
 	local parent=''
 	if funcname -p $parentLevel -q 2>/dev/null; then
@@ -102,9 +102,13 @@ _genfunc_log() {
 		echo '"$2"'": ${parent:+$parent: }$*" >&2
 
 		if [[ "$(lowercase "$trace")" = true || "$trace" = 1 || -n "$set" ]]; then
-			local i=0; while caller $i >&2; do ((i++)); done
+			local i=$((parentLevel - 1)) Caller
+			read line fu file < <(caller $i)
+			sed -n "${line}s/^/\\t/p" "$file"
+			while Caller="$(caller $i)"; do printf "\\t%s\\n" "$Caller"; ((i++)); done
+			printf \\n
 			set -$set
-		fi
+		fi >&2
 	}
 	'
 }
