@@ -98,7 +98,7 @@ _genfunc_log() {
 			set +x
 			Set=x
 		fi
-		@func_use_Parent
+		@func_use_parent
 		echo '"$2"'": ${Parent:+$Parent: }$*" >&2
 
 		if [[ "$(lowercase "$Trace")" = true || "$Trace" = 1 || -n "$Set" ]]; then

@@ -278,3 +278,148 @@ json_pop() {
 
 	return $returnCode
 }
+
+json_audit() {
+	local ExcludeFields SearchCreds SearchFields
+	@ARGS
+
+		-f | --fields | --search-fields ) SearchFields+=" $2"
+			shift
+			shift
+			;;
+
+		-e | --exclude-fields ) ExcludeFields+=" $2"
+			shift
+			shift
+
+	@ENDARGS
+
+	local Input="$(cat)"
+	local SearchTerm="$(echo "$*" | sed 's/\\/\\\\/g')"
+
+	local Field
+	for Field in $SearchFields; do
+		if ! jqj "$Input" -s 'flatten | .[] | .'$Field | grep -qv ^null$; then
+			error "field '$Field' not found in any Bitwarden item."
+			return 1
+		fi
+	done
+
+	ExcludeFields+=" EXCLUDE_TERM_PLACEHOLDER"
+	ExcludeFields="$(echo "$ExcludeFields" | sed -e 's/\S\+/.&,/g' -e 's/,\s*$//g')"
+
+	# Map each items into a nice readable list
+	Items="$(jqj "$Input" -rsc 'flatten | .[]
+			| . as $item
+			| select(.
+				'"${searchFields:+" | {} "}"'
+				'"$(for field in $SearchFields; do echo '|' .$Field = '$item'.$Field; done)"'
+				| '"del( $ExcludeFields)"' 
+				| "\(.)" 
+				| test("'"$SearchTerm"'"; "i")
+			)
+		')" || return 1
+
+	__audit_help() {
+		echo >&2 ""
+		echo >&2 "Note: Pressing a key will _immediately_ move to the next option (for peak efficiency)"
+		echo >&2 ""
+		echo >&2 "y -- yes, add to audit results list"
+		echo >&2 "n -- no, exclude from audit results list"
+		echo >&2 "c -- Add to audit results list with comment"
+		echo >&2 "u -- undo previous decision"
+		echo >&2 "q -- quit, outputting results"
+		echo >&2 "? -- print this output"
+		echo >&2 ""
+	}
+
+	local Results LastOption Undo
+
+	__process_item() {
+
+		local I=$1
+		local Item="$(echo "$Items" | awk "NR == $I + 1")"
+
+		echo >&2
+		echo >&2
+		echo >&2 ---
+		echo >&2
+		echo >&2
+		echo "$Item" | { yq -P . || jq .; } | sed -e 's/\\n/\n/g' -e 's/notes: /&\n/g' >&2
+		echo >&2 
+
+		local Option Comment CommentConfirm
+		while true; do
+
+			read -N 1 -p "Add to audit list? [y/n/c/u/q/?]: " Choice </dev/tty
+			echo >&2
+			Option="$Choice"
+
+			case "$Choice" in
+
+				n) break
+					;;
+
+				q) return 1
+					;;
+
+				y)
+					Results+="$Item\n"
+					break
+					;;
+
+				c)
+					read -p "Comment: " Comment </dev/tty
+					if [[ "$Comment" = "" ]]; then
+						Item="$(jqj "$Item" -c 'del(._comment)')"
+					else
+						Item="$(jqj "$Item" -c --arg comment "$Comment" '._comment = $comment')"
+					fi
+					continue
+					;;
+
+				u)
+					if [ "$I" = "0" ]; then
+						echo >&2 "Uhhh, no"
+						echo >&2 "Error: cannot go back beyond the first option."
+						continue
+					fi
+
+					if isTrue $Undo; then
+						echo >&2 "Error: cannot undo twice."
+						continue
+					fi
+
+					if echo "$LastOption" | grep -q [yc]; then
+						Results="$(echo "$Results" \
+							| sed -E 's/\tComment:[^\\]*\\n$//g' \
+							| sed -E 's/(\\n|^)[^\\]*\\n$/\\n/g'
+						)"
+					fi
+
+					Undo=true
+					__process_item "$((i - 1))"
+					Undo=false
+					continue
+					;;
+
+				*) 
+					__audit_help
+					continue
+					;;
+
+			esac
+
+
+		done
+
+		LastOption="$Option"
+	}
+
+	__audit_help
+	for ((I = 0 ; I < $(lines "$Items"); I++ )); do
+		__process_item $I || break
+	done
+
+	echo -e -n "$Results"
+}
