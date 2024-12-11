@@ -1,8 +1,11 @@
+# shellcheck disable=SC2034,SC1003,SC2016,SC1083,SC2154
+#
 source "$TOOLS/util/shell/base.sh" || return 1
 check_is_sourced
 
 use_tool util/shell/args.sh
 use_tool util/shell/types.sh
+use_tool util/shell/compat.sh
 
 deindent() {
 	@func_info
@@ -35,7 +38,8 @@ lines_multi() {
 }
 
 tgrep() {
-	local input="$(cat)"
+	local input
+	input="$(cat)" || return $?
 
 	echo "$input" | head -1
 	echo "$input" | sed 1d | grep "$@"
@@ -228,3 +232,63 @@ url_decode() {
 	python3 -c "import sys, urllib.parse as ul; print (ul.quote('$*'))"
 }
 
+glob() {
+	@func_info
+	about="Matches wildcards against the paths supplied by STDIN. * matches 1 level, and ** matches any number of levels.
+		Will print paths in the order of input, and will not print a line twice if two globs match.
+
+		For paths containing newlines, use 'glob_args', which creates a REPLY array.
+		For many globs, this func is much faster though.
+	"
+	usage='GLOBS...'
+	options=(
+		-i --insensitive --case-insensitive --no-case "allow globs to match case-insensitively"
+	)
+	args_parse
+
+	local MatchPrefix
+	if isTrue $noCase; then
+		bash_run shopt_temp nocasematch extglob
+		zsh_run setopt KSH_GLOB
+		zsh_run MatchPrefix='(#i)'
+	fi
+
+	set -- "${@//'*'/+([^/])}"
+	set -- "${@//'+([^/])+([^/])'/*}"
+
+	local Path Glob
+	while read -r Path; do
+		for Glob in "$@"; do
+			# shellcheck disable=SC2053
+			[[ "$Path" = $MatchPrefix$Glob ]] && printf '%s\n' "$Path"
+		done
+	done
+}
+
+glob_args() {
+	@func_info
+	about="Uses the first argument as a wildcard to test against all other arguments. * matches 1 level, and ** matches any number of levels.
+		The result is returned in the REPLY variable. Will print paths in the order of input. Duplicate arguments will result in duplicfate matches.
+	"
+	usage='GLOB PATHS...'
+	args_parse
+
+	local MatchPrefix
+	if isTrue $noCase; then
+		bash_run shopt_temp nocasematch extglob
+		zsh_run setopt KSH_GLOB
+		zsh_run MatchPrefix='(#i)'
+	fi
+
+	local Glob="$1" Path
+	shift
+	Glob="${Glob//'*'/*/*}"
+	Glob="${Glob//'*/**/*'/*}"
+
+	REPLY=()
+
+	for Path in "$@"; do
+		# shellcheck disable=SC2053
+		[[ "$Path" = $MatchPrefix$Glob ]] && REPLY+=("$PATH")
+	done
+}
