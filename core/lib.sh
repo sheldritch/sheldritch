@@ -107,7 +107,7 @@ path_add() {
 }
 
 source_once() {
-	local Path exit
+	local Path='' Exit=''
 
 	for Path in "$@"; do
 		if ! [[ "$Path" = /* ]]; then
@@ -115,7 +115,7 @@ source_once() {
 		fi
 
 		# TODO: test performance of array and hash in large tools context
-		if [[ "$SHELDRITCH_SOURCES" = *"$Path"* ]]; then
+		if [[ "${SHELDRITCH_SOURCES:-}" = *"$Path"* ]]; then
 			_trace "source_once: skipping export '$Path': Already sourced"
 			return 0
 		fi
@@ -131,9 +131,9 @@ source_once() {
 		_trace "sources currently:"
 		_trace "$SHELDRITCH_SOURCES"
 
-		source "$1" || exit=1
+		source "$1" || Exit=1
 	done
-	return $exit
+	return $Exit
 }
 
 
@@ -169,7 +169,7 @@ find_lib() {
 
 # imports the given library/file (relative to the library dir)
 summon() {
-	local HELP FORCE
+	local HELP='' FORCE=''
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
 			-f | --force ) FORCE=true

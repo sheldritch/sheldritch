@@ -21,25 +21,30 @@ main() {
 #
 
 # aliases needs to be first to ensure later functions can use it
-alias @func_info='declare about args_req
-declare -a usage options
-declare -A _opts _opts_bool
+alias @func_info='declare about='' args_req=''
+declare -a usage=() options=()
+declare -A _opts=() _opts_bool=()
 '
 
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
 # shellcheck disable=SC2142
 alias args_parse='
-	declare _args_set
-	if [[ $- =~ x ]]; then
-		_args_set=x
-		set +x
-	fi
+	declare _args_set=''
+	[[ $- = *x* ]] && _args_set+=x
+	[[ $- = *u* ]] && _args_set+=u
+	set +$_args_set
+
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
 	_args_options_gen "${options[@]}" || return $?
 
 	declare _opt_count ${_opts[@]//[^[:alnum:]]/ } "${_opts_bool[@]}"
+	if [[ "$_args_set" = *u* ]]; then
+		for arg in _opt_count ${_opts[@]//[^[:alnum:]]/ } "${_opts_bool[@]}"; do
+			declare "$arg"=''
+		done
+	fi
 
 	_args_options_parse "$@" || return $?
 
@@ -256,7 +261,7 @@ _args_options_gen() {
 
 alias __shift='((i++)); shift'
 _args_options_parse() {
-	local flag arg type value i=0
+	local flag='' arg='' type='' value='' i=0
 
 	while [[ "$1" =~ ^- ]]; do
 		type= arg= value=

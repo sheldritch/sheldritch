@@ -6,12 +6,12 @@ check_is_sourced
 summon sheldritch/util/complete.sh
 
 # Directories storing repos
-if [[ -z "$REPOS" ]]; then
+if [[ -z "${REPOS:-}" ]]; then
 	# sensibly set REPO_DIR based on the first existing directory
 	# Feel free to add your own repo here
 	for dir in "$HOME"/{repos,git,code,projects}; do
 		if [[ -d "$dir" ]]; then
-			[[ -z "$REPOS" ]] && REPOS="$dir" || REPOS="$REPOS:$dir"
+			[[ -z "${REPOS:-}" ]] && REPOS="$dir" || REPOS="$REPOS:$dir"
 		fi
 	done
 fi
@@ -23,7 +23,7 @@ repo_list() {
 	local repos
 	(
 	IFS=:
-	for repoDir in $REPOS; do
+	for repoDir in ${REPOS:-}; do
 		complete_file_path "$repoDir" "$1"
 	done
 	) | grep /$ | sort -u
@@ -43,7 +43,7 @@ repo_dir() {
 	local repo
 	repo="$(
 		IFS=:
-		for repoDir in $REPOS; do
+		for repoDir in ${REPOS:-}; do
 			if [[ -d "$repoDir/$1" ]]; then
 				echo "$repoDir/$1"
 				break

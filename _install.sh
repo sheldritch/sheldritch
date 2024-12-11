@@ -4,24 +4,24 @@ set -e
 
 
 SELF_DIR="$( cd "$(dirname $(realpath "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd )"
-TOOLS="$SELF_DIR"
+SHELDRITCH="$SELF_DIR"
 
 add_tools_envar() {
 	if [ -f "$1" ]; then
-		if grep -q TOOLS= "$1"; then
-			# export needed for executable scripts that use $TOOLS
-			sed -i -e "/TOOLS=/s%^.*$%export TOOLS=$TOOLS%" "$1"
+		if grep -q SHELDRITCH= "$1"; then
+			# export needed for executable scripts that use $SHELDRITCH
+			sed -i -e "/SHELDRITCH=/s%^.*$%export SHELDRITCH=$SHELDRITCH%" "$1"
 		else
-			echo "export TOOLS=$TOOLS" >> "$1"
+			echo "export SHELDRITCH=$SHELDRITCH" >> "$1"
 		fi
 	fi
 }
 add_tools_envar ~/.bashrc
-# non-interactive init files need $TOOLS when they source the app
+# non-interactive init files need $SHELDRITCH when they source the app
 add_tools_envar ~/.profile
 add_tools_envar ~/.bash_profile
 
-grep -Eq 'source "\$TOOLS' ~/.bashrc || echo 'source "$TOOLS/tools.sh"' >> ~/.bashrc
+grep -Eq 'source "\$SHELDRITCH' ~/.bashrc || echo 'source "$SHELDRITCH/tools.sh"' >> ~/.bashrc
 
 cat <<-EOF
 ###
@@ -54,7 +54,7 @@ source "$SHELDRITCH/sheldritch.base.sh"
 
 set +e
 
-use_tool util/shell/install.sh
+summon system/install.sh
 
 install_basic -c jq jq
 install_basic -e winget -c bw bitwarden-cli @bitwarden/cli bw
@@ -65,12 +65,12 @@ cat <<-EOF
 ###
 EOF
 
-for file in "$TOOLS"/install/install_*.sh; do
+for file in "$SHELDRITCH"/install/install_*.sh; do
 	echo "$file" | grep -q install_bundle && continue
 	"$file" || safe_quit 1
 done
 
-for file in $(find "$TOOLS"/*/ -name '_install.sh'); do
+for file in $(find "$SHELDRITCH"/*/ -name '_install.sh'); do
 	echo >&2 "installing $file"
 	"$file" || safe_quit 1
 done

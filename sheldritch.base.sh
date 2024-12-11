@@ -7,32 +7,32 @@
 # shellcheck enable=require-double-brackets
 
 # Ensure the aliases created by this script are available
-if [[ "$BASH_VERSION" ]]; then
+if [[ -v BASH_VERSION ]]; then
 	shopt -s expand_aliases
-elif [[ "$ZSH_VERSION" ]]; then
+elif [[ -v ZSH_VERSION ]]; then
 	setopt aliases
 fi
 
-if [[ -n "$SHELDRITCH_SUBSHELL" && -z "$SHELDRITCH_CLEAN" && "$1" != "--force" ]]
+if [[ -n "${SHELDRITCH_SUBSHELL+ }" && -z "${SHELDRITCH_CLEAN+ }" && "$1" != "--force" ]]
 then
 	return
 fi
 
-alias zsh_run='[[ -z "$ZSH_VERSION" ]] || '
-alias bash_run='[[ -z "$BASH_VERSION" ]] || '
-alias _trace='[[ -v TRACE && "$TRACE" ]] && echo >&2 '
+alias zsh_run='[[ -v ZSH_VERSION ]] && '
+alias bash_run='[[ -v BASH_VERSION ]] && '
+alias _trace='[[ -n "${TRACE+ }" ]] && echo >&2 '
 
 # Directories/Environment
 
 zsh_run zmodload zsh/parameter
 
 self_file() {
-	local level="$((${1:-0} + 1))"
+	local Level="$((${1:-0} + 1))"
 
-	if [[ "$BASH_VERSION" ]]; then
-		echo "${BASH_SOURCE[$level]}"
-	elif [[ "$ZSH_VERSION" ]]; then
-		echo "${funcfiletrace[$level]%%:*}"
+	if [[ -v BASH_VERSION ]]; then
+		echo "${BASH_SOURCE[$Level]}"
+	elif [[ -v ZSH_VERSION ]]; then
+		echo "${funcfiletrace[$Level]%%:*}"
 	fi
 }
 
@@ -40,10 +40,10 @@ self_dir() {
 	dirname "$(self_file 1)"
 }
 
-if [[ -z "$SHELDRITCH" ]]; then
+if [[ -z "${SHELDRITCH+ }" ]]; then
 	export SHELDRITCH="$(realpath -s $(self_dir))"
 fi
-SHELDRITCH_SUBSHELL="$BASH_SUBSHELL$ZSH_SUBSHELL"
+SHELDRITCH_SUBSHELL="${BASH_SUBSHELL:-}${ZSH_SUBSHELL:-}"
 
 # /tmp/tools for tool-related temporary files
 ! [[ -d /tmp/tools ]] && mkdir -p /tmp/tools
@@ -64,10 +64,10 @@ stderr() { "$@" >&2; }
 
 # shellcheck disable=SC2154
 alias @func_use_parent='
-	local parent parentLevel=0
+	local Parent ParentLevel=0
 	while [[ -n "$1" ]]; do
 		case "$1" in
-			-p | --parent ) parentLevel="$2"
+			-p | --parent ) ParentLevel="$2"
 				shift
 				shift
 				;;
@@ -76,13 +76,13 @@ alias @func_use_parent='
 		esac
 	done
 
-	parentLevel="$((parentLevel + FUNC_PASSTHROUGH + 1))"
+	ParentLevel="$((ParentLevel + FUNC_PASSTHROUGH + 1))"
 
-	local parent=''
-	if funcname -p $parentLevel -q 2>/dev/null; then
-		parent="$(funcname -p $parentLevel)"
+	local Parent=''
+	if funcname -p $ParentLevel -q 2>/dev/null; then
+		Parent="$(funcname -p $ParentLevel)"
 	else
-		parent="$(self_file "$parentLevel")"
+		Parent="$(self_file "$ParentLevel")"
 	fi
 '
 
@@ -93,21 +93,21 @@ lowercase() {
 
 _genfunc_log() {
 	eval "$1"'() {
-		local trace="${STACKTRACE:-$DEBUG}" set
+		local Trace="${STACKTRACE:-$DEBUG}" Set
 		if [[ $- = *x* ]]; then
 			set +x
-			set=x
+			Set=x
 		fi
-		@func_use_parent
-		echo '"$2"'": ${parent:+$parent: }$*" >&2
+		@func_use_Parent
+		echo '"$2"'": ${Parent:+$Parent: }$*" >&2
 
-		if [[ "$(lowercase "$trace")" = true || "$trace" = 1 || -n "$set" ]]; then
-			local i=$((parentLevel - 1)) Caller
-			read line fu file < <(caller $i)
-			sed -n "${line}s/^/\\t/p" "$file"
-			while Caller="$(caller $i)"; do printf "\\t%s\\n" "$Caller"; ((i++)); done
+		if [[ "$(lowercase "$Trace")" = true || "$Trace" = 1 || -n "$Set" ]]; then
+			local I=$((ParentLevel - 1)) Caller
+			read Line Fu File < <(caller $I)
+			sed -n "${Line}s/^/\\t/p" "$file"
+			while Caller="$(caller $I)"; do printf "\\t%s\\n" "$Caller"; ((I++)); done
 			printf \\n
-			set -$set
+			set -$Set
 		fi >&2
 	}
 	'
@@ -119,7 +119,7 @@ _genfunc_log _debug Debug
 
 # Echo stderr debug line if turned on
 debug() {
-	case "$(lowercase "$debug")" in
+	case "$(lowercase "$DEBUG")" in
 		true | 1 ) STACKTRACE=false _debug -p 1 "$@"
 	esac
 }

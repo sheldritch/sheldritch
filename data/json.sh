@@ -108,7 +108,7 @@ json2vars() {
 		return 9
 	fi
 
-	local __directive x
+	local __directive='' x
 	for x in export; do
 		if isTrue ${!x}; then
 			__directive=$x
