@@ -50,8 +50,9 @@ shopt_temp_unset() {
 bash_run
 {
 	alias extglob='shopt_temp extglob'
-	lowercase() { printf %s "${1,,}"; }
-	uppercase() { printf %s "${1^^}"; }
+	lowercase() { printf '%s\n' "${1,,}"; }
+	uppercase() { printf '%s\n' "${1^^}"; }
+	deref()     { printf '%s\n' "${!1}"; }
 
 	regex() {
 		if (($#)); then
@@ -72,8 +73,9 @@ bash_run
 ksh_run
 {
 	alias extglob=':'
-	lowercase() { declare -l Val="$1"; printf %s "$Val"; }
-	uppercase() { declare -u Val="$1"; printf %s "$Val"; }
+	lowercase() { declare -l Val="$1"; printf '%s\n' "$Val"; }
+	uppercase() { declare -u Val="$1"; printf '%s\n' "$Val"; }
+	deref()     { eval "printf '%s\n' \"\$$1\""; }
 
 	regex() {
 		if (($#)); then
@@ -94,8 +96,9 @@ ksh_run
 zsh_run
 {
 	alias extglob='setopt KSH_GLOB'
-	lowercase() { printf %s "${1:l}"; }
-	uppercase() { printf %s "${1:u}"; }
+	lowercase() { printf '%s\n' "${1:l}"; }
+	uppercase() { printf '%s\n' "${1:u}"; }
+	deref()     { printf '%s\n' "${(P)1}"; }
 
 	regex() {
 		if (($#)); then

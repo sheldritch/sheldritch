@@ -1,3 +1,5 @@
+#!/bin/bash
+#
 # Utils for transforming JSON
 
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
@@ -90,6 +92,7 @@ json_it() {
 json2vars() {
 	@func_info
 	about='Extract values from the given JSON object into the specified versions.
+
 	Arguments of form A=B will access the value of JSON key B and assign it to A.
 	Arguments of form A will use A both as the JSON key name and the assigned variable name.
 	'

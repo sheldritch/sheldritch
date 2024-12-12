@@ -34,7 +34,7 @@ alias args_parse='
 	declare _args_set=''
 	[[ $- = *x* ]] && _args_set+=x
 	[[ $- = *u* ]] && _args_set+=u
-	set +$_args_set
+	[[ -n "$_args_set" ]] && set +$_args_set
 
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
@@ -71,7 +71,7 @@ alias args_parse='
 		done
 	fi
 
-	set -$_args_set
+	[[ -n "$_args_set" ]] && set -$_args_set
 '
 
 tools_args_example() {
@@ -244,7 +244,7 @@ _args_options_gen() {
 			# TODO: Implement array flags. will need some opinionated designing.
 			# probably, all bash arguments until the next /^-/ are part of the array,
 			# but this is escapable with '\-'
-			if [[ "$name" =~ '...' ]]; then
+			if [[ "$name" = *... ]]; then
 				error -p 1 "'$name' elipsis format currently unsupported :("
 				return 9
 			fi
@@ -443,7 +443,7 @@ args_or_stdin() {
 
 alias check_var_set='__check_var_set() {
 	for var in "$@"; do
-		if [[ -z "${!var}" ]]; then
+		if [[ -z "$(deref "$var")" ]]; then
 			echo >&2 "Error: $(funcname -p 1): option '\''$var'\'' not set"
 			safe_quit 1
 		fi
@@ -460,7 +460,7 @@ arg_bool() {
 	local __x
 	for __x in "$@"; do
 		# This works, despite questions you might have about variable scope
-		if isTrue ${!__x}; then
+		if isTrue $(deref $__x); then
 			echo --"$(echo "$__x" | sed "s/[A-Z]/-\L&/g")"
 		fi
 	done
@@ -524,7 +524,7 @@ print_doc() {
 	@func_use_parent
 	# TODO: ensure support of standalone scripts
 
-	__has() { var_is_declared "$1" && [[ -n "${!1}" ]]; }
+	__has() { var_is_declared "$1" && [[ -n "$(deref "$1")" ]]; }
 
 	if __has about; then
 		echo
