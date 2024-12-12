@@ -86,7 +86,7 @@ tools_args_example() {
 		# That is, the arguments of the command MUST include the arguments of one of these examples.
 		"# (strings starting with '#' are comments)"
 		"--print-vars [SPECIFIC_VARS_TO_PRINT...]"
-		"--print-help"
+		"{ -h | --print-help }"
 		"--example=boolean FUNCTION_FLAG"
 		"--example=string  FUNCTION_FLAG FUNCTION_VARIABLE"
 	)
