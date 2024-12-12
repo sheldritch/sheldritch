@@ -4,43 +4,43 @@ check_is_sourced
 # Use FZF to search a JSON array for a particular field match
 fzf_json() {
 	@func_info
-	options=(
+	Options=(
 		-k --key=KEY "The key of the JSON field to search within"
 		-i --id=ID "a json field which identifies each object in the array"
 		-q --jq --query=QUERY "A pre-processing query of the JSON"
 	)
 	args_parse
 
-	if [ -z "$key" ]; then
+	if [ -z "$Key" ]; then
 		echo >&2 "Error: fzf_json: key required"
 		print_doc
 		return 1
 	fi
-	if [ -z "$id" ]; then
+	if [ -z "$Id" ]; then
 		error "id required"
 		print_doc
 		return 1
 	fi
 
-	local input
+	local Input
 
 	if [ $# -ge 1 ]; then
-		input="$*"
+		Input="$*"
 	else 
-		input="$(cat)"
+		Input="$(cat)"
 	fi
 
 	mkdir -p /tmp/tools
-	file="$(mktemp tools/fzf_jzon.XXXXX --tmpdir)"
-	jqj "$input" -sc "flatten | .[] | ${query:-.}" > "$file"
+	File="$(mktemp tools/fzf_jzon.XXXXX --tmpdir)"
+	jqj "$Input" -sc "flatten | .[] | ${Query:-.}" > "$File"
 
 	# shellcheck disable=SC2016
-	lineTest='select(.id as $id | $line | test("\($id)"))'
-	match="$(
-		jq -r '"\('".$id) \\(.$key)\"" "$file" |
-			fzf --sync --preview 'cat "'"$file"'" | jq --arg line {} '"'$lineTest'"
+	LineTest='select(.id as $id | $line | test("\($id)"))'
+	Match="$(
+		jq -r '"\('".$Id) \\(.$Key)\"" "$File" |
+			fzf --sync --preview 'cat "'"$File"'" | jq --arg line {} '"'$LineTest'"
 	)"
 
-	jq --arg line "$match" "$lineTest" "$file"
-	rm "$file"
+	jq --arg line "$Match" "$LineTest" "$File"
+	rm "$File"
 }

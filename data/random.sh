@@ -39,8 +39,8 @@ random_hex() {
 
 random_char() {
 	@func_info
-	usage='[ALLOWED_CHARACTERS]'
-	options=(
+	Usage='[ALLOWED_CHARACTERS]'
+	Options=(
 		-c --count=COUNT "the number of random characters to output."
 		--safe "Use a safe subset of the allowed characters (based on URL escaping currently)"
 	)
@@ -51,8 +51,8 @@ random_char() {
 	fi
 
 	tr -dc "${1:-[:print:]}" </dev/random | {
-		isTrue $safe && tr -dc '[:alnum:]$_.+!*()-' || cat
-	} | head -c "${count:-1}"
+		isTrue $Safe && tr -dc '[:alnum:]$_.+!*()-' || cat
+	} | head -c "${Count:-1}"
 }
 
 random_symbol() {

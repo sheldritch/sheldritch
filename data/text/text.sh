@@ -10,7 +10,7 @@ summon sheldritch/data/types.sh
 
 deindent() {
 	@func_info
-	about="prints lines from stdin, deindented from the given first line"
+	About="prints lines from stdin, deindented from the given first line"
 	args_parse
 
 	if [[ "$*" =~ $'\n'($'\t'| )+ ]]; then
@@ -139,7 +139,7 @@ case_camel() {
 url_encode() {
 	if [[ -t 1 ]]; then
 		@func_info
-		usage='TEXT_TO_ENCODE...'
+		Usage='TEXT_TO_ENCODE...'
 		args_parse
 	fi
 
@@ -237,21 +237,21 @@ url_decode() {
 
 glob() {
 	@func_info
-	about="Matches wildcards against the paths supplied by STDIN. * matches 1 level, and ** matches any number of levels.
+	About="Matches wildcards against the paths supplied by STDIN. * matches 1 level, and ** matches any number of levels.
 		Will print paths in the order of input, and will not print a line twice if two globs match.
 
 		For paths containing newlines, use 'glob_args', which creates a REPLY array.
 		For many globs, this func is much faster though.
 	"
-	usage='GLOBS...'
-	options=(
+	Usage='GLOBS...'
+	Options=(
 		-i --insensitive --case-insensitive --no-case "allow globs to match case-insensitively"
 	)
 	args_parse
 
 	extglob
 	local MatchPrefix
-	if isTrue $noCase; then
+	if isTrue $NoCase; then
 		bash_run shopt_temp nocasematch
 		zsh_run MatchPrefix='(#i)'
 	fi
@@ -270,15 +270,15 @@ glob() {
 
 glob_array() {
 	@func_info
-	about="Uses the first argument as a wildcard to test against all other arguments. * matches 1 level, and ** matches any number of levels.
+	About="Uses the first argument as a wildcard to test against all other arguments. * matches 1 level, and ** matches any number of levels.
 		The result is returned in the REPLY variable. Will print paths in the order of input. Duplicate arguments will result in duplicfate matches.
 	"
-	usage='GLOB PATHS...'
+	Usage='GLOB PATHS...'
 	args_parse
 
 	extglob
 	local MatchPrefix
-	if isTrue $noCase; then
+	if isTrue $NoCase; then
 		bash_run shopt_temp nocasematch
 		zsh_run MatchPrefix='(#i)'
 	fi

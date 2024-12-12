@@ -167,11 +167,12 @@ contains() {
 
 item() {
 	@func_info
-	about="perform a check or operation of a single value against a given list"
-	usage=(
+	About="perform a check or operation of a single value against a given list"
+	Usage=(
 		"ITEM not OPERATOR ELEMENTS..."
 		"ITEM in ELEMENTS..."
 	)
+	parse_args
 	if [[ $# -eq 1 && "$1" =~ (-h|--help) ]]; then
 		print_docs 2>&1
 	fi

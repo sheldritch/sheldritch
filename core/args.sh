@@ -22,57 +22,58 @@ __main() {
 #
 
 # aliases needs to be first to ensure later functions can use it
-alias @func_info='declare about='' args_req=''
-declare -a usage=() options=()
-declare -A _opts=() _opts_bool=()
+alias @func_info='declare About='' ArgsReq=''
+declare -a Usage=() Options=()
+declare -A _Opts=() _OptsBool=()
 '
 
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
 # shellcheck disable=SC2142
 alias args_parse='
-	declare _args_set=''
-	[[ $- = *x* ]] && _args_set+=x
-	[[ $- = *u* ]] && _args_set+=u
-	[[ -n "$_args_set" ]] && set +$_args_set
+	declare _ArgsSet=''
+	[[ $- = *x* ]] && _ArgsSet+=x
+	[[ $- = *u* ]] && _ArgsSet+=u
+	[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
 
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
-	_args_options_gen "${options[@]}" || return $?
+	_args_options_gen "${Options[@]}" || return $?
 
-	declare _opt_count ${_opts[@]//[^[:alnum:]]/ } "${_opts_bool[@]}"
-	if [[ "$_args_set" = *u* ]]; then
-		for arg in _opt_count ${_opts[@]//[^[:alnum:]]/ } "${_opts_bool[@]}"; do
-			declare "$arg"=''
+	declare _OptCount ${_Opts[@]//[^[:alnum:]]/ } "${_OptsBool[@]}"
+	if [[ "$_ArgsSet" = *u* ]]; then
+		for __Arg in _OptCount ${_Opts[@]//[^[:alnum:]]/ } "${_OptsBool[@]}"; do
+			declare "$Arg"=''
 		done
 	fi
 
 	_args_options_parse "$@" || return $?
 
 	# uses a custom opts flag to allow funcs to handle their own implementation if they want
-	if [[ "${_opts_bool[__help]}" ]]; then
+	if [[ "${_OptsBool[__help]}" ]]; then
 		print_doc 2>&1
 		safe_quit
 	fi
 
-	shift "${_opt_count:-0}" # set by _args_options_parse
+	shift "${_OptCount:-0}" # set by _args_options_parse
 
 	# TODO: allow mixing of options and required arguments by parsing these in _args_options_parse
 	# Might need to consider how variadic arguments interact with this
-	if [[ "$args_req" ]]; then
-		if ! var_is_declared args_req; then
-			error "INTERNAL ERR: args_req must be declared"
+	if [[ "$ArgsReq" ]]; then
+		if ! var_is_declared ArgsReq; then
+			error "INTERNAL ERR: ArgsReq must be declared"
 			safe_quit 9
 		fi
-		declare $args_req
-		for x in $args_req; do
+		declare $ArgsReq
+		for x in $ArgsReq; do
 			_args_req "$x" "$1" || safe_quit $?
 			shift
 		done
 	fi
 
-	[[ -n "$_args_set" ]] && set -$_args_set
+	[[ -n "$_ArgsSet" ]] && set -$_ArgsSet
 '
+alias parse_args=args_parse
 
 tools_args_example() {
 
@@ -80,8 +81,8 @@ tools_args_example() {
 	@func_info
 
 	# structured definition of function operation metadata
-	about='an example function showing how to use @func_info to parse --option-flags and auto-document'
-	usage=(
+	About='an example function showing how to use @func_info to parse --option-flags and auto-document'
+	Usage=(
 		# this usage array (which can also be a single string) is currently only used for documentation
 		# it shows all the different allowed formats excluding optional arguments.
 		# That is, the arguments of the command MUST include the arguments of one of these examples.
@@ -93,7 +94,7 @@ tools_args_example() {
 	)
 
 	# A list of the flags that can be passed into the command.
-	options=(
+	Options=(
 		# format is FLAGS... FLAG_DESCRIPTION
 		--print-vars "A boolean flag to enable the print-var feature. Boolean flags usually have no argument, but can support --<arg>=true/false or --no-<arg>"
 		# any number of flags can be provided, including single-letter flags.
@@ -112,39 +113,39 @@ tools_args_example() {
 	)
 	args_parse
 
-	if [[ "$target$val1$val2" ]]; then
-		echo "equals or!! checking to see if '$target' equals either '$val1' or '$val2'..."
-		case "$target" in
-			"$val1" )
-				echo "'$target' equals the first value, $val1!";&
-			"$val2" )
-				echo "'$target' equals the second value, $val2!";&
+	if [[ -n "$Target$Val1$Val2" ]]; then
+		echo "equals or!! checking to see if '$Target' equals either '$Val1' or '$Val2'..."
+		case "$Target" in
+			"$Val1" )
+				echo "'$Target' equals the first value, $Val1!";&
+			"$Val2" )
+				echo "'$Target' equals the second value, $Val2!";&
 		esac
 	fi
 
 	# variables are automatically declared in args_parse
-	if [[ "$printVars" = true ]]; then
-		if [[ $# -gt 0 && -z "$exampleType" ]]; then
+	if [[ "$PrintVars" = true ]]; then
+		if [[ $# -gt 0 && -z "$ExampleType" ]]; then
 			local -p "$@"
 		else
 			echo "standard args:"
-			local -p "${_opts[@]}" | sort --unique
+			local -p "${_Opts[@]}" | sort --unique
 			echo "boolean args:"
-			local -p "${_opts_bool[@]}" | sort --unique
+			local -p "${_OptsBool[@]}" | sort --unique
 		fi
 	fi
 
 	# you can still set defaults like so:
-	printHelp="${printHelp:-false}"
+	PrintHelp="${PrintHelp:-false}"
 
 	# if the command didn't specify, flag variables are empty (''), including boolean flags
-	# so be careful in your boolean checks -- if var='', then [[ "$var" = true ]] is false and [[ "$var" != false ]] is true
-	if [[ "$printHelp" = true ]]; then
+	# so be careful in your boolean checks -- if Var='', then [[ "$Var" = true ]] is false and [[ "$Var" != false ]] is true
+	if [[ "$PrintHelp" = true ]]; then
 		print_doc
 		return
 	fi
 
-	case "$exampleType" in
+	case "$ExampleType" in
 		'' ) return ;;
 
 		string )
@@ -165,36 +166,36 @@ tools_args_example() {
 			return 1
 	esac
 
-	local flag var prefix=--
-	var="$(case_big_snake "$2")"
-	flag="$(case_kebab "$1")"
+	local Flag Var Prefix=--
+	Var="$(case_big_snake "$2")"
+	Flag="$(case_kebab "$1")"
 
-	if [[ "$flag" =~ ^-?.$ ]]; then
-		prefix=-
+	if [[ "$Flag" =~ ^-?.$ ]]; then
+		Prefix=-
 	fi
-	flag="${flag#$prefix}"
+	Flag="${Flag#$Prefix}"
 
-	echo 'options=('
-	printf "\t%s%s%s 'STRING EXPLAINING THE FLAG'\n" "$prefix" "$flag" "${var:+=$var}"
+	echo 'Options=('
+	printf "\t%s%s%s 'STRING EXPLAINING THE FLAG'\n" "$Prefix" "$Flag" "${Var:+=$Var}"
 	echo ')'
-	echo "variable name: '$(case_camel "${var:-$flag}")'"
+	echo "variable name: '$(case_camel "${Var:-$Flag}")'"
 }
 
 _args_req() {
-	local arg="$1"
+	local Arg="$1"
 	shift
 	if [[ -z "$1" ]]; then
-		error -p 1 "arg '$arg' must be set"
+		error -p 1 "arg '$Arg' must be set"
 
-		if var_is_declared usage; then
+		if var_is_declared Usage; then
 			print_doc
 		else
-			print_usage "$(case_big_snake $args_req)"
+			print_usage "$(case_big_snake $ArgsReq)"
 		fi
 		return 1
 	fi
 
-	eval "$arg"'="$1"'
+	eval "$Arg"'="$1"'
 }
 
 _args_name_to_camel() {
@@ -209,21 +210,22 @@ _args_name_to_camel() {
 
 		In="${In//$Separator$Match/$UpperMatch}"
 	done
-	name="$In"
+	local -u First="${In:0:1}"
+	Name="$First${In:1}"
 }
 
 # used internally by args_parse to create a map of flags to variables for later parsing
 _args_options_gen() {
 
-	local flags last name
+	local Flags Last Name
 
-	if ! var_is_declared _opts; then
+	if ! var_is_declared _Opts; then
 		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
 		safe_quit 9
 	fi
 
 	while [[ $# -gt 0 ]]; do
-		flags=
+		Flags=
 		if ! [[ "$1" =~ ^- ]]; then
 			error -p 3 "argument flag format is messed up!"
 			error -p 3 "Rest of array is as follows: $(args_quoted "$@")"
@@ -231,32 +233,32 @@ _args_options_gen() {
 		fi
 
 		while [[ "$1" =~ ^- ]]; do
-			flags+=" $1"
-			last="$1" # the last flag includes the '=VAR_NAME' part (or not if bool)
+			Flags+=" $1"
+			Last="$1" # the last flag includes the '=VAR_NAME' part (or not if bool)
 			shift
 		done
 		shift # throw away the docstring
 
 		# check if flag has argument or is boolean
-		if [[ "$last" =~ = ]]; then
-			name="${last#*=}"
+		if [[ "$Last" =~ = ]]; then
+			Name="${Last#*=}"
 
 			# TODO: Implement array flags. will need some opinionated designing.
 			# probably, all bash arguments until the next /^-/ are part of the array,
 			# but this is escapable with '\-'
-			if [[ "$name" = *... ]]; then
-				error -p 1 "'$name' elipsis format currently unsupported :("
+			if [[ "$Name" = *... ]]; then
+				error -p 1 "'$Name' elipsis format currently unsupported :("
 				return 9
 			fi
 
-			_args_name_to_camel "$name"
-			for flag in $flags; do
-				_opts[${flag%%=*}]="$name"
+			_args_name_to_camel "$Name"
+			for Flag in $Flags; do
+				_Opts[${Flag%%=*}]="$Name"
 			done
 		else
-			_args_name_to_camel "${last#--}"
-			for flag in $flags; do
-				_opts_bool[${flag}]="$name"
+			_args_name_to_camel "${Last#--}"
+			for Flag in $Flags; do
+				_OptsBool[${Flag}]="$Name"
 			done
 		fi
 
@@ -265,29 +267,29 @@ _args_options_gen() {
 
 alias __shift='((i++)); shift'
 _args_options_parse() {
-	local flag='' arg='' type='' value='' i=0
+	local Flag='' Arg='' Type='' Value='' i=0
 
 	while [[ "$1" =~ ^- ]]; do
-		type= arg= value=
-		flag="${1%%=*}"
+		Type= Arg= Value=
+		Flag="${1%%=*}"
 
 		# check defined flags
-		if arg="${_opts_bool[$flag]}" && [[ -n "$arg" ]]; then
-			type=bool
-		elif arg="${_opts_bool[--${flag#--no-}]}" && [[ -n "$arg" ]]; then
-			type=bool
-			value=false
+		if Arg="${_OptsBool[$Flag]}" && [[ -n "$Arg" ]]; then
+			Type=bool
+		elif Arg="${_OptsBool[--${Flag#--no-}]}" && [[ -n "$Arg" ]]; then
+			Type=bool
+			Value=false
 		else
-			arg="${_opts[$flag]}"
-			type=string
+			Arg="${_Opts[$Flag]}"
+			Type=string
 		fi
 
-		if [[ -z "$arg" ]]; then
+		if [[ -z "$Arg" ]]; then
 
 			# fall back to common defaults
-			case "$flag" in
+			case "$Flag" in
 				-h | --help)
-					_opts_bool[__help]=true
+					_OptsBool[__help]=true
 					break
 					;;
 				-- )
@@ -296,50 +298,50 @@ _args_options_parse() {
 					;;
 				*)
 					# if no options spec was defined, assume flags are parsed elsewhere
-					(( "${#options[@]}" )) || return 0
+					(( "${#Options[@]}" )) || return 0
 
-					error -p 1 "Flag '$flag' not supported!"
+					error -p 1 "Flag '$Flag' not supported!"
 					return 1
 			esac
 		fi
 
-		if [[ -z "$value" && "$1" =~ =(.+)$ ]]; then
-			value="${value:-$(value "$1")}"
+		if [[ -z "$Value" && "$1" =~ =(.+)$ ]]; then
+			Value="${Value:-$(value "$1")}"
 		fi
 		__shift
 
-		if [[ $type = bool ]]; then
-			value="${value:-true}"
-			if [[ ! "$value" =~ (true|false) ]]; then
-				error -p 1 "Flag '$flag' is boolean"
+		if [[ $Type = bool ]]; then
+			Value="${Value:-true}"
+			if [[ ! "$Value" =~ (true|false) ]]; then
+				error -p 1 "Flag '$Flag' is boolean"
 				return 1
 			fi
 		fi
 
-		if [[ -z "$value" ]]; then
-			value="$1"
+		if [[ -z "$Value" ]]; then
+			Value="$1"
 			__shift
 		fi
 
 		# escape any single quotes within value so we can assign with eval
-		value="${value//\'/\'\\\'\'}"
+		Value="${Value//\'/\'\\\'\'}"
 
-		if [[ "$type" = string ]]; then
-			while rematch "$arg" '[^[:alnum:]]+' >/dev/null; do
-				local separator="$REPLY"
+		if [[ "$Type" = string ]]; then
+			while rematch "$Arg" '[^[:alnum:]]+' >/dev/null; do
+				local Separator="$REPLY"
 
-				eval "${arg%%"$separator"*}='${value%%"$separator"*}'"
+				eval "${Arg%%"$Separator"*}='${Value%%"$Separator"*}'"
 
-				arg="${arg#*"$separator"}"
-				[[ "$value" =~ "$separator" ]] || value=''
-				value="${value#*"$separator"}"
+				Arg="${Arg#*"$Separator"}"
+				[[ "$Value" =~ "$Separator" ]] || Value=''
+				Value="${Value#*"$Separator"}"
 			done
 		fi
 
-		eval "$arg='$value'"
+		eval "$Arg='$Value'"
 
 	done
-	_opt_count=$i
+	_OptCount=$i
 }
 unalias __shift
 
@@ -426,25 +428,25 @@ zsh_run setopt GLOB
 #
 
 args_or_stdin() {
-	local args
+	local Args
 	if [[ $# -eq 0 ]]; then
 		if [[ -t 0 ]]; then
 			echo >&2 "Error: $(funcname -p 1) run with no args, but nothing piped in"
 			return 1
 		fi
-		args="$(cat)"
+		Args="$(cat)"
 	else
-		args="$*"
+		Args="$*"
 	fi
-	echo "$args"
-	REPLY="$args"
+	echo "$Args"
+	REPLY="$Args"
 }
 
 
 alias check_var_set='__check_var_set() {
-	for var in "$@"; do
-		if [[ -z "$(deref "$var")" ]]; then
-			echo >&2 "Error: $(funcname -p 1): option '\''$var'\'' not set"
+	for Var in "$@"; do
+		if [[ -z "$(deref "$Var")" ]]; then
+			echo >&2 "Error: $(funcname -p 1): option '\''$Var'\'' not set"
 			safe_quit 1
 		fi
 	done
@@ -514,8 +516,8 @@ print_options() {
 print_doc() {
 	# run docs in subshell so we don't clobber variables
 	[[ "$(@func_info
-		about='print semantically-structured docs from standardised variables'
-		usage=()
+		About='print semantically-structured docs from standardised variables'
+		Usage=()
 		args_parse
 		echo end # if no echo, we know args_parse exited early.
 	)" ]] || return $?
@@ -526,30 +528,30 @@ print_doc() {
 
 	__has() { var_is_declared "$1" && [[ -n "$(deref "$1")" ]]; }
 
-	if __has about; then
+	if __has About; then
 		echo
-		echo "$Parent - $about"
+		echo "$Parent - $About"
 		echo
 	fi
 
-	if __has usage; then
+	if __has Usage; then
 		echo "Usage:"
-		for line in "${usage[@]}"; do
-			if [[ "$line" =~ ^#(.*)$ ]]; then
-				printf '\t%s\n' "$line"
+		for Line in "${Usage[@]}"; do
+			if [[ "$Line" =~ ^#(.*)$ ]]; then
+				printf '\t%s\n' "$Line"
 				continue
 			fi
-			printf '\t%s%s\n' "$Parent ${options[1]:+[options] }" "$line"
+			printf '\t%s%s\n' "$Parent ${Options[1]:+[options] }" "$Line"
 		done
 	elif isFunction usage &&
-		awk "/${parent:+"$Parent *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
+		awk "/${Parent:+"$Parent *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
 		usage
 	else
 		echo >&2 "No Usage line provided. However, here are the options:"
 	fi
 
-	if __has options; then
-		print_options "${options[@]}" || return 9
+	if __has Options; then
+		print_options "${Options[@]}" || return 9
 
 	elif isFunction options; then
 		options
@@ -560,30 +562,30 @@ print_doc() {
 }
 
 print_usage() {
-	local name
+	local Name
 	# funcname may not be defined if running this function, but that doesn't matter.
 	# besides, in any user environment it will be defined.
-	name="$(funcname -p 1 2>/dev/null)"
-	if [[ "$name" = usage ]]; then
-		name="$(funcname -p 2 2>/dev/null)"
+	Name="$(funcname -p 1 2>/dev/null)"
+	if [[ "$Name" = usage ]]; then
+		Name="$(funcname -p 2 2>/dev/null)"
 	fi
-	name="${name:-$0}"
+	Name="${Name:-$0}"
 
-	local usage
-	usage="$(deindent "$@")"
-	usage="${usage//$'\t'/    }"
+	local Usage
+	Usage="$(deindent "$@")"
+	Usage="${Usage//$'\t'/    }"
 
-	printf >&2 "%s\n" "Usage: $name $usage"
+	printf >&2 "%s\n" "Usage: $Name $Usage"
 }
 
 print_args() {
 	@func_info
-	about='Output the args of a script file.
+	About='Output the args of a script file.
 
 	Given file/function must have a case block that parses args
 	identified with an @ARGS comment at the top
 	'
-	options=(
+	Options=(
 		-f --function=FUNCTION "Print args for the given function within the file"
 	)
 
@@ -591,30 +593,30 @@ print_args() {
 
 	exec >&2
 
-	local file="$1"
+	local File="$1"
 
-	if [[ -z "$file" ]]; then
+	if [[ -z "$File" ]]; then
 		if [[ "$BASH_VERSION" ]]; then
-			file="${BASH_SOURCE[1]}" # [1] is the context that called this function.
+			File="${BASH_SOURCE[1]}" # [1] is the context that called this function.
 		elif [[ "$ZSH_VERSION" ]]; then
 			# shellcheck disable=SC1087
-			file="$(echo "$funcfiletrace[1]" | sed 's/:[0-9]*$//')"
+			File="$(echo "$funcfiletrace[1]" | sed 's/:[0-9]*$//')"
 		else
 			error "shell not supported. Please run --help from in bash."
 		fi
 	fi
 
-	if ! echo "$file" | grep -q '.sh$'; then
-		error "file '$file' is not a shell script."
+	if ! echo "$File" | grep -q '.sh$'; then
+		error "file '$File' is not a shell script."
 		return 1
 	fi
 
-	if echo "$file" | grep -q 'common.sh$' && [[ -z "$function" ]]; then
+	if echo "$File" | grep -q 'common.sh$' && [[ -z "$Function" ]]; then
 		error "function libs requires a -f function to be specified."
 		return 1
 	fi
 
-	local printArgs="
+	local PrintArgs="
 	/@ARGS/,$ {
 		/(esac|@ARGS_END|@ENDARGS)/q;
 		/@ARGS/d;
@@ -627,12 +629,12 @@ print_args() {
 	"
 
 	echo "Options:"
-	if [[ -n "$function" ]]; then
+	if [[ -n "$Function" ]]; then
 		# Note this runs on to the next function if no match found.
 		# parsing the function end is tricky.
-		sed -En "/$function().*\{/,/^\}/ { $printArgs }" "$file"
+		sed -En "/$Function().*\{/,/^\}/ { $PrintArgs }" "$File"
 	else
-		sed -En "$printArgs" "$file"
+		sed -En "$PrintArgs" "$File"
 	fi
 }
 

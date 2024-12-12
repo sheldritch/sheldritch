@@ -91,51 +91,51 @@ json_it() {
 
 json2vars() {
 	@func_info
-	about='Extract values from the given JSON object into the specified versions.
+	About='Extract values from the given JSON object into the specified versions.
 
 	Arguments of form A=B will access the value of JSON key B and assign it to A.
 	Arguments of form A will use A both as the JSON key name and the assigned variable name.
 	'
-	usage='JSON [VAR_NAME=]JSON_KEY...'
-	options=(
+	Usage='JSON [VAR_NAME=]JSON_KEY...'
+	Options=(
 		-A --dict=DICT       "Save variables into an associative array"
 		-E --export          "Export the variables created"
 		-f --filter=FILTER   "jq to apply to the JSON before retrieving values"
 		-c --check           "ensure that each variable is set"
 	)
-	args_req='__json'
+	ArgsReq='__Json'
 	args_parse
 
-	if [[ -n "$dict" ]]; then
+	if [[ -n "$Dict" ]]; then
 		error 'associative array support not currently impelemented. Sorry!'
 		return 9
 	fi
 
-	local __directive='' x
-	for x in export; do
+	local __Directive='' x
+	for x in Export; do
 		if isTrue ${!x}; then
-			__directive=$x
+			__Directive=$x
 			break
 		fi
 	done
 
-	if [[ -z "$__directive" ]] && ! var_is_declared "${@//=*/}"; then
+	if [[ -z "$__Directive" ]] && ! var_is_declared "${@//=*/}"; then
 		error "variables must be declared beforehand"
 		error "please call 'local $*' above this function call."
 		return 9
 	fi
 
-	local __var __exit=0
-	__json="$(jqj "$__json" "${filter:-.}")" || return 1
-	for __var in "$@"; do
-		if [[ "$__var" =~ ([^=]+)=(.+) ]]; then
-			eval "$__directive $(recapture 1)="'"$(json_field "$__json" $(recapture 2))"' || __exit=$?
+	local __Var __Exit=0
+	__Json="$(jqj "$__Json" "${Filter:-.}")" || return 1
+	for __Var in "$@"; do
+		if [[ "$__Var" =~ ([^=]+)=(.+) ]]; then
+			eval "$__Directive $(recapture 1)="'"$(json_field "$__Json" $(recapture 2))"' || __Exit=$?
 		else
-			eval "$__directive $__var="'"$(json_field "$__json" $__var)"' || __exit=$?
+			eval "$__Directive $__Var="'"$(json_field "$__Json" $__Var)"' || __Exit=$?
 		fi
 	done
-	if isTrue $check; then
-		return $__exit
+	if isTrue $Check; then
+		return $__Exit
 	fi
 }
 
@@ -156,16 +156,16 @@ alias jread=json_read
 alias jq_extract_match=json_extract_match
 json_extract_match() {
 	@func_info
-	about='
+	About='
 	For each object in a JSON array (STDIN):
 	   - Find a substring in value of SOURCE_FIELD matching REGEX
 	   - Set DESTINATION_FIELD to that found value
 	'
-	usage='SOURCE_FIELD REGEX DESTINATION_FIELD'
-	args_req='sourceField regex destField'
+	Usage='SOURCE_FIELD REGEX DESTINATION_FIELD'
+	ArgsReq='SourceField Regex DestField'
 	args_parse
 
-	jq "map((.$sourceField | sub(\".*(?<m>$regex).*\"; .m)) as \$match | if (\$match | test(\"$regex\")) then .$destField=\$match else . end )"
+	jq "map((.$SourceField | sub(\".*(?<m>$Regex).*\"; .m)) as \$match | if (\$match | test(\"$Regex\")) then .$DestField=\$match else . end )"
 }
 
 # Pops an attribute/index from JSON and create a matching variable.

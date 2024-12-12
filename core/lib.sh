@@ -46,7 +46,7 @@ if [[ -z "$SHELDRITCH" ]]; then
 	return 1
 fi
 
-main() {
+__main() {
 	source_once "$SHELDRITCH/sheldritch.base.sh"
 	source_once "$SHELDRITCH/system/xdg.sh"
 }
@@ -69,24 +69,24 @@ check_is_sourced_func() {
 }
 
 path_search() {
-	local dir Path delim='\n'
+	local Dir Path Delim='\n' First
 	case "$1" in
-		-0 | --zero ) delim='\0'
+		-0 | --zero ) Delim='\0'
 			shift 1 || return 1
 			;;
-		-d | --delimiter ) delim="$2"
+		-d | --delimiter ) Delim="$2"
 			shift 2 || return 1
 			;;
-		-1 | --first ) first=1
+		-1 | --first ) First=1
 			shift 2 || return 1
 	esac
 
 	Path="$1" 
 	shift
-	while read -rd : dir; do
+	while read -rd : Dir; do
 		for Path in "$@"; do
-			if [[ -e "$dir/$Path" ]]; then
-				printf "%s$delim" "$dir/$Path"
+			if [[ -e "$Dir/$Path" ]]; then
+				printf "%s$Delim" "$Dir/$Path"
 			fi
 		done
 	done <<<"$Path"
@@ -147,20 +147,20 @@ find_lib() {
 		return 0
 	fi
 
-	local libs
+	local Libs
 	if [[ -n "$LIBS" ]]; then
-		libs="$LIBS"
+		Libs="$LIBS"
 	else
-		libs="$HOME/.local/lib:$(xdg data-dirs)"
-		libs="${SHELDON_DATA_DIR}:${LIBS//:/\/shell:}"
+		Libs="$HOME/.local/lib:$(xdg data-dirs)"
+		Libs="${SHELDON_DATA_DIR}:${LIBS//:/\/shell:}"
 	fi
 
-	while read -rd : dir; do
-		if [[ -e "$dir/$1" ]]; then
-			printf "%s" "$dir/$1"
+	while read -rd : Dir; do
+		if [[ -e "$Dir/$1" ]]; then
+			printf "%s" "$Dir/$1"
 			return 0
 		fi
-	done <<<"$libs"
+	done <<<"$Libs"
 	return 1
 }
 
@@ -169,13 +169,13 @@ find_lib() {
 
 # imports the given library/file (relative to the library dir)
 summon() {
-	local HELP='' FORCE=''
+	local Help='' Force=''
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
-			-f | --force ) FORCE=true
+			-f | --force ) Force=true
 				shift
 				;;
-			-h | --help ) HELP=true
+			-h | --help ) Help=true
 				shift
 				break
 				;;
@@ -185,9 +185,9 @@ summon() {
 	done
 
 	zsh_run setopt GLOB globsubst
-	SHELDRITCH_CLEAN="$FORCE"
+	SHELDRITCH_CLEAN="$Force"
 
-	if [[ "$HELP" = true ]]; then
+	if [[ "$Help" = true ]]; then
 		echo >&2 "summon -- imports the library/file (relative to the library dir)"
 		echo >&2 "Usage: summon [--force] <lib>/<file>.sh"
 		echo >&2 "       summon [--force] <lib>"
@@ -195,56 +195,56 @@ summon() {
 		return 0
 	fi
 
-	for arg in "$@"; do
-		if ! lib="$(find_lib "${arg%%\*}")"; then
-			error -p 1 "Library '$lib' could not be found."
+	for Arg in "$@"; do
+		if ! Lib="$(find_lib "${Arg%%\*}")"; then
+			error -p 1 "Library '$Lib' could not be found."
 			continue
 		fi
 
-		local globs="${arg##*[^*]}"
-		globs="${globs:+[^_]$globs}"
+		local Globs="${Arg##*[^*]}"
+		Globs="${Globs:+[^_]$Globs}"
 
-		local shopt=''
-		if shopt="$(shopt -p globstar 2>/dev/null)"; then
+		local Shopt=''
+		if Shopt="$(shopt -p globstar 2>/dev/null)"; then
 			shopt -s globstar
 		fi
 
-		for lib in "$lib"$globs; do
+		for Lib in "$Lib"$Globs; do
 
-			if [[ "$SHELDRITCH_SOURCES" = *"$lib"* ]]; then
+			if [[ "$SHELDRITCH_SOURCES" = *"$Lib"* ]]; then
 				continue
 			fi
 
-			if [[ -d "$lib" && -z "$globs" ]]; then
-				_trace "Importing module '$lib'"
+			if [[ -d "$Lib" && -z "$Globs" ]]; then
+				_trace "Importing module '$Lib'"
 				#export PATH="$(find "$lib" -type d -printf "%p:")$PATH"
-				source_once "$lib/$(basename "$lib").sh"
-			elif [[ -x "$lib" ]]; then
-				_trace "Importing executable lib '$lib'"
+				source_once "$Lib/$(basename "$Lib").sh"
+			elif [[ -x "$Lib" ]]; then
+				_trace "Importing executable lib '$Lib'"
 				# shellcheck disable=SC2139
-				alias "$(basename "$lib")=$lib"
-			elif [[ "$lib" =~ \.(bash|fish|ksh|sh|zsh)$ ]]; then
+				alias "$(basename "$Lib")=$Lib"
+			elif [[ "$Lib" =~ \.(bash|fish|ksh|sh|zsh)$ ]]; then
 				if [[ "$SHELDRITCH_CLEAN" = true ]]; then
-					_trace "Force source lib '$lib'"
-					source "$lib"
+					_trace "Force source lib '$Lib'"
+					source "$Lib"
 				else
-					source_once "$lib"
+					source_once "$Lib"
 				fi
-				[[ $? = 0 ]] || error -p 1 "failed sourcing lib '$lib'"
+				[[ $? = 0 ]] || error -p 1 "failed sourcing lib '$Lib'"
 
-			elif [[ -z "$globs" ]]; then
-				error "Library '$lib' could not be interpreted."
+			elif [[ -z "$Globs" ]]; then
+				error "Library '$Lib' could not be interpreted."
 			fi
 
 		done
 
 	done
 
-	if [[ -n "$FORCE" ]]; then
+	if [[ -n "$Force" ]]; then
 		SHELDRITCH_CLEAN=""
 	fi
 
-	$shopt
+	$Shopt
 }
 
-main "$@"
+__main "$@"
