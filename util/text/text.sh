@@ -246,10 +246,10 @@ glob() {
 	)
 	args_parse
 
+	extglob
 	local MatchPrefix
 	if isTrue $noCase; then
-		bash_run shopt_temp nocasematch extglob
-		zsh_run setopt KSH_GLOB
+		bash_run shopt_temp nocasematch
 		zsh_run MatchPrefix='(#i)'
 	fi
 
@@ -273,10 +273,10 @@ glob_args() {
 	usage='GLOB PATHS...'
 	args_parse
 
+	extglob
 	local MatchPrefix
 	if isTrue $noCase; then
-		bash_run shopt_temp nocasematch extglob
-		zsh_run setopt KSH_GLOB
+		bash_run shopt_temp nocasematch
 		zsh_run MatchPrefix='(#i)'
 	fi
 
