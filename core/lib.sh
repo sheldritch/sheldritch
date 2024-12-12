@@ -215,7 +215,7 @@ summon() {
 				continue
 			fi
 
-			if [[ -d "$lib" ]]; then
+			if [[ -d "$lib" && -z "$globs" ]]; then
 				_trace "Importing module '$lib'"
 				#export PATH="$(find "$lib" -type d -printf "%p:")$PATH"
 				source_once "$lib/$(basename "$lib").sh"

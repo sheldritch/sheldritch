@@ -13,7 +13,7 @@
 source "$SHELDRITCH"/sheldritch.base.sh || return 1
 check_is_sourced
 
-main() {
+__main() {
 	summon sheldritch/data/text || return 1
 }
 
@@ -636,4 +636,4 @@ print_args() {
 	fi
 }
 
-main "$@"
+__main "$@"
