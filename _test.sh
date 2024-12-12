@@ -1,5 +1,5 @@
 __FILE="${BASH_SOURCE[0]:-${(%):-%x}}"
-source "${__FILE%/*}/sheldritch.base.sh"
+source "${__FILE%_test.sh}sheldritch.base.sh"
 
 (
 trap 'STACKTRACE=1; error FAILED' ERR
@@ -9,12 +9,9 @@ export SHELDRITCH
 command -v self_file
 
 for file in $(find */ -name '_test*.sh'); do
-	(
-	set -e
-	"./$file"
-	) || FAIL=1
+	"$SHELL" "./$file" || FAIL=1
 done
 
-[[ -z "$FAIL" ]] && echo 'all tests passed'
+[[ -z "$FAIL" ]] && log 'all tests passed'
 exit $FAIL
 ) >/dev/null
