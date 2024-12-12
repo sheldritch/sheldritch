@@ -50,11 +50,69 @@ shopt_temp_unset() {
 bash_run
 {
 	alias extglob='shopt_temp extglob'
+	lowercase() { printf %s "${1,,}"; }
+	uppercase() { printf %s "${1^^}"; }
+
+	regex() {
+		if (($#)); then
+			[[ "$1" =~ $2 ]] || return $?
+		fi
+		MATCHES=( "${BASH_REMATCH[@]}" )
+	}
+	rematch() {
+		regex "$@" || return $?
+		recapture 0
+	}
+	recapture() {
+		REPLY="${BASH_REMATCH[$1]}"
+		printf "%s" "$REPLY"
+	}
+}
+
+ksh_run
+{
+	alias extglob=':'
+	lowercase() { declare -l Val="$1"; printf %s "$Val"; }
+	uppercase() { declare -u Val="$1"; printf %s "$Val"; }
+
+	regex() {
+		if (($#)); then
+			[[ "$1" =~ $2 ]] || return $?
+		fi
+		MATCHES=( "${.sh.match[@]}" )
+	}
+	rematch() {
+		regex "$@" || return $?
+		recapture 0
+	}
+	recapture() {
+		REPLY="${.sh.match[$1]}"
+		printf "%s" "$REPLY"
+	}
 }
 
 zsh_run
 {
 	alias extglob='setopt KSH_GLOB'
+	lowercase() { printf %s "${1:l}"; }
+	uppercase() { printf %s "${1:u}"; }
+
+	regex() {
+		if (($#)); then
+			[[ "$1" =~ $2 ]] || return $?
+		fi
+		MATCHES=( "$MATCH" "${match[@]}" )
+	}
+	rematch() {
+		regex "$@" || return $?
+		REPLY="$MATCH"
+		printf "%s" "$REPLY"
+	}
+	recapture() {
+		REPLY="${match[@]:$(($1 - 1)):1}"
+		printf "%s" "$REPLY"
+	}
+
 }
 
 return 0

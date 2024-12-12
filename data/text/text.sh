@@ -14,7 +14,8 @@ deindent() {
 	args_parse
 
 	if [[ "$*" =~ $'\n'($'\t'| )+ ]]; then
-		printf "%s\n" "${*//"${BASH_REMATCH[0]}"/$'\n'}"
+		rematch >/dev/null
+		printf "%s\n" "${*//"$REPLY"/$'\n'}"
 	else
 		printf "%s\n" "$*"
 	fi
@@ -68,10 +69,10 @@ replace() {
 		local out="" captures=""
 		local match="$1" replacement="$2"
 
-		if [[ "$replacement" =~ \\[0-9].* ]]; then
+		if rematch "$replacement" '\\[0-9].*' >/dev/null; then
 			# filter out non-capture characters to speed up '=~' check below
 			# non-escaped digits are left in (faster to do so), but since we only handle 0-9 those are fine
-			local escapes="${BASH_REMATCH[0]//\\[^0-9]/}"
+			local escapes="${REPLY//\\[^0-9]/}"
 			escapes="${escapes//[^\\0-9]/}"
 
 			for x in {0..9}; do
@@ -82,11 +83,12 @@ replace() {
 		fi
 
 
-		while [[ "$in" =~ $match ]]; do
-			local capture="${BASH_REMATCH[0]}" sub="$replacement"
+		while rematch "$in" "$match" >/dev/null; do
+			local capture="$REPLY" sub="$replacement"
 
 			for x in $captures; do
-				sub="${sub//\\$x/${BASH_REMATCH[$x]}}"
+				recapture "$x" >/dev/null
+				sub="${sub//\\$x/$REPLY}"
 			done
 
 			out+="${in%%"$capture"*}$sub"

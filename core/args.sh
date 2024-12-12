@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # utils for argument parsing
 #
@@ -197,15 +198,18 @@ _args_req() {
 }
 
 _args_name_to_camel() {
-	local in="${1,,}"
+	local -l In="$1"
 
-	while [[ "$in" =~ ([_-])(.) ]]; do
-		local separator="${BASH_REMATCH[1]}"
-		local match="${BASH_REMATCH[2]}"
+	while [[ "$In" =~ ([_-])(.) ]]; do
+		recapture 1 >/dev/null
+		local Separator="$REPLY"
+		recapture 2 >/dev/null
+		local Match="$REPLY"
+		local -u UpperMatch="$Match"
 
-		in="${in//$separator$match/${match^}}"
+		In="${In//$Separator$Match/$UpperMatch}"
 	done
-	name="$in"
+	name="$In"
 }
 
 # used internally by args_parse to create a map of flags to variables for later parsing
@@ -241,7 +245,7 @@ _args_options_gen() {
 			# probably, all bash arguments until the next /^-/ are part of the array,
 			# but this is escapable with '\-'
 			if [[ "$name" =~ '...' ]]; then
-				error "'$name' elipsis format currently unsupported :("
+				error -p 1 "'$name' elipsis format currently unsupported :("
 				return 9
 			fi
 
@@ -321,8 +325,8 @@ _args_options_parse() {
 		value="${value//\'/\'\\\'\'}"
 
 		if [[ "$type" = string ]]; then
-			while [[ "$arg" =~ [^[:alnum:]]+ ]]; do
-				local separator="${BASH_REMATCH[0]}"
+			while rematch "$arg" '[^[:alnum:]]+' >/dev/null; do
+				local separator="$REPLY"
 
 				eval "${arg%%"$separator"*}='${value%%"$separator"*}'"
 
@@ -591,7 +595,7 @@ print_args() {
 
 	if [[ -z "$file" ]]; then
 		if [[ "$BASH_VERSION" ]]; then
-			file="${BASH_SOURCE[-1]}" # [1] is the context that called this function.
+			file="${BASH_SOURCE[1]}" # [1] is the context that called this function.
 		elif [[ "$ZSH_VERSION" ]]; then
 			# shellcheck disable=SC1087
 			file="$(echo "$funcfiletrace[1]" | sed 's/:[0-9]*$//')"

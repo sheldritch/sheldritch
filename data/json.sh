@@ -126,7 +126,7 @@ json2vars() {
 	__json="$(jqj "$__json" "${filter:-.}")" || return 1
 	for __var in "$@"; do
 		if [[ "$__var" =~ ([^=]+)=(.+) ]]; then
-			eval "$__directive ${BASH_REMATCH[1]}="'"$(json_field "$__json" ${BASH_REMATCH[2]})"' || __exit=$?
+			eval "$__directive $(recapture 1)="'"$(json_field "$__json" $(recapture 2))"' || __exit=$?
 		else
 			eval "$__directive $__var="'"$(json_field "$__json" $__var)"' || __exit=$?
 		fi

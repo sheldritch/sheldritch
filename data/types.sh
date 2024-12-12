@@ -242,7 +242,7 @@ value() {
 
 	local value pair="$([[ $# -eq 0 ]] && cat || echo $1)"
 	[[ "$pair" =~ "$delimiter"(.*)$ ]] || return 2
-	printf '%s\n' "${BASH_REMATCH[1]}"
+	recapture 1
 }
 
 ternary() {

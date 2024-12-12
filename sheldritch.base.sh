@@ -6,6 +6,11 @@
 # base.sh is frequently re-run, so enforcing performance is important
 # shellcheck enable=require-double-brackets
 
+if [[ -n "${SHELDRITCH_SUBSHELL+ }" && -z "${SHELDRITCH_CLEAN+ }" && "$1" != "--force" ]]
+then
+	return
+fi
+
 # Ensure the aliases created by this script are available
 if [[ -v BASH_VERSION ]]; then
 	shopt -s expand_aliases
@@ -13,13 +18,9 @@ elif [[ -v ZSH_VERSION ]]; then
 	setopt aliases
 fi
 
-if [[ -n "${SHELDRITCH_SUBSHELL+ }" && -z "${SHELDRITCH_CLEAN+ }" && "$1" != "--force" ]]
-then
-	return
-fi
-
 alias zsh_run='[[ -v ZSH_VERSION ]] && '
 alias bash_run='[[ -v BASH_VERSION ]] && '
+alias ksh_run='[[ -v KSH_VERSION ]] && '
 alias _trace='[[ -n "${TRACE+ }" ]] && echo >&2 '
 
 # Directories/Environment
@@ -86,11 +87,6 @@ alias @func_use_parent='
 	fi
 '
 
-lowercase() {
-	 zsh_run printf %s "${1:l}"
-	bash_run printf %s "${1,,}"
-}
-
 _genfunc_log() {
 	eval "$1"'() {
 		local Trace="${STACKTRACE:-$DEBUG}" Set
@@ -128,3 +124,4 @@ alias var_is_local='local >/dev/null 2>&1 -p'
 alias var_is_declared='declare >/dev/null 2>&1 -p'
 
 source "$SHELDRITCH/core/lib.sh"
+source_once "$SHELDRITCH/core/compat.sh"
