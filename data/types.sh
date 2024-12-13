@@ -28,7 +28,7 @@ funcs() {
 # `funcname` should not use any other helper functions to avoid recursion
 # except where explicitly commented
 funcname() {
-	local quiet parent
+	local quiet parent=0
 	while [[ $# -gt 0 ]]; do case "$1" in
 		-q | --quiet) quiet=true
 			shift
@@ -48,24 +48,18 @@ funcname() {
 			return 0
 	esac; done
 
-	parent="${parent:-0}"
-	parent="$(($parent + 1))" # this function, `funcname`, counts as an additional layer
-
-	print() {
-		if [[ "$quiet" != true ]]; then
-			echo "$@"
-		fi
-	}
+	parent="$((parent + 1))" # this function, `funcname`, counts as an additional layer
 
 	local parentFunc="${FUNCNAME[$parent]}${funcstack[@]:$parent:1}"
 	if [[ -z "$parentFunc" || "$parentFunc" = source ]] ||
 		# Happens when run in shell script
-		[[ "$parentFunc" = main && -z "${FUNCNAME[$(($parent + 1))]}${funcstack[@]:$(($parent + 1)):1}" ]]
+		[[ "$parentFunc" = main && -z "${FUNCNAME[$(($parent + 1))]}${funcstack[@]:parent + 1:1}" ]]
 	then
-		print >&2 "Error: funcname: no shell function found."
+		[[ "$quiet" = true ]] || echo >&2 "Error: funcname: no shell function found."
 		return 1
 	fi
-	print "$parentFunc"
+	[[ "$quiet" = true ]] || echo "$parentFunc"
+	REPLY="$parentFunc"
 }
 
 # for all defined functions, create an alias replacing the given extended regex

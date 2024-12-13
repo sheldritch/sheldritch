@@ -104,7 +104,7 @@ s() { replace "$@"; }
 case_sep() {
 	local sep="$1"
 	shift || return 9
-	local x="${*//[-_.]/$sep}"
+	local x="${*//[-_., ]/$sep}"
 
 	if [[ "$x" =~ ([a-z][A-Z]|[A-Z][A-Z]+[a-z]) ]]; then
 		echo "$x" | sed -E \
@@ -130,9 +130,11 @@ case_kebab() {
 }
 
 case_camel() {
-	local x
-	x="$(case_sep _ "$*")"
-	echo "$x" | sed "s/_\(.\)/\U\1/g"
+	case_sep _ "$*" | sed "s/_\(.\)/\U\1/g"
+}
+
+case_pascal() {
+	case_camel "$@" | sed 's/^\(.\)/\U\1/'
 }
 
 

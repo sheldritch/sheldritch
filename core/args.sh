@@ -200,6 +200,10 @@ _args_req() {
 
 _args_name_to_camel() {
 	local -l In="$1"
+	local +l In
+
+	# PERF: I've tested this with a per-character array and a pure "${//}" approach.
+	# regex works best for a dozen individual options
 
 	while [[ "$In" =~ ([_-])(.) ]]; do
 		recapture 1 >/dev/null
@@ -214,6 +218,13 @@ _args_name_to_camel() {
 	Name="$First${In:1}"
 }
 
+f() {
+@func_info
+Options=(-a=AN_VALUE "this is a value!")
+args_parse
+local -p
+}
+
 # used internally by args_parse to create a map of flags to variables for later parsing
 _args_options_gen() {
 
@@ -224,15 +235,26 @@ _args_options_gen() {
 		safe_quit 9
 	fi
 
+	funcname -q -p 1
+	local Cache="_Opts_$REPLY"
+
+	if [[ -v "$Cache" ]]; then
+		# TODO: Consider making a function instead of a variable, need to explore pros vs cons
+		zsh_run  eval "${(P)Cache}"
+		bash_run eval "${!Cache}"
+		ksh_run  eval "eval \"\$$Cache\""
+		return
+	fi
+
 	while [[ $# -gt 0 ]]; do
 		Flags=
-		if ! [[ "$1" =~ ^- ]]; then
+		if ! [[ "$1" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
 			error -p 3 "Rest of array is as follows: $(args_quoted "$@")"
 			return 9
 		fi
 
-		while [[ "$1" =~ ^- ]]; do
+		while [[ "$1" = -* ]]; do
 			Flags+=" $1"
 			Last="$1" # the last flag includes the '=VAR_NAME' part (or not if bool)
 			shift
@@ -240,7 +262,7 @@ _args_options_gen() {
 		shift # throw away the docstring
 
 		# check if flag has argument or is boolean
-		if [[ "$Last" =~ = ]]; then
+		if [[ "$Last" = *=* ]]; then
 			Name="${Last#*=}"
 
 			# TODO: Implement array flags. will need some opinionated designing.
@@ -263,6 +285,8 @@ _args_options_gen() {
 		fi
 
 	done
+	local Opts="$(declare -p _Opts _OptsBool)"
+	declare -g $Cache="${Opts//declare -A/}"
 }
 
 alias __shift='((i++)); shift'
