@@ -31,14 +31,18 @@ alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
 # shellcheck disable=SC2142
 alias args_parse='
-	declare _ArgsSet=''
+	declare _ArgsSet='' __Cache="_Opts_${FUNCNAME[1]:-${funcstack[@]:1:1}}"
 	[[ $- = *x* ]] && _ArgsSet+=x
 	[[ $- = *u* ]] && _ArgsSet+=u
 	[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
 
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
-	_args_options_gen "${Options[@]}" || return $?
+	if declare -F "$__Cache" >/dev/null 2>/dev/null; then
+		"$__Cache"
+	else
+		_args_options_gen "${Options[@]}" || return $?
+	fi
 
 	declare _OptCount ${_Opts[@]//[^[:alnum:]]/ } "${_OptsBool[@]}"
 	if [[ "$_ArgsSet" = *u* ]]; then
@@ -235,17 +239,6 @@ _args_options_gen() {
 		safe_quit 9
 	fi
 
-	funcname -q -p 1
-	local Cache="_Opts_$REPLY"
-
-	if [[ -v "$Cache" ]]; then
-		# TODO: Consider making a function instead of a variable, need to explore pros vs cons
-		zsh_run  eval "${(P)Cache}"
-		bash_run eval "${!Cache}"
-		ksh_run  eval "eval \"\$$Cache\""
-		return
-	fi
-
 	while [[ $# -gt 0 ]]; do
 		Flags=
 		if ! [[ "$1" = -* ]]; then
@@ -286,12 +279,12 @@ _args_options_gen() {
 
 	done
 	local Opts="$(declare -p _Opts _OptsBool)"
-	declare -g $Cache="${Opts//declare -A/}"
+	eval "$__Cache() { ${Opts//declare -A/} ;};"
 }
 
 alias __shift='((i++)); shift'
 _args_options_parse() {
-	local Flag='' Arg='' Type='' Value='' i=0
+	local Flag Arg Type Value i=0
 
 	while [[ "$1" =~ ^- ]]; do
 		Type= Arg= Value=
@@ -329,14 +322,15 @@ _args_options_parse() {
 			esac
 		fi
 
-		if [[ -z "$Value" && "$1" =~ =(.+)$ ]]; then
+		#if [[ -z "$Value" && "$1" =~ =(.+)$ ]]; then
+		if [[ -z "$Value" && "$1" = *=* ]]; then
 			Value="${Value:-$(value "$1")}"
 		fi
 		__shift
 
 		if [[ $Type = bool ]]; then
 			Value="${Value:-true}"
-			if [[ ! "$Value" =~ (true|false) ]]; then
+			if ! [[ "$Value" = true || "$Value" == false ]]; then
 				error -p 1 "Flag '$Flag' is boolean"
 				return 1
 			fi
@@ -517,16 +511,16 @@ print_options() {
 	echo
 	echo "Options:"
 	while [[ $# -gt 0 ]]; do
-		if [[ ! "$1" =~ ^- ]]; then
+		if [[ ! "$1" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
 			error -p 3 "Rest of array is as follows: $(args_quoted "$@")"
 			return 9
 		fi
 
 		printf '  '
-		while [[ "$1" =~ ^- ]]; do
+		while [[ "$1" = -* ]]; do
 			printf %s "$1"
-			if [[ "$2" =~ ^- ]]; then
+			if [[ "$2" = -* ]]; then
 				printf ,
 			fi
 			printf ' '
@@ -561,7 +555,7 @@ print_doc() {
 	if __has Usage; then
 		echo "Usage:"
 		for Line in "${Usage[@]}"; do
-			if [[ "$Line" =~ ^#(.*)$ ]]; then
+			if [[ "$Line" = \#* ]]; then
 				printf '\t%s\n' "$Line"
 				continue
 			fi
