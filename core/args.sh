@@ -239,7 +239,7 @@ _args_options_gen() {
 		safe_quit 9
 	fi
 
-	while [[ $# -gt 0 ]]; do
+	while (($#)); do
 		Flags=
 		if ! [[ "$1" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
@@ -286,19 +286,19 @@ alias __shift='((i++)); shift'
 _args_options_parse() {
 	local Flag Arg Type Value i=0
 
-	while [[ "$1" =~ ^- ]]; do
+	while (($#)); do
 		Type= Arg= Value=
-		Flag="${1%%=*}"
+		[[ "$Flag" = *=* ]] && Flag="${1%%=*}" || Flag="$1"
 
 		# check defined flags
-		if Arg="${_OptsBool[$Flag]}" && [[ -n "$Arg" ]]; then
+		if Arg="${_Opts[$Flag]}" && [[ -n "$Arg" ]]; then
+			Type=string
+		elif Arg="${_OptsBool[$Flag]}" && [[ -n "$Arg" ]]; then
 			Type=bool
-		elif Arg="${_OptsBool[--${Flag#--no-}]}" && [[ -n "$Arg" ]]; then
+		elif [[ "$Flag" = --no-* ]] &&
+			Arg="${_OptsBool[--${Flag#--no-}]}" && [[ -n "$Arg" ]]; then
 			Type=bool
 			Value=false
-		else
-			Arg="${_Opts[$Flag]}"
-			Type=string
 		fi
 
 		if [[ -z "$Arg" ]]; then
@@ -324,7 +324,7 @@ _args_options_parse() {
 
 		#if [[ -z "$Value" && "$1" =~ =(.+)$ ]]; then
 		if [[ -z "$Value" && "$1" = *=* ]]; then
-			Value="${Value:-$(value "$1")}"
+			Value="${1%%=*}"
 		fi
 		__shift
 
@@ -344,14 +344,14 @@ _args_options_parse() {
 		# escape any single quotes within value so we can assign with eval
 		Value="${Value//\'/\'\\\'\'}"
 
-		if [[ "$Type" = string ]]; then
+		if [[ "$Type" = string && "$Arg" = *[^[:alnum:]]* ]]; then
 			while rematch "$Arg" '[^[:alnum:]]+' >/dev/null; do
 				local Separator="$REPLY"
 
 				eval "${Arg%%"$Separator"*}='${Value%%"$Separator"*}'"
 
 				Arg="${Arg#*"$Separator"}"
-				[[ "$Value" =~ "$Separator" ]] || Value=''
+				[[ "$Value" = *"$Separator"* ]] || Value=''
 				Value="${Value#*"$Separator"}"
 			done
 		fi

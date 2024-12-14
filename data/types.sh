@@ -1,3 +1,4 @@
+#!/bin/bash
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
@@ -231,13 +232,18 @@ value() {
 	local delimiter='='
 	if [[ "$1" = '-d' ]]; then
 		delimiter="$2"
-		shift
-		shift
+		shift 2 || return 9
 	fi
 
-	local value pair="$([[ $# -eq 0 ]] && cat || echo $1)"
+	local value pair
+	if (($#)); then
+		pair="$1"
+	else
+		pair="$(cat)"
+	fi
+	[[ "$pair" = *"$delimiter"* ]] || return 2
 	[[ "$pair" =~ "$delimiter"(.*)$ ]] || return 2
-	recapture 1
+	printf '%s\n' "${pair##*"$delimiter"}"
 }
 
 ternary() {
