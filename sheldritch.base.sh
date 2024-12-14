@@ -18,9 +18,9 @@ elif [[ -v ZSH_VERSION ]]; then
 	setopt aliases
 fi
 
-alias zsh_run='[[ -v ZSH_VERSION ]] && '
-alias bash_run='[[ -v BASH_VERSION ]] && '
-alias ksh_run='[[ -v KSH_VERSION ]] && '
+alias zsh_run='[[ -z ${ZSH_VERSION:-} ]] || '
+alias bash_run='[[ -z ${BASH_VERSION:-} ]] || '
+alias ksh_run='[[ -z ${KSH_VERSION:-} ]] || '
 alias _trace='[[ -n "${TRACE+ }" ]] && echo >&2 '
 
 # Directories/Environment
