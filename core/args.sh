@@ -22,32 +22,43 @@ __main() {
 #
 
 # aliases needs to be first to ensure later functions can use it
-alias @func_info='declare About='' ArgsReq=''
-declare -a Usage=() Options=()
+alias @func_info='declare About="" ArgsReq="" _OPTIONS_PARSE_FIRST=""
+declare -a Usage=() Options=() Settings=() _ARGS=() _ARGS_FORMATS=() _ARGS_VARS=() _ARGS_ARRAYS=()
 declare -A _Opts=() _OptsBool=()
 '
 
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
 # shellcheck disable=SC2142
-alias args_parse='
-	declare _ArgsSet='' __Cache="_Opts_${FUNCNAME[1]:-${funcstack[@]:1:1}}"
+alias opts_parse='
+	declare _ArgsSet= __Cache="_Opts_${FUNCNAME:-$funcstack}"
+	Usage=("${Usage[@]}")
+
 	[[ $- = *x* ]] && _ArgsSet+=x
 	[[ $- = *u* ]] && _ArgsSet+=u
-	[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
+	#[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
 
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
-	if declare -F "$__Cache" >/dev/null 2>/dev/null; then
+	if declare -p -F "$__Cache" >/dev/null 2>/dev/null; then
 		"$__Cache"
 	else
 		_args_options_gen "${Options[@]}" || return $?
 	fi
 
-	declare _OptCount ${_Opts[@]//[^[:alnum:]]/ } "${_OptsBool[@]}"
+	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
+		__Cache="_Args_${FUNCNAME:-$funcstack}"
+		_args_usage_gen_parser || return 9
+	fi
+
+	declare _OptCount=0 ${_Opts[@]//[^[:alnum:]]/ } "${_OptsBool[@]}" "${_ARGS_VARS[@]}"
+	if (( ${#_ARGS_ARRAYS[@]} )); then
+		declare -a "${_ARGS_ARRAYS[@]}"
+	fi
+
 	if [[ "$_ArgsSet" = *u* ]]; then
-		for __Arg in _OptCount ${_Opts[@]//[^[:alnum:]]/ } "${_OptsBool[@]}"; do
-			declare "$Arg"=''
+		for __Arg in ${_Opts[@]//[^[:alnum:]]/ } "${_OptsBool[@]}"; do
+			declare "$Arg"=""
 		done
 	fi
 
@@ -61,9 +72,15 @@ alias args_parse='
 
 	shift "${_OptCount:-0}" # set by _args_options_parse
 
-	# TODO: allow mixing of options and required arguments by parsing these in _args_options_parse
-	# Might need to consider how variadic arguments interact with this
-	if [[ "$ArgsReq" ]]; then
+	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
+		_args_usage_parse "${_ARGS[@]}" "$@"
+		shift "$((_OptCount - ${#_ARGS[@]}))"
+
+	elif (( ${#_ARGS[@]} )); then
+		set -- "${_ARGS[@]}" "$@"
+	fi
+
+    if [[ -n "$ArgsReq" ]]; then
 		if ! var_is_declared ArgsReq; then
 			error "INTERNAL ERR: ArgsReq must be declared"
 			safe_quit 9
@@ -77,7 +94,15 @@ alias args_parse='
 
 	[[ -n "$_ArgsSet" ]] && set -$_ArgsSet
 '
+
 alias parse_args=args_parse
+
+alias args_parse='
+declare _ARGS_PARSE_USAGE=1
+opts_parse
+'
+
+alias parse_opts=opts_parse
 
 tools_args_example() {
 
@@ -202,31 +227,33 @@ _args_req() {
 	eval "$Arg"'="$1"'
 }
 
-_args_name_to_camel() {
+_args_name_to_variable() {
 	local -l In="$1"
+	zsh_run In="${In:l}"
 	local +l In
 
 	# PERF: I've tested this with a per-character array and a pure "${//}" approach.
 	# regex works best for a dozen individual options
 
-	while [[ "$In" =~ ([_-])(.) ]]; do
+	while [[ "$In" =~ ([^[:alnum:]])([[:lower:]]) ]]; do
 		recapture 1 >/dev/null
 		local Separator="$REPLY"
 		recapture 2 >/dev/null
 		local Match="$REPLY"
 		local -u UpperMatch="$Match"
 
-		In="${In//$Separator$Match/$UpperMatch}"
+		if [[ "$Separator" = [_-] ]]; then
+			In="${In//$Separator$Match/$UpperMatch}"
+		else
+			In="${In//$Match/$UpperMatch}"
+		fi
 	done
 	local -u First="${In:0:1}"
 	Name="$First${In:1}"
 }
 
-f() {
-@func_info
-Options=(-a=AN_VALUE "this is a value!")
-args_parse
-local -p
+@options_first() {
+	_OPTIONS_PARSE_FIRST="${1:-true}"
 }
 
 # used internally by args_parse to create a map of flags to variables for later parsing
@@ -238,6 +265,8 @@ _args_options_gen() {
 		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
 		safe_quit 9
 	fi
+
+	zsh_run setopt SH_WORD_SPLIT
 
 	while (($#)); do
 		Flags=
@@ -266,12 +295,12 @@ _args_options_gen() {
 				return 9
 			fi
 
-			_args_name_to_camel "$Name"
+			_args_name_to_variable "$Name"
 			for Flag in $Flags; do
 				_Opts[${Flag%%=*}]="$Name"
 			done
 		else
-			_args_name_to_camel "${Last#--}"
+			_args_name_to_variable "${Last#--}"
 			for Flag in $Flags; do
 				_OptsBool[${Flag}]="$Name"
 			done
@@ -279,7 +308,9 @@ _args_options_gen() {
 
 	done
 	local Opts="$(declare -p _Opts _OptsBool)"
-	eval "$__Cache() { ${Opts//declare -A/} ;};"
+	Opts="${Opts//declare -A/}"
+	Opts="${Opts//typeset -g -A/}"
+	eval "$__Cache() { $Opts ;};"
 }
 
 alias __shift='((i++)); shift'
@@ -287,6 +318,13 @@ _args_options_parse() {
 	local Flag Arg Type Value i=0
 
 	while (($#)); do
+		if [[ "$1" != -* ]]; then
+			isTrue $_OPTIONS_PARSE_FIRST && break
+			_ARGS+=("$1")
+			__shift
+			continue
+		fi
+
 		Type= Arg= Value=
 		[[ "$Flag" = *=* ]] && Flag="${1%%=*}" || Flag="$1"
 
@@ -313,16 +351,17 @@ _args_options_parse() {
 					__shift
 					break
 					;;
-				*)
+				* )
 					# if no options spec was defined, assume flags are parsed elsewhere
 					(( "${#Options[@]}" )) || return 0
 
 					error -p 1 "Flag '$Flag' not supported!"
 					return 1
+					;;
+
 			esac
 		fi
 
-		#if [[ -z "$Value" && "$1" =~ =(.+)$ ]]; then
 		if [[ -z "$Value" && "$1" = *=* ]]; then
 			Value="${1%%=*}"
 		fi
@@ -344,8 +383,8 @@ _args_options_parse() {
 		# escape any single quotes within value so we can assign with eval
 		Value="${Value//\'/\'\\\'\'}"
 
-		if [[ "$Type" = string && "$Arg" = *[^[:alnum:]]* ]]; then
-			while rematch "$Arg" '[^[:alnum:]]+' >/dev/null; do
+		if [[ "$Type" = string && "$Arg" = *[^[:alnum:]_]* ]]; then
+			while rematch "$Arg" '[^[:alnum:]_]+' >/dev/null; do
 				local Separator="$REPLY"
 
 				eval "${Arg%%"$Separator"*}='${Value%%"$Separator"*}'"
@@ -363,6 +402,193 @@ _args_options_parse() {
 }
 unalias __shift
 
+_args_thinking_priority() {
+		##### Thinking priority #####
+
+	# could store 'counts' for any given format
+	# TODO: will have to consider all the many features as I go
+	local FORMAT="--literal-flag *4 *:*3 *=*+ *+ literal *+"
+
+
+	# an exact number of matches will be selected over an array
+	local FORMAT="*4"
+	local FORMAT="*+"
+
+	# But if both are variable, they will be incompatible
+	local FORMAT="*3 *+"
+	local FORMAT="*+"
+
+	# Literals take precedence
+	local FORMAT="*3 literal *1"
+	local FORMAT="*5"
+
+	# Literals also distinguish variadics (allowed together)
+	local FORMAT="*+ literal *+"
+	local FORMAT="*+"
+}
+
+
+_args_usage_gen_parser() {
+	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return
+
+	_ARGS_FORMATS=()
+	_ARGS_VARS=()
+	_ARGS_ARRAYS=()
+
+	__Cache="_Args_${FUNCNAME:-$funcstack}"
+
+	zsh_run setopt SH_WORD_SPLIT
+
+	# Need to, in general, check that none of the options conflict
+	# Otherwise, we can't distinguish between a developer error and a user error
+	local Name Line AlsoLine='' Token
+	for Line in "${Usage[@]}"; do
+		local Format='' Run=''
+		[[ -z "$ZSH_VERSION" ]] && AlsoLine="$Line"
+		for Token in ${ZSH_VERSION:+${~~Line}} $AlsoLine; do
+			case "$Token" in
+				{ | \"* | \'* )
+					error -p 1 "FUNCTION BUG: Token '$Token' in usage not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
+					return 9
+					;;
+
+
+				*... )
+
+
+					# Note: Variadic arguments with separated names will join:
+					# e.g. FirstNameSecondName
+					_args_name_to_variable "$Token"
+					_ARGS_ARRAYS+=(${Name//[^[:alnum:]]/})
+
+					if [[ "$Run" = *+ ]]; then
+						error -p 1 'FUNCTION BUG: cannot have two variadic without a literal argument or argument separator between the two.'
+						return 9
+					fi
+
+					Run="${Run%?}+"
+
+					;;
+				\[*\]  )
+					error -p 1 "FUNCTION BUG: optionals not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
+					Run="${Run%?}+"
+					return 9
+					;;
+				\[*[^]] )
+					error -p 1 "FUNCTION BUG: Runs of optional arguments not currently supported. Please split into two usage lines"
+					return 9
+					;;
+				*[[:lower:]]* )
+					error -p 1 "FUNCTION BUG: literals not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
+					return 9
+					;;
+
+				*[^[:upper:]_]* )
+					error -p 1 "FUNCTION BUG: Internal separators ($Token) not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
+					return 9
+					;;
+
+				* )
+					_args_name_to_variable "$Token"
+					_ARGS_VARS+=(${Name//[^[:alnum:]]/ })
+					if [[ -z "$Run" ]]; then
+						Run='*1'
+
+					elif [[ "$Run" = *+ ]]; then
+						error -p 1 "FUNCTION BUG: args after variadic arg ($Token) not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
+						return 9
+						# Once implemented, we'd just keep our variadic arity marker here, hence
+						# continue
+						continue
+
+					elif [[ "$Run" = *9 ]]; then
+						error -p 1 "FUNCTION BUG: Cannot support more than 9 named arguments in a row (at '$1'). Consider using a 'VARIADIC_ARGUMENT...' instead."
+						return 9
+					else
+						Run="${Run%?}$((${Run: -1: 1} + 1))"
+					fi
+
+			esac
+		done
+		Format+=" $Run"
+
+		_ARGS_FORMATS+=("$Format")
+	done
+
+	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
+		for ((j=i + 1; j < ${#_ARGS_FORMATS[@]}; j++)); do
+			if [[ "${_ARGS_FORMATS[@]:$i:1}" = "${_ARGS_FORMATS[@]:$j:1}" ]]; then
+				error -p 1 'FUNCTION BUG: The following usage lines are ambiguous!'
+				error -p 1 "${Usage[@]:$i:1}"
+				error -p 1 "${Usage[@]:$j:1}"
+				error -p 1 'Either distinguish them with flags or other literals, or use "opts_parse" and manually parse positional args yourself.'
+				return 9
+			fi
+		done
+	done
+}
+
+_args_usage_parse() {
+	local Builder Format
+	zsh_run setopt SH_WORD_SPLIT
+	echo >&2 "$@"
+
+	Builder+="
+	local _ARGS_FORMATS=(${_ARGS_FORMATS[@]}) Format=
+	_ARGS_VARS=(${_ARGS_VARS[@]})
+	_ARGS_ARRAYS=(${_ARGS_ARRAYS[@]})
+	"
+
+	for ((i=1; i < ${#_ARGS_FORMATS[@]}; i++)); do
+		for Run in ${_ARGS_FORMATS[@]:$i:1}; do
+			Count="${Run: -1: 1}"
+
+			if [[ "$Run" = -* ]]; then
+				error -p 1 "TODO: handle literal flags in usage strings"
+			fi
+			case "$Count" in
+				+     ) Arity=+ ;;
+				[0-9] ) ((Arity += Count)) ;;
+				*     ) ((Arity++)) ;;
+			esac
+		done || continue
+		if [[ "$#" = $Arity || $Arity = + && -z $Format ]]; then
+			Format=$i
+		fi
+	done
+	[[ -z "$Format" ]] && Format=0
+
+	Format="${Usage[@]:$Format:1}"
+
+	local ArgPos=1 _Opt_Count=0 Name Vars
+	for Token in $Format; do
+		_args_name_to_variable "$Token"
+		Name="${Name//[^[:alnum:]]/}"
+		case "$Token" in
+			*...)
+				# TODO: If token is ARG..., check the next value to see what you might need to stop at
+				Vars+="
+				$Name"'=(${@:$ArgPos:$# - $ArgPos + 1})
+				((ArgPos = $#))
+				'
+				;;
+			* )
+				Vars+="
+				$Name"'=(${@:$ArgPos:1})
+				((ArgPos++))
+				'
+				;;
+		esac
+	done
+
+	eval "$Vars"
+	((_OptCount += ArgPos))
+
+	return
+	_ARGS_PARSERS=("${Usage[@]}")
+
+	return 1
+}
 
 zsh_run unsetopt GLOB
 

@@ -149,16 +149,29 @@ yesNoToBool() {
 #
 
 contains() {
-  local match="$1"
+  local Match="$1"
   shift
 
-  for element in "$@"; do
-	  if [[ "$element" = "$match" ]]; then
+  for Element in "$@"; do
+	  if [[ "$Element" = "$Match" ]]; then
 		  return 0
 	  fi
   done
   return 1
 }
+
+contains_glob() {
+  local Match="$1"
+  shift
+
+  for Element in "$@"; do
+	  if [[ "$Element" = $Match ]]; then
+		  return 0
+	  fi
+  done
+  return 1
+}
+
 
 item() {
 	@func_info
@@ -191,6 +204,13 @@ item() {
 		in)
 			for element in "$@"; do
 				if [[ "$element" = "$item" ]]; then
+					return 0
+				fi
+			done
+			;;
+		glob_in)
+			for element in "$@"; do
+				if [[ "$element" = $item ]]; then
 					return 0
 				fi
 			done

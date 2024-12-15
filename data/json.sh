@@ -104,10 +104,10 @@ json2vars() {
 		-c --check           "ensure that each variable is set"
 	)
 	ArgsReq='__Json'
-	args_parse
+	opts_parse
 
 	if [[ -n "$Dict" ]]; then
-		error 'associative array support not currently impelemented. Sorry!'
+		error 'associative array support not currently implemented. Sorry!'
 		return 9
 	fi
 
