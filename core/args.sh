@@ -531,7 +531,6 @@ _args_usage_gen_parser() {
 _args_usage_parse() {
 	local Builder Format
 	zsh_run setopt SH_WORD_SPLIT
-	echo >&2 "$@"
 
 	Builder+="
 	local _ARGS_FORMATS=(${_ARGS_FORMATS[@]}) Format=

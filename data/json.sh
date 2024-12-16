@@ -153,7 +153,6 @@ json_read() {
 }
 alias jread=json_read
 
-alias jq_extract_match=json_extract_match
 json_extract_match() {
 	@func_info
 	About='
@@ -162,11 +161,11 @@ json_extract_match() {
 	   - Set DESTINATION_FIELD to that found value
 	'
 	Usage='SOURCE_FIELD REGEX DESTINATION_FIELD'
-	ArgsReq='SourceField Regex DestField'
 	args_parse
 
-	jq "map((.$SourceField | sub(\".*(?<m>$Regex).*\"; .m)) as \$match | if (\$match | test(\"$Regex\")) then .$DestField=\$match else . end )"
+	jq "map((.$SourceField | sub(\".*(?<m>$Regex).*\"; .m)) as \$match | if (\$match | test(\"$Regex\")) then .$DestinationField=\$match else . end )"
 }
+alias jq_extract_match=json_extract_match
 
 # Pops an attribute/index from JSON and create a matching variable.
 #

@@ -44,7 +44,7 @@ random_char() {
 		-c --count=COUNT "the number of random characters to output."
 		--safe "Use a safe subset of the allowed characters (based on URL escaping currently)"
 	)
-	args_parse
+	opts_parse
 	if [[ "$1" = \[[^:]*] ]]; then
 		warn 'square brackes are not needed around character range. They will be interpreted as raw characters.'
 		warn "If you want to use a character class, use the format '[:class:]' (1 pair of [])"

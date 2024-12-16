@@ -142,7 +142,7 @@ url_encode() {
 	if [[ -t 1 ]]; then
 		@func_info
 		Usage='TEXT_TO_ENCODE...'
-		args_parse
+		opts_parse
 	fi
 
 	declare -a EncodeIfEscaped IgnoreIfEscaped OnlyEncode
@@ -249,7 +249,7 @@ glob() {
 	Options=(
 		-i --insensitive --case-insensitive --no-case "allow globs to match case-insensitively"
 	)
-	args_parse
+	opts_parse
 
 	extglob
 	local MatchPrefix
@@ -276,7 +276,7 @@ glob_array() {
 		The result is returned in the REPLY variable. Will print paths in the order of input. Duplicate arguments will result in duplicfate matches.
 	"
 	Usage='GLOB PATHS...'
-	args_parse
+	opts_parse
 
 	extglob
 	local MatchPrefix
