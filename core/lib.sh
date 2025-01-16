@@ -165,10 +165,7 @@ find_lib() {
 }
 
 
-
-
-# imports the given library/file (relative to the library dir)
-summon() {
+lib_use() {
 	local Help='' Force=''
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
@@ -185,21 +182,18 @@ summon() {
 	done
 
 	zsh_run setopt GLOB globsubst
-	SHELDRITCH_CLEAN="$Force"
+	local SHELDRITCH_CLEAN="$Force"
 
 	if [[ "$Help" = true ]]; then
-		echo >&2 "summon -- imports the library/file (relative to the library dir)"
-		echo >&2 "Usage: summon [--force] <lib>/<file>.sh"
-		echo >&2 "       summon [--force] <lib>"
-		echo >&2 "       summon [--force] <lib>/*"
+		echo >&2 "lib_use -- imports the library/file by absolute paths (or relative to working dir)"
+		echo >&2 "Usage: lib_use [--force] <lib>/<file>.sh"
+		echo >&2 "       lib_use [--force] <lib>"
+		echo >&2 "       lib_use [--force] <lib>/*"
 		return 0
 	fi
 
+	local Arg Lib
 	for Arg in "$@"; do
-		if ! Lib="$(find_lib "${Arg%%\*}")"; then
-			error -p 1 "Library '$Lib' could not be found."
-			continue
-		fi
 
 		local Globs="${Arg##*[^*]}"
 		Globs="${Globs:+[^_]$Globs}"
@@ -209,7 +203,7 @@ summon() {
 			shopt -s globstar
 		fi
 
-		for Lib in "$Lib"$Globs; do
+		for Lib in "$Arg"$Globs; do
 
 			if [[ "$SHELDRITCH_SOURCES" = *"$Lib"* ]]; then
 				continue
@@ -239,12 +233,50 @@ summon() {
 		done
 
 	done
+	$Shopt
+}
 
-	if [[ -n "$Force" ]]; then
-		SHELDRITCH_CLEAN=""
+# imports the given library/file (relative to the library dir)
+summon() {
+	local Help='' Force=''
+	while [[ $# -ne 0 ]]; do
+		case "$1" in
+			-f | --force ) Force=true
+				shift
+				;;
+			-h | --help ) Help=true
+				shift
+				break
+				;;
+			* ) break
+				;;
+		esac
+	done
+
+	local SHELDRITCH_CLEAN="$Force"
+	zsh_run setopt GLOB globsubst
+
+	if [[ "$Help" = true ]]; then
+		echo >&2 "summon -- imports the library/file (relative to the library dir)"
+		echo >&2 "Usage: summon [--force] <lib>/<file>.sh"
+		echo >&2 "       summon [--force] <lib>"
+		echo >&2 "       summon [--force] <lib>/*"
+		return 0
 	fi
 
-	$Shopt
+	for Arg in "$@"; do
+		if ! Lib="$(find_lib "${Arg%%\*}")"; then
+			error -p 1 "Library '$Lib' could not be found."
+			continue
+		fi
+
+		local Globs="${Arg##*[^*]}"
+
+		set -- "$@" "$Lib$Globs"
+		shift
+	done
+
+	lib_use "$@"
 }
 
 __main "$@"
