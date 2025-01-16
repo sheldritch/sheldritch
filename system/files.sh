@@ -1,6 +1,15 @@
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
+file_first() {
+	local File
+	REPLY=
+	for File in "$@"; do
+		[[ -f "$File" ]] && REPLY="$File" && break
+	done
+	[[ -n "$REPLY" ]] && echo "$REPLY"
+}
+
 fopen() {
 
 	local _sem="16" # Leave small fds for safety

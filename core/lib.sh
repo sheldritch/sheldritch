@@ -46,8 +46,9 @@ if [[ -z "$SHELDRITCH" ]]; then
 	return 1
 fi
 
-__main() {
+__last() {
 	source_once "$SHELDRITCH/sheldritch.base.sh"
+	source_once "$SHELDRITCH/system/files.sh"
 	source_once "$SHELDRITCH/system/xdg.sh"
 }
 
@@ -101,7 +102,7 @@ find_bin() {
 path_add() {
 	for Path in "$@"; do
 		if ! [[ "$PATH" = *"$Path"* ]]; then
-			export PATH="$PATH:$Path"
+			export PATH="$Path:$PATH"
 		fi
 	done
 }
@@ -140,7 +141,7 @@ source_once() {
 # TODO: If we use .local/lib, there might be stuff in .local/share we also want to use
 # We need to be careful about assuming that .local/lib is the best place for stuff, if
 # .local/share is already being used but ./lib is not.
-find_lib() {
+lib_find() {
 
 	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
 		printf "%s" "$SHELDRITCH/${1#sheldritch/}"
@@ -203,17 +204,29 @@ lib_use() {
 			shopt -s globstar
 		fi
 
-		for Lib in "$Arg"$Globs; do
+		for Lib in "${Arg%%\*}"$Globs; do
+
+			# NOTE: if foo/* was specified, don't import contents of subfolders
+			if [[ -d "$Lib" && -z "$Globs" ]]; then
+				_trace "Importing module '$Lib'"
+				if [[ "$Lib" != *\\* ]]; then
+					Lib="${Lib%/}"
+					Lib="$Lib/${Lib##*/}"
+				else
+					Lib="$Lib/$(basename "$Lib")"
+				fi
+			fi
+
+			if ! [[ -e "$Lib" ]]; then
+				file_first "$Lib".{${SHELL##*/},sh,ksh,bash,fish,zsh,*} >/dev/null
+				Lib="${REPLY:-$Lib}"
+			fi
 
 			if [[ "$SHELDRITCH_SOURCES" = *"$Lib"* ]]; then
 				continue
 			fi
 
-			if [[ -d "$Lib" && -z "$Globs" ]]; then
-				_trace "Importing module '$Lib'"
-				#export PATH="$(find "$lib" -type d -printf "%p:")$PATH"
-				source_once "$Lib/$(basename "$Lib").sh"
-			elif [[ -x "$Lib" ]]; then
+			if [[ -x "$Lib" ]]; then
 				_trace "Importing executable lib '$Lib'"
 				# shellcheck disable=SC2139
 				alias "$(basename "$Lib")=$Lib"
@@ -265,7 +278,7 @@ summon() {
 	fi
 
 	for Arg in "$@"; do
-		if ! Lib="$(find_lib "${Arg%%\*}")"; then
+		if ! Lib="$(lib_find "${Arg%%\*}")"; then
 			error -p 1 "Library '$Lib' could not be found."
 			continue
 		fi
@@ -279,4 +292,4 @@ summon() {
 	lib_use "$@"
 }
 
-__main "$@"
+__last "$@"
