@@ -443,6 +443,10 @@ _args_usage_gen_parser() {
 	# Otherwise, we can't distinguish between a developer error and a user error
 	local Name Line AlsoLine='' Token
 	for Line in "${Usage[@]}"; do
+		if [[ "$Line" = \#* ]]; then
+			_ARGS_FORMATS+=('#')
+			continue
+		fi
 		local Format='' Run=''
 		[[ -z "$ZSH_VERSION" ]] && AlsoLine="$Line"
 		for Token in ${ZSH_VERSION:+${~~Line}} $AlsoLine; do
@@ -516,6 +520,7 @@ _args_usage_gen_parser() {
 	done
 
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
+		[[ "${_ARGS_FORMATS[@]:$i:1}" = \#* ]] && continue
 		for ((j=i + 1; j < ${#_ARGS_FORMATS[@]}; j++)); do
 			if [[ "${_ARGS_FORMATS[@]:$i:1}" = "${_ARGS_FORMATS[@]:$j:1}" ]]; then
 				error -p 1 'FUNCTION BUG: The following usage lines are ambiguous!'
@@ -529,6 +534,7 @@ _args_usage_gen_parser() {
 }
 
 _args_usage_parse() {
+	set -x
 	local Builder Format
 	zsh_run setopt SH_WORD_SPLIT
 
@@ -538,7 +544,9 @@ _args_usage_parse() {
 	_ARGS_ARRAYS=(${_ARGS_ARRAYS[@]})
 	"
 
-	for ((i=1; i < ${#_ARGS_FORMATS[@]}; i++)); do
+	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
+		[[ "${_ARGS_FORMATS[@]:$i:1}" = \#* ]] && continue
+		local Count= Arity=
 		for Run in ${_ARGS_FORMATS[@]:$i:1}; do
 			Count="${Run: -1: 1}"
 
@@ -582,6 +590,7 @@ _args_usage_parse() {
 
 	eval "$Vars"
 	((_OptCount += ArgPos))
+	set +x
 
 	return
 	_ARGS_PARSERS=("${Usage[@]}")
