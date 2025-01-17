@@ -31,13 +31,13 @@ package-bw:
   variables:
     DOCKER_CONTEXT: ./services/bitwarden/
     IMAGE_SUBPATH: bw
+    CI_FILE: bimbop
   rules:
     - !reference [.package:docker:rules, first]
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
       changes:
         - services/bitwarden/*
         - $CI_FILE
-    - !reference [.package:docker:rules, last]
 
 package-mattermost-message-scheduler:
   extends:
