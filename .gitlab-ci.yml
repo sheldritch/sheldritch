@@ -20,14 +20,14 @@ package:docker:
   rules:
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
   variables:
-    CONTAINER_IMAGE_TAG: latest
+    IMAGE_TAG: latest
 
 package-bw:
   extends:
     - package:docker
   variables:
     DOCKER_CONTEXT: ./services/bitwarden/
-    CONTAINER_IMAGE_PATH: /bw
+    IMAGE_SUBPATH: bw
   rules:
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
       changes:
@@ -39,7 +39,7 @@ package-mattermost-message-scheduler:
     - package:docker
   variables:
     DOCKER_CONTEXT: ./services/mattermost/message-scheduler/
-    CONTAINER_IMAGE_PATH: /mattermost.message-scheduler
+    IMAGE_SUBPATH: mattermost.message-scheduler
   rules:
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
       changes:
