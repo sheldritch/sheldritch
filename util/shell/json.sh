@@ -140,10 +140,10 @@ json2vars() {
 json_array_flat() {
 	@func_info
 	usage='JSON ELEMENT_FILTER'
-	args_req='json filter'
+	args_req='json'
 	args_parse
 	# the dual 'flatten | .[]' supports complex filtering scenarios and flexible array inputs
-	jqj "$json" --slurp --compact-output "flatten | .[] | [${filter:-.}] | flatten"
+	jqj "$json" --slurp --compact-output "flatten | .[] | [${1:-.}] | flatten"
 }
 
 json_stream() {
