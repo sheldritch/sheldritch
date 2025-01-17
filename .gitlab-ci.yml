@@ -19,7 +19,8 @@ test-tools:
 package:docker:
   rules:
     - !reference [.package:docker:rules, first]
-    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+      when: never
       changes:
         - $DOCKER_CONTEXT/**
         - .gitlab-ci.yml
