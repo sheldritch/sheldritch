@@ -19,7 +19,10 @@ test-tools:
 package:docker:
   rules:
     - !reference [.package:docker:rules, first]
-    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      changes:
+        - $DOCKER_CONTEXT/**
+        - .gitlab-ci.yml
     - !reference [.package:docker:rules, last]
   variables:
     IMAGE_TAG: latest
@@ -28,28 +31,12 @@ package-bw:
   extends:
     - package:docker
   variables:
-    DOCKER_CONTEXT: ./services/bitwarden/
+    DOCKER_CONTEXT: services/bitwarden
     IMAGE_SUBPATH: bw
-    CHANGE_FILE: .gitlab-ci
-  rules:
-    - !reference [.package:docker:rules, first]
-    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
-      when: never
-    - changes:
-        - services/bitwarden/*
-        - $CHANGE_FILE.yml
-    - when: never
 
 package-mattermost-message-scheduler:
   extends:
     - package:docker
   variables:
-    DOCKER_CONTEXT: ./services/mattermost/message-scheduler/
+    DOCKER_CONTEXT: services/mattermost/message-scheduler
     IMAGE_SUBPATH: mattermost.message-scheduler
-    CHANGE_FILE: beebop
-  rules:
-    - !reference [.package:docker:rules, first]
-    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
-      changes:
-        - services/mattermost/message-scheduler/*
-        - $CHANGE_FILE.yml
