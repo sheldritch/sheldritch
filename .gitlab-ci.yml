@@ -18,13 +18,11 @@ test-tools:
 
 package:docker:
   rules:
-    - !reference [.package:docker:rules, first]
+    - !reference [.package:docker:rules, init]
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
-      when: never
       changes:
         - $DOCKER_CONTEXT/**
         - .gitlab-ci.yml
-    - !reference [.package:docker:rules, last]
   variables:
     IMAGE_TAG: latest
 
