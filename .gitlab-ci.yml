@@ -12,8 +12,6 @@ test-tools:
   extends: .defaults
   image: registry.workingmouse.com.au/workingmouse/projects/internal/tools:latest
   stage: test
-  rules:
-    - when: always
   script:
     - export TOOLS=. && source tools.sh && source _test.sh
 
