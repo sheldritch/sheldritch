@@ -15,15 +15,23 @@ test-tools:
   script:
     - export TOOLS=. && source tools.sh && source _test.sh
 
-package:docker:
+.package:docker:
+  variables:
+    IMAGE_TAG: latest
+  variables:
+    WATCH_FILES: .gitlab-ci.yml # intentional duplicate, may be set to something else
+
   rules:
     - !reference [.package:docker:rules, init]
     - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
       changes:
         - $DOCKER_CONTEXT/**
         - .gitlab-ci.yml
+        - $WATCH_FILES
+
+package:docker:
   variables:
-    IMAGE_TAG: latest
+    WATCH_FILES: '**'
 
 package-bw:
   extends:
