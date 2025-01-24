@@ -172,17 +172,23 @@ tools_args_example() {
 	echo "variable name: '$(case_camel "${var:-$flag}")'"
 }
 
+_args_req_usage() {
+	if var_is_declared usage; then
+		print_doc -p 2
+	else
+		print_usage "$(case_big_snake $args_req)"
+	fi
+}
 _args_req() {
-	local arg="$1"
+	local arg="$1" val="$2"
 	shift
-	if [[ -z "$1" ]]; then
+	if [[ -z "$val" ]]; then
 		error -p 1 "arg '$arg' must be set"
-
-		if var_is_declared usage; then
-			print_doc
-		else
-			print_usage "$(case_big_snake $args_req)"
-		fi
+		_args_req_usage
+		return 1
+	elif [[ "$val" = -* ]]; then
+		error -p 1 "Argument $arg starts with '-'. Positional arguments may not do so without the '--' arg beforehand"
+		_args_req_usage
 		return 1
 	fi
 
