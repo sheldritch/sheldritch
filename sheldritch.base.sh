@@ -58,10 +58,12 @@ if ! command -v complete >/dev/null 2>/dev/null; then
 	complete() { return; }
 fi
 
-alias safe_quit="return 2> /dev/null || exit"
+alias safe_quit='declare E=$?; return "$E" 2>/dev/null || exit "$E"'
 
-quiet() { "$@" >/dev/null 2>/dev/null; }
-stderr() { "$@" >&2; }
+alias quiet='>/dev/null 2>/dev/null'
+alias stderr='>&2'
+
+ecode() { return "$1"; }
 
 # shellcheck disable=SC2154
 alias @func_use_parent='

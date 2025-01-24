@@ -73,7 +73,8 @@ alias opts_parse='
 	shift "${_OptCount:-0}" # set by _args_options_parse
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
-		_args_usage_parse "${_ARGS[@]}" "$@"
+		_args_usage_parse "${_ARGS[@]}" "$@" || { print_doc; ecode 1; safe_quit; }
+
 		shift "$((_OptCount - ${#_ARGS[@]}))"
 
 	elif (( ${#_ARGS[@]} )); then
@@ -83,11 +84,12 @@ alias opts_parse='
     if [[ -n "$ArgsReq" ]]; then
 		if ! var_is_declared ArgsReq; then
 			error "INTERNAL ERR: ArgsReq must be declared"
-			safe_quit 9
+			ecode 9
+			safe_quit
 		fi
 		declare $ArgsReq
 		for x in $ArgsReq; do
-			_args_req "$x" "$1" || safe_quit $?
+			_args_req "$x" "$1" || safe_quit
 			shift
 		done
 	fi
@@ -263,7 +265,8 @@ _args_options_gen() {
 
 	if ! var_is_declared _Opts; then
 		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
-		safe_quit 9
+		ecode 9
+		safe_quit
 	fi
 
 	zsh_run setopt SH_WORD_SPLIT
@@ -534,7 +537,6 @@ _args_usage_gen_parser() {
 }
 
 _args_usage_parse() {
-	set -x
 	local Builder Format
 	zsh_run setopt SH_WORD_SPLIT
 
@@ -699,7 +701,8 @@ alias check_var_set='__check_var_set() {
 	for Var in "$@"; do
 		if [[ -z "$(deref "$Var")" ]]; then
 			echo >&2 "Error: $(funcname -p 1): option '\''$Var'\'' not set"
-			safe_quit 1
+			ecode 1
+			safe_quit
 		fi
 	done
 }
