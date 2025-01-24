@@ -1,3 +1,4 @@
+#!/bin/bash
 # move around between certain repos
 
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
@@ -29,10 +30,8 @@ repo_list() {
 	) | grep /$ | sort -u
 }
 
-_complete_repo_list='COMPREPLY=($(compgen -W "$(repo_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))'
-
 _complete_repo_list() {
-	eval "$_complete_repo_list"
+	COMPREPLY=($(compgen -W "$(repo_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
 # print the directory for a given repo
@@ -67,8 +66,7 @@ repo() {
 }
 
 _complete_repo() {
-	local cur="${COMP_WORDS[COMP_CWORD]}"
-	eval "$_complete_repo_list"
+	_complete_repo_list
 	bash_run compopt -o nospace
 }
 
