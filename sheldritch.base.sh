@@ -46,11 +46,11 @@ if [[ -z "${SHELDRITCH+ }" ]]; then
 fi
 SHELDRITCH_SUBSHELL="${BASH_SUBSHELL:-}${ZSH_SUBSHELL:-}"
 
-# /tmp/tools for tool-related temporary files
-! [[ -d /tmp/tools ]] && mkdir -p /tmp/tools
 tmp_dir() {
-	xdg_tmp
+	xdg runtime
 }
+SHELDRITCH_TMP="${SHELDRITCH_TMP:-$(tmp_dir)/${USER:-$user}/sheldritch}"
+! [[ -d $SHELDRITCH_TMP ]] && mkdir -p "$SHELDRITCH_TMP"
 
 # Base Helpers
 

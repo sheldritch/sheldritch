@@ -1,5 +1,5 @@
 #!/bin/bash
-# meta-utilities for dealing with the tools repo
+# meta-utilities for modifying sheldritch libraries
 
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced

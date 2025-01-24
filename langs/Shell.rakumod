@@ -1,4 +1,4 @@
-unit module Tools::Util::Shell;
+unit module Sheldritch;
 
 sub cmd(*@cmd, :$stdout, :$proc, :$pipe, :$out = $stdout ?? '-' !! True, *%other) is export {
 	debug "Running command: ", @cmd.map({$_ ~~ /<-[\\]>\s/ ?? "'$_'" !! $_});
@@ -20,7 +20,7 @@ sub bash($cmd, :$stdout, :$proc, :$pipe, :$out = $stdout ?? '-' !! True, *%other
 		$*ERR.say("Running bash command: $cmd");
 	}
 	# See https://docs.raku.org/routine/run for other available args
-	cmd('/bin/bash', '-c', "source \$TOOLS/tools.sh; $cmd", :$out, |%other);
+	cmd('/bin/bash', '-c', "source \$SHELDRITCH/sheldritch.full.sh; $cmd", :$out, |%other);
 }
 
 sub pwsh($cmd, :$proc, :$pipe, *%other) is export {

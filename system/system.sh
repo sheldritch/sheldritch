@@ -29,7 +29,7 @@ esac'
 zsh_run setopt GLOB
 
 if [[ $OS = mac ]] && ! command -v brew >/dev/null; then
-	echo >&2 "Error: Homebrew not found in Mac install. Ensure it is installed and initialised before using the tools repo."
+	echo >&2 "Error: Homebrew not found in Mac install. Ensure it is installed and initialised before using Sheldritch."
 	return 1
 fi
 

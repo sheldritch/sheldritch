@@ -30,8 +30,7 @@ fzf_json() {
 		Input="$(cat)"
 	fi
 
-	mkdir -p /tmp/tools
-	File="$(mktemp tools/fzf_jzon.XXXXX --tmpdir)"
+	File="$(mktemp $SHELDRITCH_TMP/fzf_jzon.XXXXX --tmpdir)"
 	jqj "$Input" -sc "flatten | .[] | ${Query:-.}" > "$File"
 
 	# shellcheck disable=SC2016

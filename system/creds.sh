@@ -5,7 +5,7 @@ check_is_sourced
 
 summon sheldritch/core/args.sh
 
-TOOLS_KEYSTORE="/tmp/tools/keystore-$(whoami)"
+KEYSTORE="$SHELDRITCH_TMP/keystore"
 
 # A shared frontend for secret management
 keyset() {
@@ -52,7 +52,7 @@ keyset() {
 		debug "keyset: using powershell"
 		pwsh -CommandWithArgs '
 
-		$keystore = $env:TMP ?? "'$TOOLS_KEYSTORE'"
+		$keystore = $env:TMP ?? "'$KEYSTORE'"
 		if (Test-Path $keystore) {
 			$data = Import-Clixml $keystore
 		} else {
@@ -63,23 +63,23 @@ keyset() {
 		$data | Export-Clixml -Path $keystore
 
 		' "$1" "$2"
-		chmod 600 "$TOOLS_KEYSTORE"
+		chmod 600 "$KEYSTORE"
 
 	else
-		if [ -z "$TOOLS_KEYSTORE" ]; then
-			error "TOOLS_KEYSTORE var missing"
+		if [ -z "$KEYSTORE" ]; then
+			error "KEYSTORE var missing"
 			return 1
 		fi
 
-		touch "$TOOLS_KEYSTORE"
-		chmod 600 "$TOOLS_KEYSTORE"
+		touch "$KEYSTORE"
+		chmod 600 "$KEYSTORE"
 
 		local keys
-		keys="$(cat "$TOOLS_KEYSTORE")"
+		keys="$(cat "$KEYSTORE")"
 
 		echo "${keys:-"{}"}" \
 			| jq --arg key "$1" --arg value "$2" '.[$key] = $value' \
-			> "$TOOLS_KEYSTORE"
+			> "$KEYSTORE"
 	fi
 
 	if [ -n "$2" -a -n "$timeout" ]; then
@@ -114,7 +114,7 @@ keyget() {
 	elif [ "$OS" = windows ] && command -v pwsh >/dev/null; then
 		pwsh -nologo -noprofileloadtime -noprofile -noninteractive -CommandWithArgs '
 
-		$keystore = "'"$TOOLS_KEYSTORE"'"
+		$keystore = "'"$KEYSTORE"'"
 		if (Test-Path $keystore) {
 			$data = Import-Clixml $keystore
 		} else {
@@ -126,6 +126,6 @@ keyget() {
 		' "$1"
 
 	else
-		cat "$TOOLS_KEYSTORE" 2>/dev/null | jq --arg key "$1" -r '.[$key] // ""'
+		cat "$KEYSTORE" 2>/dev/null | jq --arg key "$1" -r '.[$key] // ""'
 	fi
 }

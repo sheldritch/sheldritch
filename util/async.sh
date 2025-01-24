@@ -3,7 +3,7 @@ check_is_sourced
 
 summon sheldritch/data/random.sh
 
-ASYNC_TMP=/tmp/${USER:-$user}/tools/async
+ASYNC_TMP=$SHELDRITCH_TMP/async
 SEMS=$ASYNC_TMP/semaphores
 mkdir -p $SEMS
 

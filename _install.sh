@@ -2,11 +2,10 @@
 
 set -e
 
+__FILE="${BASH_SOURCE[0]:-${(%):-%x}}"
+SHELDRITCH="${__FILE%/*}"
 
-SELF_DIR="$( cd "$(dirname $(realpath "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd )"
-SHELDRITCH="$SELF_DIR"
-
-add_tools_envar() {
+add_envar() {
 	if [ -f "$1" ]; then
 		if grep -q SHELDRITCH= "$1"; then
 			# export needed for executable scripts that use $SHELDRITCH
@@ -16,12 +15,12 @@ add_tools_envar() {
 		fi
 	fi
 }
-add_tools_envar ~/.bashrc
+add_envar ~/.bashrc
 # non-interactive init files need $SHELDRITCH when they source the app
-add_tools_envar ~/.profile
-add_tools_envar ~/.bash_profile
+add_envar ~/.profile
+add_envar ~/.bash_profile
 
-grep -Eq 'source "\$SHELDRITCH' ~/.bashrc || echo 'source "$SHELDRITCH/tools.sh"' >> ~/.bashrc
+grep -Eq 'source "\$SHELDRITCH' ~/.bashrc || echo 'source "$SHELDRITCH/sheldritch.full.sh"' >> ~/.bashrc
 
 cat <<-EOF
 ###
@@ -57,21 +56,5 @@ set +e
 summon system/install.sh
 
 install_basic -c jq jq
-install_basic -e winget -c bw bitwarden-cli @bitwarden/cli bw
 
-cat <<-EOF
-###
-### Optional resources -- you may end up using only some of these tools
-###
-EOF
-
-for file in "$SHELDRITCH"/install/install_*.sh; do
-	echo "$file" | grep -q install_bundle && continue
-	"$file" || safe_quit 1
-done
-
-for file in $(find "$SHELDRITCH"/*/ -name '_install.sh'); do
-	echo >&2 "installing $file"
-	"$file" || safe_quit 1
-done
 echo >&2 "Installations complete."

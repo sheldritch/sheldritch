@@ -32,27 +32,3 @@ Dockerfile
 **/*.jfm
 **/azds.yaml
 **/charts
-
-# C#Bot-specific
-**/___*/
-**/.toolstarget
-**/serverside/src/main/resources/static/
-**/serverside/src/obj/
-**/serverside/src/bin/
-
-**/testtarget/*/obj/
-**/testtarget/*/bin/
-**/Selenium/Tests/
-
-# Test artefacts
-**/clientside/*junit.xml
-**/testtarget/Serverside/serverside.junit.xml
-**/testtarget/Serverside/serverside.xunit.xml
-**/testtarget/API/api.junit.xml
-**/testtarget/API/api.xunit.xml
-**/testtarget/Selenium/selenium.junit.xml
-**/testtarget/Selenium/selenium.xunit.xml
-**/testtarget/Selenium/TestResults/*.png
-
-**/secrets.dev.yaml
-**/values.dev.yaml

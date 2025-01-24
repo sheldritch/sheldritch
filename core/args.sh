@@ -5,7 +5,7 @@
 # This includes the @func_info framework, the recommended way for structuring
 # bash functions
 #
-# For an example of how to use it, see tools_args_example() function definition
+# For an example of how to use it, see sheldritch_args_example() function definition
 # later in this file
 
 # shellcheck disable=SC2154,SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031
@@ -106,7 +106,7 @@ opts_parse
 
 alias parse_opts=opts_parse
 
-tools_args_example() {
+sheldritch_args_example() {
 
 	# initialise the func_info framework
 	@func_info
