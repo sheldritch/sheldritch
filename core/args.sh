@@ -351,6 +351,7 @@ _args_options_parse() {
 					break
 					;;
 				-- )
+					declare _ARGS_BREAK=1
 					__shift
 					break
 					;;
@@ -585,7 +586,11 @@ _args_usage_parse() {
 				Vars+="
 				$Name"'=(${@:$ArgPos:1})
 				((ArgPos++))
-				'
+				'"
+				if [[ -n ${_ARGS_BREAK:-} && \$$Name = -* ]]; then
+					error -p 1 'Argument $Name starts with '-' (\$$Name). Positional arguments may not do so without the '--' arg beforehand'
+					return 1
+				fi"
 				;;
 		esac
 	done
