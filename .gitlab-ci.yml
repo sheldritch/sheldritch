@@ -9,39 +9,39 @@ stages:
   - package
 
 test-tools:
+  extends: .defaults
   image: registry.workingmouse.com.au/workingmouse/projects/internal/tools:latest
   stage: test
-  rules:
-    - when: always
   script:
     - export TOOLS=. && source tools.sh && source _test.sh
 
-package:docker:
-  rules:
-    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+.package:docker:
   variables:
-    CONTAINER_IMAGE_TAG: latest
+    IMAGE_TAG: latest
+    WATCH_FILES: .gitlab-ci.yml # intentional duplicate, may be set to something else
+
+  rules:
+    - !reference [.package:docker:rules, init]
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+      changes:
+        - $DOCKER_CONTEXT/**
+        - .gitlab-ci.yml
+        - $WATCH_FILES
+
+package:docker:
+  variables:
+    WATCH_FILES: '**'
 
 package-bw:
   extends:
-    - package:docker
+    - .package:docker
   variables:
-    DOCKER_CONTEXT: ./services/bitwarden/
-    CONTAINER_IMAGE_PATH: /bw
-  rules:
-    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
-      changes:
-        - services/bitwarden/*
-        - .gitlab-ci.yml
+    DOCKER_CONTEXT: services/bitwarden
+    IMAGE_SUBPATH: bw
 
 package-mattermost-message-scheduler:
   extends:
-    - package:docker
+    - .package:docker
   variables:
-    DOCKER_CONTEXT: ./services/mattermost/message-scheduler/
-    CONTAINER_IMAGE_PATH: /mattermost.message-scheduler
-  rules:
-    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
-      changes:
-        - services/mattermost/message-scheduler/*
-        - .gitlab-ci.yml
+    DOCKER_CONTEXT: services/mattermost/message-scheduler
+    IMAGE_SUBPATH: mattermost.message-scheduler
