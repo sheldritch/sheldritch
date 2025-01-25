@@ -22,10 +22,9 @@ RUN apt-get update -q=3 && apt-get install -q=3 --no-install-recommends \
 	libxml2-utils \
 	net-tools \
 	rename \
-	shellcheck \
 	sudo \
-	vim \
 	wget \
+	yq \
 	zip
 
 # Copy the tools and configure them in the bash profile
