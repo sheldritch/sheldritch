@@ -2,6 +2,7 @@ source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 file_first() {
+	# dependencyless func
 	local File
 	REPLY=
 	for File in "$@"; do

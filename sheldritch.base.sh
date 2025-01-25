@@ -11,6 +11,10 @@ then
 	return
 fi
 
+#
+# Core Initialisation
+#
+
 # Ensure the aliases created by this script are available
 if [[ -v BASH_VERSION ]]; then
 	shopt -s expand_aliases
@@ -22,8 +26,6 @@ alias zsh_run='[[ -z ${ZSH_VERSION:-} ]] || '
 alias bash_run='[[ -z ${BASH_VERSION:-} ]] || '
 alias ksh_run='[[ -z ${KSH_VERSION:-} ]] || '
 alias _trace='[[ -n "${TRACE+ }" ]] && echo >&2 '
-
-# Directories/Environment
 
 zsh_run zmodload zsh/parameter
 
@@ -46,25 +48,16 @@ if [[ -z "${SHELDRITCH+ }" ]]; then
 fi
 SHELDRITCH_SUBSHELL="${BASH_SUBSHELL:-}${ZSH_SUBSHELL:-}"
 
-tmp_dir() {
-	xdg runtime
-}
-SHELDRITCH_TMP="${SHELDRITCH_TMP:-$(tmp_dir)/${USER:-$user}/sheldritch}"
-! [[ -d $SHELDRITCH_TMP ]] && mkdir -p "$SHELDRITCH_TMP"
-
-# Base Helpers
-
+# stub out complete if shell does not support autocompletion
 if ! command -v complete >/dev/null 2>/dev/null; then
 	complete() { return; }
 fi
 
-alias safe_quit='declare E=$?; return "$E" 2>/dev/null || exit "$E"'
+#
+# Logging helpers
+#
 
-alias quiet='>/dev/null 2>/dev/null'
-alias stderr='>&2'
-
-ecode() { return "$1"; }
-
+# Dependency for logging
 # shellcheck disable=SC2154
 alias @func_use_parent='
 	local Parent ParentLevel=0
@@ -115,15 +108,33 @@ _genfunc_log error  Error
 _genfunc_log warn   Warning
 _genfunc_log _debug Debug
 
-# Echo stderr debug line if turned on
+# Echo debug line to stderr if debug turned on
 debug() {
 	case "$(lowercase "$DEBUG")" in
 		true | 1 ) STACKTRACE=false _debug -p 1 "$@"
 	esac
 }
 
-alias var_is_local='local >/dev/null 2>&1 -p'
-alias var_is_declared='declare >/dev/null 2>&1 -p'
+#
+# Other base helpers and variables
+#
 
 source "$SHELDRITCH/core/lib.sh"
 source_once "$SHELDRITCH/core/compat.sh"
+
+tmp_dir() {
+	xdg runtime
+}
+SHELDRITCH_TMP="${SHELDRITCH_TMP:-$(tmp_dir)/${USER:-$user}/sheldritch}"
+! [[ -d $SHELDRITCH_TMP ]] && mkdir -p "$SHELDRITCH_TMP"
+
+
+alias var_is_local='local >/dev/null 2>&1 -p'
+alias var_is_declared='declare >/dev/null 2>&1 -p'
+
+alias safe_quit='declare E=$?; return "$E" 2>/dev/null || exit "$E"'
+
+alias quiet='>/dev/null 2>/dev/null'
+alias stderr='>&2'
+
+ecode() { return "$1"; }
