@@ -51,10 +51,7 @@ esac
 
 source "$SHELDRITCH/sheldritch.base.sh"
 
-set +e
-
-summon system/install.sh
-
+summon sheldritch/system/install.sh
 install_basic -c jq jq
 
 echo >&2 "Installations complete."
