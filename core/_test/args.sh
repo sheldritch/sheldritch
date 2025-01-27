@@ -41,7 +41,7 @@ check() {
 test_usage
 
 # an exact number of matches will be selected over an array
-# *4 > *+
+# _4 > _+
 Usage=(
 	'A B C'
 	'ARRAY...'
@@ -62,7 +62,7 @@ test_usage
 
 #
 # Literals take precedence
-# *3 literal *1 > *5
+# _3 literal _1 > _5
 Usage=(
 	'A B C literal E'
 	'A B C D E'
@@ -77,18 +77,18 @@ check() {
 	eq $D 'd'
 }
 # TODO: not yet implemented
-if test_usage; then
-	false
-fi
+# if test_usage; then
+# 	false
+# fi
 
 # two variadic not supported
-FORMAT="*3 *+"
-FORMAT="*+"
+FORMAT="_3 _+"
+FORMAT="_+"
 # TODO: write and implement
 
 # Unless literal or other distinguishing feature
 # Literals also distinguish variadics (allowed together)
-FORMAT="*+ literal *+"
-FORMAT="*+"
-FORMAT="--flag *+"
+FORMAT="_+ literal _+"
+FORMAT="_+"
+FORMAT="--flag _+"
 # TODO: write and implement

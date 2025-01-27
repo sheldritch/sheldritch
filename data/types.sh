@@ -230,6 +230,36 @@ join_by() {
   fi
 }
 
+
+for_permutations() {
+  local function="$1" exit=0
+  shift || return 1
+  declare -a array=("$@")
+
+  _for_permutations_next 0
+  [[ "$items" == "" ]] && echo "$out" && return
+  return "$exit"
+}
+_for_permutations_next() {
+	zsh_run setopt KSH_ARRAYS
+	if (( $1 == ${#array[@]} - 1 )); then
+		"$function" "${array[@]}" || ((exit < 127 && exit++))
+		return
+	fi
+
+	local i=$1 temp=''
+	declare -a copy=("${array[@]}")
+
+	for (( ; i < ${#array[@]}; i++ )) ; do
+		array=("${copy[@]}")
+		temp="${array[i]}"
+		array[i]="${array[$1]}"
+		array[$1]="$temp"
+		_for_permutations_next $(($1 + 1))
+	done
+}
+
+
 #
 # Misc
 #

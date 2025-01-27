@@ -8,7 +8,7 @@ export SHELDRITCH
 
 command -v self_file
 
-for file in $(find */ -name '_test*.sh'); do
+for file in $(find */ -path '*/_test*.sh'); do
 	"$SHELL" "./$file" || FAIL=1
 done
 

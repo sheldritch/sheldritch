@@ -23,16 +23,15 @@ __main() {
 
 # aliases needs to be first to ensure later functions can use it
 alias @func_info='declare About="" ArgsReq="" _OPTIONS_PARSE_FIRST=""
-declare -a Usage=() Options=() Settings=() _ARGS=() _ARGS_FORMATS=() _ARGS_VARS=() _ARGS_ARRAYS=()
-declare -A _Opts=() _OptsBool=()
+declare -a Usage=() Options=() Settings=()
 '
 
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
 # shellcheck disable=SC2142
 alias opts_parse='
-	declare _ArgsSet= __Cache="_Opts_${FUNCNAME:-$funcstack}"
-	Usage=("${Usage[@]}")
+	declare _ArgsSet= __Cache="_Opts_${FUNCNAME:-$funcstack}" _ARGS=() _ARGS_FORMATS=() _ARGS_VARS=() _ARGS_ARRAYS=()
+	declare -A _Opts=() _OptsBool=()
 
 	[[ $- = *x* ]] && _ArgsSet+=x
 	[[ $- = *u* ]] && _ArgsSet+=u
@@ -70,11 +69,14 @@ alias opts_parse='
 		safe_quit
 	fi
 
-	shift "${_OptCount:-0}" # set by _args_options_parse
+	# _OptCount is set by _args_*_parse funcs to tell us how many args to remove from the start
+	shift "${_OptCount:-0}"
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
 		_args_usage_parse "${_ARGS[@]}" "$@" || { print_doc; ecode 1; safe_quit; }
 
+		# _ARGS already accounted for by previous _OptCount shift
+		# because _ARGS values were mixed in with flags
 		shift "$((_OptCount - ${#_ARGS[@]}))"
 
 	elif (( ${#_ARGS[@]} )); then
@@ -407,28 +409,34 @@ _args_options_parse() {
 unalias __shift
 
 _args_thinking_priority() {
-		##### Thinking priority #####
+	# LEGEND (extended regex)
+	# _[0-9] -- run of required singular arguments (number is count)
+	# _~    -- run of optional singular arguments (unknown count)
+	# _\+    -- run of the above including at most one variadic argument (unknown count)
+	# [a-z]+  -- literal argument (argument value matching its name)
+
+	##### Thinking priority #####
 
 	# could store 'counts' for any given format
 	# TODO: will have to consider all the many features as I go
-	local FORMAT="--literal-flag *4 *:*3 *=*+ *+ literal *+"
+	local FORMAT="--literal-flag _4 _:_3 _=_+ _+ literal _+"
 
 
 	# an exact number of matches will be selected over an array
-	local FORMAT="*4"
-	local FORMAT="*+"
+	local FORMAT="_4"
+	local FORMAT="_+"
 
 	# But if both are variable, they will be incompatible
-	local FORMAT="*3 *+"
-	local FORMAT="*+"
+	local FORMAT="_3 _+"
+	local FORMAT="_+"
 
 	# Literals take precedence
-	local FORMAT="*3 literal *1"
-	local FORMAT="*5"
+	local FORMAT="_3 literal _1"
+	local FORMAT="_5"
 
 	# Literals also distinguish variadics (allowed together)
-	local FORMAT="*+ literal *+"
-	local FORMAT="*+"
+	local FORMAT="_+ literal _+"
+	local FORMAT="_+"
 }
 
 
@@ -441,21 +449,28 @@ _args_usage_gen_parser() {
 
 	__Cache="_Args_${FUNCNAME:-$funcstack}"
 
+	# TODO: calculate performance of word split vs manually using ${~~var}
 	zsh_run setopt SH_WORD_SPLIT
 
-	# Need to, in general, check that none of the options conflict
-	# Otherwise, we can't distinguish between a developer error and a user error
+	# calculate a format summary of each usage. This is used to distinguish one usage line from
+	# another in parsing
 	local Name Line AlsoLine='' Token
 	for Line in "${Usage[@]}"; do
+
 		if [[ "$Line" = \#* ]]; then
 			_ARGS_FORMATS+=('#')
 			continue
 		fi
+		# a Run is the current string of variable arguments. Hitting a literal argument starts a new run
+		# certain sequential arguments are not allowed in a given run.
 		local Format='' Run=''
+
+		# duplicating variable with AlsoLine to work around zsh automatic quoting
 		[[ -z "$ZSH_VERSION" ]] && AlsoLine="$Line"
 		for Token in ${ZSH_VERSION:+${~~Line}} $AlsoLine; do
+
 			case "$Token" in
-				{ | \"* | \'* )
+				'{' | \"* | \'* )
 					error -p 1 "FUNCTION BUG: Token '$Token' in usage not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
 					return 9
 					;;
@@ -469,17 +484,25 @@ _args_usage_gen_parser() {
 					_args_name_to_variable "$Token"
 					_ARGS_ARRAYS+=(${Name//[^[:alnum:]]/})
 
-					if [[ "$Run" = *+ ]]; then
-						error -p 1 'FUNCTION BUG: cannot have two variadic without a literal argument or argument separator between the two.'
+					if [[ "$Run" = *[+~] ]]; then
+						error -p 1 'FUNCTION BUG: cannot have two variadics without a literal argument or argument separator between the two.'
 						return 9
 					fi
 
 					Run="${Run%?}+"
 
 					;;
+				\[*...\]  )
+					error -p 1 "FUNCTION BUG: optionals not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
+					if [[ "$Run" = *+ ]]; then
+						error -p 1 'FUNCTION BUG: cannot have two variadics without a literal argument or argument separator between the two.'
+					fi
+					Run="${Run%?}+"
+					return 9
+					;;
 				\[*\]  )
 					error -p 1 "FUNCTION BUG: optionals not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
-					Run="${Run%?}+"
+					Run="${Run%?}*"
 					return 9
 					;;
 				\[*[^]] )
@@ -498,9 +521,9 @@ _args_usage_gen_parser() {
 
 				* )
 					_args_name_to_variable "$Token"
-					_ARGS_VARS+=(${Name//[^[:alnum:]]/ })
+					_ARGS_VARS+=(${Name//[^[:alnum:]]/'=' }'=')
 					if [[ -z "$Run" ]]; then
-						Run='*1'
+						Run='_1'
 
 					elif [[ "$Run" = *+ ]]; then
 						error -p 1 "FUNCTION BUG: args after variadic arg ($Token) not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
@@ -523,6 +546,8 @@ _args_usage_gen_parser() {
 		_ARGS_FORMATS+=("$Format")
 	done
 
+	# Compare the computed formats to check that no usage line conflicts with another
+	local i j
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
 		[[ "${_ARGS_FORMATS[@]:$i:1}" = \#* ]] && continue
 		for ((j=i + 1; j < ${#_ARGS_FORMATS[@]}; j++)); do
@@ -547,6 +572,7 @@ _args_usage_parse() {
 	_ARGS_ARRAYS=(${_ARGS_ARRAYS[@]})
 	"
 
+	local i
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
 		[[ "${_ARGS_FORMATS[@]:$i:1}" = \#* ]] && continue
 		local Count= Arity=
@@ -570,7 +596,8 @@ _args_usage_parse() {
 
 	Format="${Usage[@]:$Format:1}"
 
-	local ArgPos=1 _Opt_Count=0 Name Vars
+	# ${@:slice} starts at 1, hence ArgPos init
+	local ArgPos=1 Name Vars
 	for Token in $Format; do
 		_args_name_to_variable "$Token"
 		Name="${Name//[^[:alnum:]]/}"
@@ -578,16 +605,16 @@ _args_usage_parse() {
 			*...)
 				# TODO: If token is ARG..., check the next value to see what you might need to stop at
 				Vars+="
-				$Name"'=(${@:$ArgPos:$# - $ArgPos + 1})
-				((ArgPos = $#))
+				$Name"'=("${@:$ArgPos:$# - $ArgPos + 1}")
+				((ArgPos = $# + 1))
 				'
 				;;
 			* )
 				Vars+="
-				$Name"'=(${@:$ArgPos:1})
+				$Name"'="${@:$ArgPos:1}"
 				((ArgPos++))
 				'"
-				if [[ -n ${_ARGS_BREAK:-} && \$$Name = -* ]]; then
+				if [[ -n \${_ARGS_BREAK:-} && \$$Name = -* ]]; then
 					error -p 1 'Argument $Name starts with '-' (\$$Name). Positional arguments may not do so without the '--' arg beforehand'
 					return 1
 				fi"
@@ -596,8 +623,7 @@ _args_usage_parse() {
 	done
 
 	eval "$Vars"
-	((_OptCount += ArgPos))
-	set +x
+	((_OptCount = ArgPos - 1))
 
 	return
 	_ARGS_PARSERS=("${Usage[@]}")
