@@ -23,11 +23,17 @@ run() {
 
 @func_info
 
+set -e
+parse_args
+set +e
+
 # Strict Arity: find the exact match
 
 Usage=(
 	'A B C'
 	'D E'
+	'F'
+	'G H I J'
 )
 check() {
 	set -- a b c
