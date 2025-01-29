@@ -5,23 +5,6 @@ set -e
 __FILE="${BASH_SOURCE[0]:-${(%):-%x}}"
 SHELDRITCH="${__FILE%/*}"
 
-add_envar() {
-	if [ -f "$1" ]; then
-		if grep -q SHELDRITCH= "$1"; then
-			# export needed for executable scripts that use $SHELDRITCH
-			sed -i -e "/SHELDRITCH=/s%^.*$%export SHELDRITCH=$SHELDRITCH%" "$1"
-		else
-			echo "export SHELDRITCH=$SHELDRITCH" >> "$1"
-		fi
-	fi
-}
-add_envar ~/.bashrc
-# non-interactive init files need $SHELDRITCH when they source the app
-add_envar ~/.profile
-add_envar ~/.bash_profile
-
-grep -Eq 'source "\$SHELDRITCH' ~/.bashrc || echo 'source "$SHELDRITCH/sheldritch.full.sh"' >> ~/.bashrc
-
 cat <<-EOF
 ###
 ### Critical resources -- needed to run base sheldritch
@@ -48,6 +31,27 @@ case "$(uname -s)" in
     MINGW*)     machine=MinGw;;
     *)          machine="UNKNOWN:${unameOut}"
 esac
+
+add_envar() {
+	if [ -f "$1" ]; then
+		if grep -q SHELDRITCH= "$1"; then
+			# export needed for executable scripts that use $SHELDRITCH
+			sed -i -e "/SHELDRITCH=/s%^.*$%export SHELDRITCH=$SHELDRITCH%" "$1"
+		else
+			echo "export SHELDRITCH=$SHELDRITCH" >> "$1"
+		fi
+	fi
+}
+
+SHELDRITCH="$(realpath "$SHELDRITCH")"
+
+add_envar ~/.bashrc
+# non-interactive init files need $SHELDRITCH when they source the app
+add_envar ~/.profile
+add_envar ~/.bash_profile
+
+grep -Eq 'source "\$SHELDRITCH' ~/.bashrc || echo 'source "$SHELDRITCH/sheldritch.full.sh"' >> ~/.bashrc
+
 
 source "$SHELDRITCH/sheldritch.base.sh"
 
