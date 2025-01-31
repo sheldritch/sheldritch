@@ -8,12 +8,8 @@ summon sheldritch/core/args.sh
 # Functions
 #
 
-isFunction() {
-	if [[ "$BASH_VERSION" ]]; then
-		[[ "$(type -t "$1")" = function ]]
-	elif [[ "$ZSH_VERSION" ]]; then
-		[[ "$(whence -w)" = function ]]
-	fi
+is_function() {
+	declare -p ${BASH_VERSION:+-F} -f "$1" >/dev/null 2>&1
 }
 
 funcs() {

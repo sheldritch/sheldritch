@@ -905,7 +905,7 @@ print_doc() {
 			fi
 			printf '\t%s%s\n' "$Parent ${Options[1]:+[options] }" "$Line"
 		done
-	elif isFunction usage &&
+	elif is_function usage &&
 		awk "/${Parent:+"$Parent *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
 		usage
 	else
@@ -915,7 +915,7 @@ print_doc() {
 	if __has Options; then
 		print_options "${Options[@]}" || return 9
 
-	elif isFunction options; then
+	elif is_function options; then
 		options
 	else
 		{ funcname -p 1 -q && print_args -f "$(funcname -p 1)" || print_args; } 2>&1
