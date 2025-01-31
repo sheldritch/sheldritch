@@ -5,6 +5,7 @@ summon \
 	'sheldritch/core/*'      \
 	'sheldritch/data/*'      \
 	'sheldritch/data/text/*' \
+	'sheldritch/net/*'    \
 	'sheldritch/system/*'    \
 	'sheldritch/util/*'
 

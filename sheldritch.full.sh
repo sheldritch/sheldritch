@@ -1,6 +1,9 @@
 __FILE="${BASH_SOURCE[0]:-${(%):-%x}}"
 source "${__FILE%.full.sh}.base.sh"
 
+# TODO: use global wildcard (once fixed)
+summon 'sheldritch/*/**'
+
 summon \
 	'sheldritch/core/*'      \
 	'sheldritch/data/*'      \
