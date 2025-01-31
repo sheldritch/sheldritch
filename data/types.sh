@@ -176,7 +176,7 @@ item() {
 		"ITEM not OPERATOR ELEMENTS..."
 		"ITEM in ELEMENTS..."
 	)
-	parse_args
+	opts_parse
 	if [[ $# -eq 1 && "$1" =~ (-h|--help) ]]; then
 		print_docs 2>&1
 	fi
