@@ -1,13 +1,11 @@
-#!/bin/bash
+# No shebang, we want this to run in the user's shell
+# shellcheck shell=zsh
 
 set -e
 
-__FILE="${BASH_SOURCE[0]:-${(%):-%x}}"
-SHELDRITCH="${__FILE%/*}"
-
 cat <<-EOF
 ###
-### Critical resources -- needed to run base sheldritch
+### Installing critical dependencies needed to run base sheldritch
 ###
 EOF
 
@@ -32,6 +30,16 @@ case "$(uname -s)" in
     *)          machine="UNKNOWN:${unameOut}"
 esac
 
+cat <<-EOF
+###
+### Installing sheldritch
+###
+EOF
+
+SHELDRITCH="$(dirname "{BASH_SOURCE[0]:-${(%):-%x}}")"
+
+source "$SHELDRITCH/sheldritch.base.sh"
+
 add_envar() {
 	if [ -f "$1" ]; then
 		if grep -q SHELDRITCH= "$1"; then
@@ -53,7 +61,6 @@ add_envar ~/.bash_profile
 grep -Eq 'source "\$SHELDRITCH' ~/.bashrc || echo 'source "$SHELDRITCH/sheldritch.full.sh"' >> ~/.bashrc
 
 
-source "$SHELDRITCH/sheldritch.base.sh"
 
 summon sheldritch/system/install.sh
 install_basic -c jq jq
