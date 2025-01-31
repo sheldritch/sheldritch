@@ -51,15 +51,13 @@ add_envar() {
 	fi
 }
 
-SHELDRITCH="$(realpath "$SHELDRITCH")"
-
-add_envar ~/.bashrc
+declare Shell=${SHELL##*/}
+add_envar ~/.${Shell}rc
 # non-interactive init files need $SHELDRITCH when they source the app
 add_envar ~/.profile
-add_envar ~/.bash_profile
+add_envar ~/.${Shell}_profile
 
-grep -Eq 'source "\$SHELDRITCH' ~/.bashrc || echo 'source "$SHELDRITCH/sheldritch.full.sh"' >> ~/.bashrc
-
+grep -Eq 'source "\$SHELDRITCH' ~/.${Shell}rc || echo 'source "$SHELDRITCH/sheldritch.full.sh"' >> ~/.${Shell}rc
 
 
 summon sheldritch/system/install.sh
