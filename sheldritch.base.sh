@@ -33,18 +33,21 @@ self_file() {
 	local Level="$((${1:-0} + 1))"
 
 	if [[ -v BASH_VERSION ]]; then
-		echo "${BASH_SOURCE[$Level]}"
+		REPLY="${BASH_SOURCE[$Level]}"
 	elif [[ -v ZSH_VERSION ]]; then
-		echo "${funcfiletrace[$Level]%%:*}"
+		REPLY="${funcfiletrace[$Level]%%:*}"
 	fi
+	echo "$REPLY"
 }
 
 self_dir() {
-	dirname "$(self_file 1)"
+	self_file 1 >/dev/null
+	dirname "$REPLY"
 }
 
-if [[ -z "${SHELDRITCH+ }" ]]; then
-	export SHELDRITCH="$(realpath -s $(self_dir))"
+if ! [[ $SHELDRITCH == /* && -f "$SHELDRITCH/sheldritch.base.sh" ]]; then
+	export SHELDRITCH
+	SHELDRITCH="$(realpath -s "$(self_dir)")" || return 1
 fi
 SHELDRITCH_SUBSHELL="${BASH_SUBSHELL:-}${ZSH_SUBSHELL:-}"
 
