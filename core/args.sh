@@ -39,7 +39,7 @@ alias opts_parse='
 
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
-	if declare -p -F "$__Cache" >/dev/null 2>/dev/null; then
+	if declare -p ${BASH_VERSION:+-F} -f "$__Cache" >/dev/null 2>/dev/null; then
 		"$__Cache"
 	else
 		_args_options_gen "${Options[@]}" || return $?
@@ -73,7 +73,10 @@ alias opts_parse='
 	shift "${_OptCount:-0}"
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
-		_args_usage_parse "${_ARGS[@]}" "$@" || { print_doc; ecode 1; safe_quit; }
+		if ! declare -p ${BASH_VERSION:+-F} -f "$__Cache" >/dev/null 2>/dev/null; then
+			_args_build_parser
+		fi
+		"$__Cache" "${_ARGS[@]}" "$@" || { print_doc; ecode 1; safe_quit; }
 
 		# _ARGS already accounted for by previous _OptCount shift
 		# because _ARGS values were mixed in with flags
@@ -447,8 +450,6 @@ _args_usage_gen_parser() {
 	_ARGS_VARS=()
 	_ARGS_ARRAYS=()
 
-	__Cache="_Args_${FUNCNAME:-$funcstack}"
-
 	# TODO: calculate performance of word split vs manually using ${~~var}
 	zsh_run setopt SH_WORD_SPLIT
 
@@ -562,15 +563,95 @@ _args_usage_gen_parser() {
 	done
 }
 
-_args_usage_parse() {
+_args_build_parser() {
 	local Builder Format
-	zsh_run setopt SH_WORD_SPLIT
+	if (( ${#_ARGS_FORMATS[@]} == 0 )); then
+		eval "$__Cache() { _OptCount=0; };"
+		return
+	fi
 
 	Builder+="
-	local _ARGS_FORMATS=(${_ARGS_FORMATS[@]}) Format=
-	_ARGS_VARS=(${_ARGS_VARS[@]})
-	_ARGS_ARRAYS=(${_ARGS_ARRAYS[@]})
-	"
+	local Format=''
+	declare -a _ARGS_FORMATS=("
+	for x in "${_ARGS_FORMATS[@]}"; do
+		Builder+=$'\n"'"$x\""
+	done
+	Builder+='
+	)
+	_args_usage_select_format
+
+	# ${@:slice} starts at 1
+	local __Arg=1
+	case "$Format" in
+	'
+	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
+		Builder+="$i) "
+
+		if [[ "${_ARGS_FORMATS[@]:$i:1}" = \#* ]]; then
+			Builder+="error -p 1 'INTERNAL ERROR: chosen usage line $i is a comment!'; return 9 ;;"
+		fi
+
+		local __Arg=1 Name
+		for Token in ${Usage[@]:$i:1}; do
+			_args_name_to_variable "$Token"
+			Name="${Name//[^[:alnum:]]/}"
+			case "$Token" in
+				*...)
+					# TODO: If token is ARG..., check the next value to see what you might need to stop at
+					Builder+="$Name"$'=("${@:$__Arg:$# - $__Arg + 1}")\n((__Arg = $# + 1))\n'
+					;;
+				* )
+					Builder+="
+					$Name"'="${@:$__Arg:1}"
+					((__Arg++))'"
+					[[ -n \${_ARGS_BREAK:-} && \$$Name = -* ]] && _args_dash_error $Name \$$Name && return 1"$'\n'
+					;;
+			esac
+		done
+
+		Builder+=$';;\n'
+	done
+
+	Builder+="esac; ((_OptCount = __Arg - 1))"
+
+
+	if ! eval "$__Cache() { $Builder; }"; then
+		error "Eval failed! See computed builder below:"
+		echo >&2 "$Builder"
+	fi
+}
+
+_args_dash_error() {
+	error -p 1 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
+}
+
+_args_usage_select_format() {
+	local i
+	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
+		[[ "${_ARGS_FORMATS[@]:$i:1}" = \#* ]] && continue
+		local Count= Arity=
+		for Run in ${_ARGS_FORMATS[@]:$i:1}; do
+			Count="${Run: -1: 1}"
+
+			if [[ "$Run" = -* ]]; then
+				error -p 1 "TODO: handle literal flags in usage strings"
+			fi
+			case "$Count" in
+				+     ) Arity=+ ;;
+				[0-9] ) ((Arity += Count)) ;;
+				*     ) ((Arity++)) ;;
+			esac
+		done || continue
+		if [[ "$#" = $Arity || $Arity = + && -z $Format ]]; then
+			Format=$i
+		fi
+	done
+	[[ -z "$Format" ]] && Format=0
+}
+
+_args_usage_parse() {
+	local Format
+	zsh_run setopt SH_WORD_SPLIT
 
 	local i
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
@@ -624,11 +705,6 @@ _args_usage_parse() {
 
 	eval "$Vars"
 	((_OptCount = ArgPos - 1))
-
-	return
-	_ARGS_PARSERS=("${Usage[@]}")
-
-	return 1
 }
 
 zsh_run unsetopt GLOB
