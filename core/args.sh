@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 #
 # utils for argument parsing
 #
@@ -8,7 +8,7 @@
 # For an example of how to use it, see sheldritch_args_example() function definition
 # later in this file
 
-# shellcheck disable=SC2154,SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031
+# shellcheck disable=SC2154,SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031,SC2206
 
 source "$SHELDRITCH"/sheldritch.base.sh || return 1
 check_is_sourced
@@ -22,7 +22,7 @@ __main() {
 #
 
 # aliases needs to be first to ensure later functions can use it
-alias @func_info='declare About="" ArgsReq="" _OPTIONS_PARSE_FIRST=""
+alias @func_info='declare About="" ArgsReq="" _ARGS_PARSE_USAGE=""
 declare -a Usage=() Options=() Settings=()
 '
 
@@ -30,7 +30,8 @@ alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
 # shellcheck disable=SC2142
 alias opts_parse='
-	declare _ArgsSet= __Cache="_Opts_${FUNCNAME:-$funcstack}" _ARGS=() _ARGS_FORMATS=() _ARGS_VARS=() _ARGS_ARRAYS=()
+	declare _ArgsSet= __Cache="_Opts_${FUNCNAME:-$funcstack}"
+	declare -a _ARGS=() _ARGS_FORMATS=() _ARGS_VARS=() _ARGS_ARRAYS=()
 	declare -A _Opts=() _OptsBool=()
 
 	[[ $- = *x* ]] && _ArgsSet+=x
@@ -260,7 +261,7 @@ _args_name_to_variable() {
 }
 
 @options_first() {
-	_OPTIONS_PARSE_FIRST="${1:-true}"
+	declare _OPTIONS_PARSE_FIRST="${1:-true}"
 }
 
 # used internally by args_parse to create a map of flags to variables for later parsing
@@ -327,7 +328,7 @@ _args_options_parse() {
 
 	while (($#)); do
 		if [[ "$1" != -* ]]; then
-			isTrue $_OPTIONS_PARSE_FIRST && break
+			isTrue ${_OPTIONS_PARSE_FIRST:-} && break
 			_ARGS+=("$1")
 			__shift
 			continue
