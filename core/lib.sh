@@ -278,17 +278,19 @@ summon() {
 	fi
 
 	for Arg in "$@"; do
+		# find the absolute path to the library
 		if ! Lib="$(lib_find "${Arg%%\*}")"; then
 			error -p 1 "Library '$Lib' could not be found."
 			continue
 		fi
 
+		# re-attach globs to absolute path
 		local Globs="${Arg##*[^*]}"
-
 		set -- "$@" "$Lib$Globs"
 		shift
 	done
 
+	# perform import
 	lib_use "$@"
 }
 

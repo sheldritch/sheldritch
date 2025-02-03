@@ -230,6 +230,7 @@ join_by() {
 array_map() {
 	@func_info
 	Usage='ARRAY_NAME FILTER...'
+	@options_first
 	Options=(
 		--stdin "filter takes element via standard input instead of an argument"
 	)
