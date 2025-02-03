@@ -40,12 +40,19 @@ transmute() {
 	'
 	Usage=(
 		PATHS...
-		'--function=SHELL_FUNCTION_NAME'
+		#'--function=SHELL_FUNCTION_NAME'
 	)
 	Options=(
 		-f --function=FUNCTION "The name of the function to open"
 		-w --workspace=WORKSPACE "Select a directory to run the editor from. Defaults to a library's root dir"
 	)
+	args_parse
+
+	array_map Paths lib_find || return 1
+
+	$EDITOR "${Paths[@]}" || return 2
+	lib_use --force "${Paths[@]}"
+	return
 
 	local FirstFileAndLine
 	declare -a files
@@ -108,16 +115,5 @@ transmute() {
 
 	$EDITOR "${args[@]}" "$@" "${files[@]}"
 	)
-
-
-	for file in "${files[@]}"; do
-		[ -e "$file" ] || continue
-		if ! [ -x "$file" ] \
-			&& grep -q check_is_sourced "$file" \
-			&& echo "$file" | grep -q "\.sh$"
-		then
-			source "$file" --force
-		fi
-	done
 }
 complete -F _complete_sheldritch_lib transmute
