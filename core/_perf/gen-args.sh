@@ -1,7 +1,18 @@
 #!/bin/bash
+# shellcheck disable=all # just shut up please
+
+PATH+=":/usr/lib/libnumbertext"
+
+if ! command -v spellout >/dev/null; then
+	echo >&2 "Error: spellout not installed."
+	echo >&2 'Maybe try `apt install libnumbertext-tools`?'
+	ecode 1
+	safe_quit
+fi
+
 
 NumArgs="$1"
-NumberWords="$(/usr/lib/libnumbertext/spellout 1-"$NumArgs" | sed 's/[^a-z]\+/-/g')"
+NumberWords="$(spellout -l en 1-"$NumArgs" | sed 's/[^a-z]\+/-/g')"
 WordsPascal=($(sed -E 's/(^|-)(.)/\U\2/g' <<<"$NumberWords"))
 WordsBigSnake=($(tr -- -a-z _A-Z <<<"$NumberWords" ))
 
