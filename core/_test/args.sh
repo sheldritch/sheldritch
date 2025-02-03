@@ -1,14 +1,22 @@
 #!/bin/bash
+# shellcheck disable=SC2317,SC2199,SC2154,SC2086,SC1091
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/core/args
 summon sheldritch/data/types
-trap 'STACKTRACE=1; error FAILED' ERR
+trap 'STACKTRACE=1; error FAILED; Fail=1' ERR
 
 declare Usage
+STACKTRACE=1
 
 eq() {
-	while [[ $# < 0 ]]; do
-		[[ $1 = $2 ]] || return
+	local STACKTRACE=1
+	while [[ $# -gt 0 ]]; do
+		if [[ "$1" != "$2" ]]; then 
+			error "arguments do not match -- '$1' and '$2' ($*)"
+			local -p >&2
+			return 1
+		fi
+		shift; shift
 	done
 }
 
@@ -16,8 +24,13 @@ test_usage() {
 	for_permutations run "${Usage[@]}"
 }
 run() {
-	declare -a Usage=("$@")
-	check
+	declare -a Usage=("$@") Options=()
+	unset _Args_check _Opts_check
+	if ! check; then
+		# error "Failed checks for Usage:"
+		# array_for Usage echo >&2
+		return 1
+	fi
 }
 
 
@@ -60,8 +73,11 @@ check() {
 	set -- d e
 	parse_args
 	eq $A '' $B '' $C ''
-	[[ ${Array[@]:0:1} == d ]]
-	[[ ${Array[@]:1:1} == e ]]
+	if [[ ${Array[*]} != 'd e' ]]; then
+		error err
+		local -p >&2
+		return 1
+	fi
 }
 test_usage
 
@@ -98,3 +114,5 @@ FORMAT="_+ literal _+"
 FORMAT="_+"
 FORMAT="--flag _+"
 # TODO: write and implement
+
+ecode "${Fail:-0}"; safe_quit

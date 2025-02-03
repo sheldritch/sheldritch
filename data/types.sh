@@ -255,30 +255,67 @@ array_map() {
 	'
 }
 
-for_permutations() {
-	local function="$1" exit=0
-	shift || return 1
-	declare -a array=("$@")
+array_for() {
+	@func_info
+	Usage='ARRAY_NAME ACTION...'
+	@options_first
+	Options=(
+		--stdin "action takes element via standard input instead of an argument"
+	)
+	opts_parse
 
-	_for_permutations_next 0
-	return "$exit"
+	if ! declare -a -p "$1" >/dev/null; then
+		error "'$1' is not an array"
+		return 1
+	fi
+
+	zsh_run setopt KSH_ARRAYS
+
+	local i
+	# shellcheck disable=SC2086
+	eval 'for (( i = 0; i < ${#'$1'[@]}; i++ )); do
+		if isTrue $Stdin; then
+			"${@:2:$# - 1}" <<<"${'$1'[$i]}"
+		else
+			"${@:2:$# - 1}" "${'$1'[$i]}"
+		fi
+	done
+	'
+}
+
+for_permutations() {
+	@func_info
+	Usage='FUNCTION ARRAY...'
+	@options_first
+	Options=(
+		--fail-early "Fail as soon as FUNCTION returns a failure."
+	)
+	args_parse
+
+	local Exit=0 Catch=true
+	if isTrue $FailEarly; then
+		Catch='return 1'
+	fi
+
+	_for_permutations_next 0 || return 1
+	return "$Exit"
 }
 _for_permutations_next() {
 	zsh_run setopt KSH_ARRAYS
-	if (( $1 == ${#array[@]} - 1 )); then
-		"$function" "${array[@]}" || ((exit < 127 && exit++))
+	if (( $1 == ${#Array[@]} - 1 )); then
+		"$Function" "${Array[@]}" || { $Catch; ((Exit < 127 && Exit++)); }
 		return
 	fi
 
 	local i=$1 temp=''
-	declare -a copy=("${array[@]}")
+	declare -a copy=("${Array[@]}")
 
-	for (( ; i < ${#array[@]}; i++ )) ; do
-		array=("${copy[@]}")
-		temp="${array[i]}"
-		array[i]="${array[$1]}"
-		array[$1]="$temp"
-		_for_permutations_next $(($1 + 1))
+	for (( ; i < ${#Array[@]}; i++ )) ; do
+		Array=("${copy[@]}")
+		temp="${Array[i]}"
+		Array[i]="${Array[$1]}"
+		Array[$1]="$temp"
+		_for_permutations_next $(($1 + 1)) || return 1
 	done
 }
 

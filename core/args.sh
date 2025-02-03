@@ -41,6 +41,7 @@ alias opts_parse='
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
 	if declare -p ${BASH_VERSION:+-F} -f "$__Cache" >/dev/null 2>/dev/null; then
+		# TODO: clear this cache when a function is redefined (or at least re-summoned)
 		"$__Cache"
 	else
 		_args_options_gen "${Options[@]}" || return $?
@@ -465,7 +466,7 @@ _args_usage_build_vars() {
 		fi
 		# a Run is the current string of variable arguments. Hitting a literal argument starts a new run
 		# certain sequential arguments are not allowed in a given run.
-		local Format='' RunType='' RunCount=0
+		local Format='' RunType='' RunCount=''
 
 		# duplicating variable with AlsoLine to work around zsh automatic quoting
 		[[ -z "$ZSH_VERSION" ]] && AlsoLine="$Line"
@@ -534,7 +535,7 @@ _args_usage_build_vars() {
 		done
 		Format+=" ${RunType}$RunCount"
 
-		_ARGS_FORMATS+=("$Format")
+		_ARGS_FORMATS+=("${Format# }")
 	done
 
 	# Compare the computed formats to check that no usage line conflicts with another
@@ -570,7 +571,9 @@ _args_usage_parse_token() {
 	if [[ "$RunType" = "$1" ]]; then
 		((RunCount++))
 	else
-		Format+=" ${RunType}$RunCount"
+		if ((RunCount)); then
+			Format+=" ${RunType}$RunCount"
+		fi
 		RunType="$1"
 		RunCount=1
 	fi
@@ -591,7 +594,7 @@ _args_build_parser() {
 	done
 	Builder+='
 	)
-	_args_usage_select_format
+	_args_usage_select_format "$@"
 
 	# ${@:slice} starts at 1
 	local __Arg=1
@@ -644,8 +647,8 @@ _args_usage_select_format() {
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
 		# shellcheck disable=SC2124
 		Format="${_ARGS_FORMATS[@]:$i:1}"
-
 		[[ "$Format" = \#* ]] && continue
+
 		local Run='' ArityMin='' ArityMax='' Arity=''
 		for Run in $Format; do
 			Count="${Run: -1: 1}"
@@ -663,17 +666,22 @@ _args_usage_select_format() {
 						continue
 					fi
 					;;
-				*[0-9] ) ((Arity += ${Run#*[^0-9]})) ;;
+				*[0-9] ) ((Arity += ${Run##*[^0-9]})) ;;
 				*     ) ((Arity++)) ;;
 			esac
 		done || continue
 
-		if [[ "$#" = "$Arity" || $Arity = + && -z $Selected ]]; then
+		if [[ "$#" = "$Arity" || ( $Arity = + && -z $Selected ) ]]; then
 			Selected=$i
 		fi
 	done
 	# TODO: replace with an error if no adequate match was found
-	Format="${Selected:-0}"
+	Format="${Selected}"
+	if [[ -z "$Format" ]]; then
+		error -p 2 "Arguments did not match any usage strings. $(args_quoted "$@")"
+		print_doc -p 2
+		return 1
+	fi
 }
 
 zsh_run unsetopt GLOB
