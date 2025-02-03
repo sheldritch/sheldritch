@@ -141,31 +141,32 @@ yesNoToBool() {
 }
 
 #
-# Lists
+# Lists/Arrays(/Vectors, I guess)
 #
 
 contains() {
-  local Match="$1"
-  shift
+	local Match="$1"
+	shift
 
-  for Element in "$@"; do
-	  if [[ "$Element" = "$Match" ]]; then
-		  return 0
-	  fi
-  done
-  return 1
+	for Element in "$@"; do
+		if [[ "$Element" = "$Match" ]]; then
+			return 0
+		fi
+	done
+	return 1
 }
 
 contains_glob() {
-  local Match="$1"
-  shift
+	local Match="$1"
+	shift
 
-  for Element in "$@"; do
-	  if [[ "$Element" = $Match ]]; then
-		  return 0
-	  fi
-  done
-  return 1
+	for Element in "$@"; do
+		# shellcheck disable=SC2053
+		if [[ "$Element" = $Match ]]; then
+			return 0
+		fi
+	done
+	return 1
 }
 
 
@@ -220,21 +221,46 @@ item() {
 }
 
 join_by() {
-  local d=${1-} f=${2-}
-  if shift 2; then
-	printf %s "$f" "${@/#/$d}"
-  fi
+	local d=${1-} f=${2-}
+	if shift 2; then
+		printf %s "$f" "${@/#/$d}"
+	fi
 }
 
+array_map() {
+	@func_info
+	Usage='ARRAY_NAME FILTER...'
+	Options=(
+		--stdin "filter takes element via standard input instead of an argument"
+	)
+	opts_parse
+
+	if ! declare -a -p "$1" >/dev/null; then
+		error "'$1' is not an array"
+		return 1
+	fi
+
+	zsh_run setopt KSH_ARRAYS
+
+	local i
+	# shellcheck disable=SC2086
+	eval 'for (( i = 0; i < ${#'$1'[@]}; i++ )); do
+		if isTrue $Stdin; then
+			'$1'[$i]="$("${@:2:$# - 1}" <<<"${'$1'[$i]}")"
+		else
+			'$1'[$i]="$("${@:2:$# - 1}" "${'$1'[$i]}")"
+		fi
+	done
+	'
+}
 
 for_permutations() {
-  local function="$1" exit=0
-  shift || return 1
-  declare -a array=("$@")
+	local function="$1" exit=0
+	shift || return 1
+	declare -a array=("$@")
 
-  _for_permutations_next 0
-  [[ "$items" == "" ]] && echo "$out" && return
-  return "$exit"
+	_for_permutations_next 0
+	return "$exit"
 }
 _for_permutations_next() {
 	zsh_run setopt KSH_ARRAYS
@@ -293,7 +319,7 @@ value() {
 }
 
 ternary() {
-       eval "$1" && echo "$2" || echo "$3"
+	eval "$1" && echo "$2" || echo "$3"
 }
 bash_run ?:() { ternary "$@"; }
 zsh_run \?:() { ternary "$@"; }
