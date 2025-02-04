@@ -113,9 +113,13 @@ _genfunc_log _debug Debug
 
 # Echo debug line to stderr if debug turned on
 debug() {
-	case "$(lowercase "$DEBUG")" in
-		true | 1 ) STACKTRACE=false _debug -p 1 "$@"
-	esac
+	local x
+	for x in "$DEBUG" "$TRACE"; do
+		quiet lowercase "$x"
+		if [[ -n "$x" && "$REPLY" =~ ^(1|true)$ ]]; then
+			STACKTRACE=false _debug -p 1 "$@"
+		fi
+	done
 }
 
 #
