@@ -135,7 +135,7 @@ SHELDRITCH_TMP="${SHELDRITCH_TMP:-$(tmp_dir)/${USER:-$user}/sheldritch}"
 alias var_is_local='local >/dev/null 2>&1 -p'
 alias var_is_declared='declare >/dev/null 2>&1 -p'
 
-alias safe_quit='declare E=$?; return "$E" 2>/dev/null || exit "$E"'
+alias safe_quit='{ declare E=$?; return "$E" 2>/dev/null || exit "$E"; }'
 
 alias quiet='>/dev/null 2>/dev/null'
 alias stderr='>&2'
