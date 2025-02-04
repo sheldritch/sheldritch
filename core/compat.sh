@@ -50,9 +50,9 @@ shopt_temp_unset() {
 bash_run
 {
 	alias extglob='shopt_temp extglob'
-	lowercase() { printf '%s\n' "${1,,}"; }
-	uppercase() { printf '%s\n' "${1^^}"; }
-	deref()     { printf '%s\n' "${!1}"; }
+	lowercase() { REPLY="${1,,}"; printf '%s\n' "$REPLY"; }
+	uppercase() { REPLY="${1^^}"; printf '%s\n' "$REPLY"; }
+	deref()     { REPLY="${!1}";  printf '%s\n' "$REPLY"; }
 
 	regex() {
 		if (($#)); then
@@ -73,9 +73,9 @@ bash_run
 ksh_run
 {
 	alias extglob=':'
-	lowercase() { declare -l Val="$1"; printf '%s\n' "$Val"; }
-	uppercase() { declare -u Val="$1"; printf '%s\n' "$Val"; }
-	deref()     { eval "printf '%s\n' \"\$$1\""; }
+	lowercase() { declare -l Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
+	uppercase() { declare -u Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
+	deref()     { declare -p "$1" >/dev/null && eval REPLY=\"\$$1\" && printf '%s\n' "$REPLY"; }
 
 	regex() {
 		if (($#)); then
@@ -96,9 +96,9 @@ ksh_run
 zsh_run
 {
 	alias extglob='setopt KSH_GLOB'
-	lowercase() { printf '%s\n' "${1:l}"; }
-	uppercase() { printf '%s\n' "${1:u}"; }
-	deref()     { printf '%s\n' "${(P)1}"; }
+	lowercase() { REPLY="${1:l}";  printf '%s\n' "$REPLY"; }
+	uppercase() { REPLY="${1:u}";  printf '%s\n' "$REPLY"; }
+	deref()     { REPLY="${(P)1}"; printf '%s\n' "$REPLY"; }
 
 	regex() {
 		if (($#)); then

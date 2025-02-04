@@ -810,19 +810,29 @@ arg_bool() {
 }
 
 args_quoted() {
-	# from https://unix.stackexchange.com/a/307017
-	awk -v q="'" '
-	  function shellquote(s) {
-		gsub(q, q "\\" q q, s)
-		return q s q
-	  }
-	  BEGIN {
-		for (i = 1; i < ARGC; i++) {
-		  printf "%s", sep shellquote(ARGV[i])
-		  sep = " "
-		}
-		printf "\n"
-	  }' "$@"
+	if [[ -v BASH_VERSION ]]; then
+		REPLY="${@@Q}"
+		echo "$REPLY"
+	elif [[ -v ZSH_VERSION ]]; then
+		REPLY="${@:q}"
+		echo "$REPLY"
+
+	else
+		# from https://unix.stackexchange.com/a/307017
+		REPLY="$(awk -v q="'" '
+		  function shellquote(s) {
+			gsub(q, q "\\" q q, s)
+			return q s q
+		  }
+		  BEGIN {
+			for (i = 1; i < ARGC; i++) {
+			  printf "%s", sep shellquote(ARGV[i])
+			  sep = " "
+			}
+			printf "\n"
+		}' "$@")"
+		echo "$REPLY"
+	fi
 }
 
 
