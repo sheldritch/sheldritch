@@ -28,6 +28,12 @@ declare -a Usage=() Options=() Settings=()
 
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
+@set() { declare -p "$1" >/dev/null && eval "$1"='"${2:-1}"'; }
+alias @set='declare $_SET && @set $_SET'
+alias @options_first='declare _SET=_OPTIONS_PARSE_FIRST && @set'
+alias @opts_first=@options_first
+alias @args_no_cache='declare _SET=_ARGS_NO_CACHE && @set'
+
 # shellcheck disable=SC2142
 alias opts_parse='
 	declare _ArgsSet= __Cache="_Opts_${FUNCNAME:-$funcstack}"
@@ -40,7 +46,7 @@ alias opts_parse='
 
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
-	if declare -p ${BASH_VERSION:+-F} -f "$__Cache" >/dev/null 2>/dev/null; then
+	if [[ -z "${_ARGS_NO_CACHE:-}" ]] && declare -p ${BASH_VERSION:+-F} -f "$__Cache" >/dev/null 2>/dev/null; then
 		# TODO: clear this cache when a function is redefined (or at least re-summoned)
 		"$__Cache"
 	else
@@ -75,7 +81,7 @@ alias opts_parse='
 	shift "${_OptCount:-0}"
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
-		if ! declare -p ${BASH_VERSION:+-F} -f "$__Cache" >/dev/null 2>/dev/null; then
+		if [[ -n "${_ARGS_NO_CACHE:-}" ]] || ! declare -p ${BASH_VERSION:+-F} -f "$__Cache" >/dev/null 2>&1; then
 			_args_build_parser
 		fi
 		"$__Cache" "${_ARGS[@]}" "$@" || { print_doc; ecode 1; safe_quit; }
@@ -261,10 +267,6 @@ _args_name_to_variable() {
 	Name="$First${In:1}"
 }
 
-@options_first() {
-	declare _OPTIONS_PARSE_FIRST="${1:-true}"
-}
-
 # used internally by args_parse to create a map of flags to variables for later parsing
 _args_options_gen() {
 
@@ -329,7 +331,7 @@ _args_options_parse() {
 
 	while (($#)); do
 		if [[ "$1" != -* ]]; then
-			isTrue ${_OPTIONS_PARSE_FIRST:-} && break
+			[[ ${_OPTIONS_PARSE_FIRST:-} = 1 ]] && break
 			_ARGS+=("$1")
 			__shift
 			continue
