@@ -32,7 +32,7 @@ trap_add() {
 	shift || return 9
 
     for Signal in "$@"; do
-		eval "__trap_cmd $(trap -p $Signal)"
+		eval "__trap_cmd $(trap -p "$Signal")"
         trap -- "$Command; $NewCommand" "$Signal"
     done
 }
@@ -47,8 +47,25 @@ shopt_temp_unset() {
 	shopt -u "$@"
 }
 
-bash_run
-{
+
+# shell defaults
+# these are overwritten with more performant shell-specific implementations
+#
+
+REPLY()     { [[ $# -gt 0 ]] && REPLY="$1" || printf '%s\n' "$REPLY"; }
+deref()     { declare -p "$1" >/dev/null && eval "REPLY=\"\$$1\"" && REPLY; }
+lowercase() { REPLY "$(stdin "$1" tr '[:upper:]' '[:lower:]')"; }
+uppercase() { REPLY "$(stdin "$1" tr '[:lower:]' '[:upper:]')"; }
+
+stdin() {
+	local string="$1"
+	shift
+	"$@" <<SHELDRITCH_STDIN_COMPAT
+		$string
+SHELDRITCH_STDIN_COMPAT
+}
+
+if [[ -v BASH_VERSION ]]; then
 	alias extglob='shopt_temp extglob'
 	lowercase() { REPLY="${1,,}"; printf '%s\n' "$REPLY"; }
 	uppercase() { REPLY="${1^^}"; printf '%s\n' "$REPLY"; }
@@ -68,18 +85,17 @@ bash_run
 		REPLY="${BASH_REMATCH[$1]}"
 		printf "%s" "$REPLY"
 	}
-}
+fi
 
-ksh_run
-{
+# shellcheck disable=SC2296
+if [[ -v KSH_VERSION ]]; then
 	alias extglob=':'
 	lowercase() { declare -l Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
 	uppercase() { declare -u Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
-	deref()     { declare -p "$1" >/dev/null && eval REPLY=\"\$$1\" && printf '%s\n' "$REPLY"; }
 
 	regex() {
 		if (($#)); then
-			[[ "$1" =~ $2 ]] || return $?
+			[[ "$1" =~ $2 ]] || return
 		fi
 		MATCHES=( "${.sh.match[@]}" )
 	}
@@ -91,10 +107,10 @@ ksh_run
 		REPLY="${.sh.match[$1]}"
 		printf "%s" "$REPLY"
 	}
-}
+fi
 
-zsh_run
-{
+# shellcheck disable=SC2296
+if [[ -v ZSH_VERSION ]]; then
 	alias extglob='setopt KSH_GLOB'
 	lowercase() { REPLY="${1:l}";  printf '%s\n' "$REPLY"; }
 	uppercase() { REPLY="${1:u}";  printf '%s\n' "$REPLY"; }
@@ -102,7 +118,7 @@ zsh_run
 
 	regex() {
 		if (($#)); then
-			[[ "$1" =~ $2 ]] || return $?
+			[[ "$1" =~ $2 ]] || return
 		fi
 		MATCHES=( "$MATCH" "${match[@]}" )
 	}
@@ -112,10 +128,11 @@ zsh_run
 		printf "%s" "$REPLY"
 	}
 	recapture() {
-		REPLY="${match[@]:$(($1 - 1)):1}"
+		# shellcheck disable=SC2124
+		REPLY="${match[@]:$1 - 1:1}"
 		printf "%s" "$REPLY"
 	}
 
-}
+fi
 
 return 0
