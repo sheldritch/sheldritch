@@ -113,9 +113,13 @@ _genfunc_log _debug Debug
 
 # Echo debug line to stderr if debug turned on
 debug() {
-	case "$(lowercase "$DEBUG")" in
-		true | 1 ) STACKTRACE=false _debug -p 1 "$@"
-	esac
+	local x
+	for x in "$DEBUG" "$TRACE"; do
+		quiet lowercase "$x"
+		if [[ -n "$x" && "$REPLY" =~ ^(1|true)$ ]]; then
+			STACKTRACE=false _debug -p 1 "$@"
+		fi
+	done
 }
 
 #
@@ -135,7 +139,7 @@ SHELDRITCH_TMP="${SHELDRITCH_TMP:-$(tmp_dir)/${USER:-$user}/sheldritch}"
 alias var_is_local='local >/dev/null 2>&1 -p'
 alias var_is_declared='declare >/dev/null 2>&1 -p'
 
-alias safe_quit='declare E=$?; return "$E" 2>/dev/null || exit "$E"'
+alias safe_quit='{ declare E=$?; return "$E" 2>/dev/null || exit "$E"; }'
 
 alias quiet='>/dev/null 2>/dev/null'
 alias stderr='>&2'
