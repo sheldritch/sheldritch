@@ -445,12 +445,31 @@ _args_thinking_priority() {
 	# Literals also distinguish variadics (allowed together)
 	local FORMAT="R+ literal R+"
 	local FORMAT="R+"
+
+	# Should these two values be equivalent?
+	# My current thinking is whatever literal is found first is used
+	local FORMAT="R+ literal R+"
+	local FORMAT="R+ other_literal R+"
+	# Could have a list of first possible literals
+
+}
+
+_args_usage_priority() {
+	case "$Format" in
+		*+\ * | *+ ) Priority=1;;
+		*[[:lower:]]* ) Priority=5;;
+		*[^[:upper:]_]* ) Priority=4;;
+		*O* )  Priority=2;;
+		*R* )  Priority=3;;
+		* ) error "unknown priority: '$Format'"
+	esac
 }
 
 _args_usage_build_vars() {
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return
 
 	_ARGS_FORMATS=()
+	_ARGS_FORMAT_INFO=()
 	_ARGS_VARS=()
 	_ARGS_ARRAYS=()
 
@@ -464,11 +483,15 @@ _args_usage_build_vars() {
 
 		if [[ "$Line" = \#* ]]; then
 			_ARGS_FORMATS+=('#')
+			_ARGS_FORMAT_INFO+=('#')
 			continue
 		fi
 		# a Run is the current string of variable arguments. Hitting a literal argument starts a new run
 		# certain sequential arguments are not allowed in a given run.
 		local Format='' RunType='' RunCount=''
+		# Format info values, used to identify which Usage string should be used to parse args
+		local ArityMin=0 ArityMax=0 Priority=0 SubPriority=0 FirstLiteral='' LiteralArity=''
+		# TODO: priority should consider the gap between min and max arity
 
 		# duplicating variable with AlsoLine to work around zsh automatic quoting
 		[[ -z "$ZSH_VERSION" ]] && AlsoLine="$Line"
@@ -483,9 +506,12 @@ _args_usage_build_vars() {
 
 				*[[:lower:]]* )
 					error -p 1 "FUNCTION BUG: literals not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
+					if [[ -z "$FirstLiteral" ]]; then
+						FirstLiteral="$Token"
+						LiteralArity="$((ArityMin + RunCount))"
+					fi
 					return 9
 					;;
-
 
 				*... )
 
@@ -507,9 +533,9 @@ _args_usage_build_vars() {
 				\[*...\]  )
 					if [[ "$RunCount" = + ]]; then
 						error -p 1 'FUNCTION BUG: cannot have two variadics without a literal argument or argument separator between the two.'
+						return 9
 					fi
 					RunCount=+
-					return 9
 					;;
 				\[*\]  )
 					Token="${Token//[][]/}"
@@ -535,8 +561,14 @@ _args_usage_build_vars() {
 				* ) _args_usage_parse_token R || return $?
 			esac
 		done
-		Format+=" ${RunType}$RunCount"
+		_args_usage_parse_token END || return $?
 
+		if [[ "$ArityMax" != + ]]; then
+			((ArityMax += ArityMin))
+		fi
+		_args_usage_priority
+
+		_ARGS_FORMAT_INFO+=("$ArityMin $ArityMax $Priority $SubPriority $FirstLiteral $LiteralArity")
 		_ARGS_FORMATS+=("${Format# }")
 	done
 
@@ -573,8 +605,17 @@ _args_usage_parse_token() {
 	if [[ "$RunType" = "$1" ]]; then
 		((RunCount++))
 	else
-		if ((RunCount)); then
+
+		if [[ "$RunCount" = + ]] || ((RunCount)); then
 			Format+=" ${RunType}$RunCount"
+
+			if [[ "$RunCount" = + ]]; then
+				ArityMax=+
+			elif [[ "$1" = *R* ]]; then
+				(( ArityMin += RunCount ))
+			else
+				(( ArityMax += RunCount ))
+			fi
 		fi
 		RunType="$1"
 		RunCount=1
@@ -597,6 +638,7 @@ _args_build_parser() {
 	Builder+='
 	)
 	_args_usage_select_format "$@"
+	echo >&2 "Format, \"$Format\", ${_ARGS_FORMATS[@]:$Format:1}, ${Usage[@]:$Format:1}"
 
 	# ${@:slice} starts at 1
 	local __Arg=1
@@ -644,41 +686,27 @@ _args_dash_error() {
 }
 
 _args_usage_select_format() {
-	local i FirstLiteral='' Selected=''
+	local i OldPriority=0
+	local ArityMin='' ArityMax='' Priority='' SubPriority='' FirstLiteral='' LiteralArity=''
 
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
-		# shellcheck disable=SC2124
-		Format="${_ARGS_FORMATS[@]:$i:1}"
-		[[ "$Format" = \#* ]] && continue
 
-		local Run='' ArityMin='' ArityMax='' Arity=''
-		for Run in $Format; do
-			Count="${Run: -1: 1}"
+		read ArityMin ArityMax Priority SubPriority FirstLiteral LiteralArity <<<"${_ARGS_FORMAT_INFO[@]:$i:1}"
+		[[ "$ArityMin" = \#* ]] && continue
 
-			if [[ "$Run" = -* ]]; then
-				error -p 1 "TODO: handle literal flags in usage strings"
-			fi
-			case "$Run" in
-				*+     ) Arity=+ ;;
-				*[a-z] )
-					# TODO: should this be ArityMax?
-					if [[ -z "$FirstLiteral" ]] || ((ArityMin < FirstLiteral)); then
-						FirstLiteral="$ArityMin"
-						Selected=$i
-						continue
-					fi
-					;;
-				*[0-9] ) ((Arity += ${Run##*[^0-9]})) ;;
-				*     ) ((Arity++)) ;;
-			esac
-		done || continue
+		if ((OldPriority > Priority)); then continue; fi
 
-		if [[ "$#" = "$Arity" || ( $Arity = + && -z $Selected ) ]]; then
-			Selected=$i
+		echo _ARGS_FORMAT_INFO+="$ArityMin $ArityMax $Priority $SubPriority $FirstLiteral $LiteralArity"
+		if [[
+			( "$ArityMax" = + )
+				|| ("$#" = "$ArityMin" && "$ArityMin" = "$ArityMax")
+				|| ( "$ArityMax" != + && "$ArityMin" -le "$#" && "$#" -le "$ArityMax" )
+		]]; then
+			Format=$i
+			OldPriority=$Priority
 		fi
 	done
-	# TODO: replace with an error if no adequate match was found
-	Format="${Selected}"
+
 	if [[ -z "$Format" ]]; then
 		error -p 2 "Arguments did not match any usage strings. $(args_quoted "$@")"
 		print_doc -p 2

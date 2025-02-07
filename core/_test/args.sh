@@ -15,7 +15,10 @@ eq() {
 	while [[ $# -gt 0 ]]; do
 		if [[ "$1" != "$2" ]]; then
 			error "arguments do not match -- '$1' and '$2' ($*)"
-			local -p >&2
+			for v in "${_ARGS_VARS[@]//=/}"; do
+				eval "printf \"$v: \$$v, \"" >&2
+			done
+			printf '\n' >&2
 			return 1
 		fi
 		shift; shift
@@ -87,11 +90,11 @@ Usage=(
 check() {
 	set -- a b c
 	parse_args
-	eq $A a $B b $C c
+	eq "$A" a "$B" b "$C" c
 
 	set -- d e
 	parse_args
-	eq $D d $E e
+	eq "$D" d "$E" e
 
 	parsing_fails 'Arguments did not match any usage strings.' 1 2 3 4 5
 	parsing_fails 'Arguments did not match any usage strings.'
@@ -99,7 +102,7 @@ check() {
 test_usage
 
 # an exact number of matches will be selected over an array
-# _4 > _+
+# R4 > R+
 Usage=(
 	'A B C'
 	'ARRAY...'
@@ -107,11 +110,11 @@ Usage=(
 check() {
 	set -- a b c
 	parse_args
-	eq $A a $B b $C c
+	eq "$A" a "$B" b "$C" c
 
 	set -- d e
 	parse_args
-	eq $A '' $B '' $C ''
+	eq "$A" '' "$B" '' "$C" ''
 	array_eq d e
 
 	set --
@@ -119,15 +122,39 @@ check() {
 
 	set -- 1 2 3 4
 	parse_args
-	eq $A '' $B '' $C ''
+	eq "$A" '' "$B" '' "$C" ''
 	array_eq 1 2 3 4
+}
+test_usage
+
+# an exact number of matches will be selected over an array
+# R4 > R3 O1
+# R4 > O3 R1
+Usage=(
+	'A B C [O]'
+	'D E F G'
+	'H I [J]'
+)
+check() {
+	set -- d e f g
+	parse_args
+	eq "$A" '' "$B" '' "$C" '' "$O" ''
+	eq "$D" d "$E" e "$F" f "$G" g
+
+	set -- h i
+	parse_args
+	eq "$H" h "$I" i "$J" ''
+
+	set -- h i j
+	parse_args
+	eq "$H" h "$I" i "$J" j
 }
 test_usage
 
 
 #
 # Literals take precedence
-# _3 literal _1 > _5
+# R3 literal R1 > R5
 Usage=(
 	'A B C literal E'
 	'A B C D E'
@@ -135,11 +162,11 @@ Usage=(
 check() {
 	set -- a b c literal e
 	parse_args
-	eq $D ''
+	eq "$D" ''
 
 	set -- a b c d e
 	parse_args
-	eq $D 'd'
+	eq "$D" 'd'
 }
 # TODO: not yet implemented
 # if test_usage; then
@@ -147,15 +174,15 @@ check() {
 # fi
 
 # two variadic not supported
-FORMAT="_3 _+"
-FORMAT="_+"
+FORMAT="R3 R+"
+FORMAT="R+"
 # TODO: write and implement
 
 # Unless literal or other distinguishing feature
 # Literals also distinguish variadics (allowed together)
-FORMAT="_+ literal _+"
-FORMAT="_+"
-FORMAT="--flag _+"
+FORMAT="R+ literal R+"
+FORMAT="R+"
+FORMAT="--flag R+"
 # TODO: write and implement
 
 ecode "${Fail:-0}" || safe_quit
