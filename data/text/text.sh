@@ -24,19 +24,63 @@ deindent() {
 lines() {
 	local about='Count lines. Any text past the final newline counts as a line, unlike raw `wc -l`'
 	@DEFAULT_ARGS
-	echo -n "$*" | awk '{print}' | wc -l
+
+	local Newline=$'\n' Arg Count=0
+	for Arg in "$@"; do
+		[[ -n "$Arg" ]] || continue
+		Arg="${Arg//[^"${Newline#$}"]/}"
+		((Count += ${#Arg} + 1))
+	done
+
+	if [[ -n "$Equals" ]]; then
+		(( Count = Newline ))
+		return $?
+	fi
+
+	REPLY="$Count"
+	echo "$REPLY"
+}
+
+lines_eq() {
+	if [[ "$1" = *[^0-9]* ]]; then
+		error -p 1 'First argument must be an integer!!!'
+		sleep 3
+		return 9
+	fi
+	lines "${@:2:$#}" >/dev/null || return
+	((REPLY = $1))
+}
+
+lines_gt() {
+	if [[ "$1" = *[^0-9]* ]]; then
+		error -p 1 'First argument must be an integer!!!'
+		sleep 3
+		return 9
+	fi
+	lines "${@:2:$#}" >/dev/null || return
+	((REPLY > $1))
+}
+
+lines_lt() {
+	if [[ "$1" = *[^0-9]* ]]; then
+		error -p 1 'First argument must be an integer!!!'
+		sleep 3
+		return 9
+	fi
+	lines "${@:2:$#}" >/dev/null || return
+	((REPLY < $1))
 }
 
 lines_one() {
-	test "$*" -a $(lines "$*") -eq 1
+	lines_eq 1 "$@"
 }
 
 lines_none() {
-	test "$*" -a $(lines "$*") -eq 0
+	lines_eq 0 "$@"
 }
 
 lines_multi() {
-	test "$(lines "$*")" -gt 1
+	lines_gt 1 "$@"
 }
 
 tgrep() {

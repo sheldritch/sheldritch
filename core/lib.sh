@@ -167,9 +167,13 @@ lib_find() {
 
 
 lib_use() {
-	local Help='' Force=''
+	local Help='' Force='' Parent=0
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
+			-p | --parent ) Parent="$2"
+				shift
+				shift
+				;;
 			-f | --force ) Force=true
 				shift
 				;;
@@ -237,7 +241,7 @@ lib_use() {
 				else
 					source_once "$Lib"
 				fi
-				[[ $? = 0 ]] || error -p 1 "failed sourcing lib '$Lib'"
+				[[ $? = 0 ]] || error -p $((Parent + 1)) "failed sourcing lib '$Lib'"
 
 			elif [[ -z "$Globs" ]]; then
 				error "Library '$Lib' could not be interpreted."
@@ -271,9 +275,10 @@ summon() {
 
 	if [[ "$Help" = true ]]; then
 		echo >&2 "summon -- imports the library/file (relative to the library dir)"
-		echo >&2 "Usage: summon [--force] <lib>/<file>.sh"
-		echo >&2 "       summon [--force] <lib>"
+		echo >&2 "Usage: summon [--force] <lib>"
+		echo >&2 "       summon [--force] <lib>/<file>.sh"
 		echo >&2 "       summon [--force] <lib>/*"
+		echo >&2 "       summon [--force] <lib>/**"
 		return 0
 	fi
 
@@ -292,6 +297,41 @@ summon() {
 
 	# perform import
 	lib_use "$@"
+}
+
+conjure() {
+	local Help='' Force=''
+	while [[ $# -ne 0 ]]; do
+		case "$1" in
+			-f | --force ) Force=true
+				shift
+				;;
+			-h | --help ) Help=true
+				shift
+				break
+				;;
+			* ) break
+				;;
+		esac
+	done
+
+	local SHELDRITCH_CLEAN="$Force"
+	zsh_run setopt GLOB globsubst
+
+	if [[ "$Help" = true ]]; then
+		echo >&2 "conjure -- invoke a function a single time, without altering the regular environment (relative to the library dir)"
+		echo >&2 "Usage: conjure [--force] <lib> COMMAND..."
+		echo >&2 "       conjure [--force] <lib>/<file>.sh COMMAND..."
+		echo >&2 "       conjure [--force] <lib>/* COMMAND..."
+		echo >&2 "       conjure [--force] <lib>/** COMMAND..."
+		return 0
+	fi
+
+	(
+		summon "$1"
+		"${@:2:$#}"
+	)
+
 }
 
 __last "$@"
