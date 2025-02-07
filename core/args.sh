@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 #
 # utils for argument parsing
 #
@@ -455,13 +455,16 @@ _args_thinking_priority() {
 }
 
 _args_usage_priority() {
-	case "$Format" in
-		*+\ * | *+ ) Priority=1;;
+	case "${1:-$Line}" in
+		# NOTE: the order of each case influences the priority here
 		*[[:lower:]]* ) Priority=5;;
-		*[^[:upper:]_]* ) Priority=4;;
-		*O* )  Priority=2;;
-		*R* )  Priority=3;;
-		* ) error "unknown priority: '$Format'"
+		*...* ) Priority=1;;
+		*\[* )  Priority=2;;
+
+		# NOTE: this check for interspersed symbols is negative, so needs to go
+		# after checks for other symbols
+		*[^[:upper:]_[:space:]]* ) Priority=4;;
+		* )  Priority=3;;
 	esac
 }
 
@@ -576,12 +579,21 @@ _args_usage_build_vars() {
 	local i j
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
 		[[ "${_ARGS_FORMATS[@]:$i:1}" = \#* ]] && continue
+		read ArityMinI ArityMaxI InfoI <<<"${_ARGS_FORMAT_INFO[@]:$i:1}"
 		for ((j=i + 1; j < ${#_ARGS_FORMATS[@]}; j++)); do
-			if [[ "${_ARGS_FORMATS[@]:$i:1}" = "${_ARGS_FORMATS[@]:$j:1}" ]]; then
-				error -p 1 'FUNCTION BUG: The following usage lines are ambiguous!'
-				error -p 1 "${Usage[@]:$i:1}"
-				error -p 1 "${Usage[@]:$j:1}"
-				error -p 1 'Either distinguish them with flags or other literals, or use "opts_parse" and manually parse positional args yourself.'
+			read ArityMinJ ArityMaxJ InfoJ <<<"${_ARGS_FORMAT_INFO[@]:$j:1}"
+			if [[
+				# TODO: literals and symbol arguments will need more complex logic here
+				( $InfoI = $InfoJ && (
+					   ($ArityMinI -ge $ArityMinJ && $ArityMinI -le $ArityMaxJ)
+					|| ($ArityMaxI -ge $ArityMinJ && $ArityMaxI -le $ArityMaxJ)
+				))
+				|| ("${_ARGS_FORMATS[@]:$i:1}" = "${_ARGS_FORMATS[@]:$j:1}")
+			]]; then
+				error -p 1 "$(deindent "FUNCTION BUG: The following usage lines are ambiguous!
+				${Usage[@]:$i:1}
+				${Usage[@]:$j:1}
+				Either distinguish them with flags or other literals, or use 'opts_parse' and manually parse positional args yourself.")"
 				return 9
 			fi
 		done
@@ -611,7 +623,7 @@ _args_usage_parse_token() {
 
 			if [[ "$RunCount" = + ]]; then
 				ArityMax=+
-			elif [[ "$1" = *R* ]]; then
+			elif [[ "$RunType" = *R* ]]; then
 				(( ArityMin += RunCount ))
 			else
 				(( ArityMax += RunCount ))
@@ -638,7 +650,6 @@ _args_build_parser() {
 	Builder+='
 	)
 	_args_usage_select_format "$@"
-	echo >&2 "Format, \"$Format\", ${_ARGS_FORMATS[@]:$Format:1}, ${Usage[@]:$Format:1}"
 
 	# ${@:slice} starts at 1
 	local __Arg=1
@@ -692,11 +703,11 @@ _args_usage_select_format() {
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
 
 		read ArityMin ArityMax Priority SubPriority FirstLiteral LiteralArity <<<"${_ARGS_FORMAT_INFO[@]:$i:1}"
+		if [[ "$-" = *x* ]]; then echo >&2 "${_ARGS_FORMAT_INFO[@]:$i:1}"; fi
 		[[ "$ArityMin" = \#* ]] && continue
 
 		if ((OldPriority > Priority)); then continue; fi
 
-		echo _ARGS_FORMAT_INFO+="$ArityMin $ArityMax $Priority $SubPriority $FirstLiteral $LiteralArity"
 		if [[
 			( "$ArityMax" = + )
 				|| ("$#" = "$ArityMin" && "$ArityMin" = "$ArityMax")

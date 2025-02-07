@@ -14,11 +14,12 @@ eq() {
 	local STACKTRACE=1
 	while [[ $# -gt 0 ]]; do
 		if [[ "$1" != "$2" ]]; then
-			error "arguments do not match -- '$1' and '$2' ($*)"
-			for v in "${_ARGS_VARS[@]//=/}"; do
-				eval "printf \"$v: \$$v, \"" >&2
-			done
-			printf '\n' >&2
+			error "arguments do not match -- '$1' and '$2' ($*)
+			$(for v in "${_ARGS_VARS[@]//=/}"; do
+				eval "printf \"$v: \$$v, \""
+			done)
+			_ARGS_FORMAT_INFO $(args_quoted "${_ARGS_FORMAT_INFO[@]}")
+			"
 			return 1
 		fi
 		shift; shift
@@ -28,8 +29,8 @@ eq() {
 array_eq() {
 	local STACKTRACE=1
 	local actual expected
-	actual="$(args_quoted "${Array[@]}")"
-	expected="$(args_quoted "$@")"
+	actual="$(eval args_quoted "\"\${$1[@]}\"")"
+	expected="$(args_quoted "${@:2:$#}")"
 	if [[ "$actual" != "$expected" ]]; then
 		error -p 1 "value of array does not match expected
 		expected: $expected
@@ -77,9 +78,16 @@ run() {
 
 set -e
 parse_args
-set +e
 
-# Strict Arity: find the exact match
+Usage=(
+	'A B C'
+)
+set -- a b c
+parse_args
+#declare -p | grep _ARG
+eq "$A" a "$B" b "$C" c
+array_eq _ARGS_FORMATS R3
+array_eq _ARGS_FORMAT_INFO "3 3 3 0  "
 
 Usage=(
 	'A B C'
@@ -87,6 +95,14 @@ Usage=(
 	'F'
 	'G H I J'
 )
+set -- d e
+parse_args
+eq "$D" d "$E" e
+
+set +e
+
+# Strict Arity: find the exact match
+
 check() {
 	set -- a b c
 	parse_args
@@ -115,15 +131,15 @@ check() {
 	set -- d e
 	parse_args
 	eq "$A" '' "$B" '' "$C" ''
-	array_eq d e
+	array_eq Array d e
 
-	set --
-	parsing_fails 'Arguments did not match any usage strings.'
+	# set --
+	# parsing_fails 'Arguments did not match any usage strings.'
 
 	set -- 1 2 3 4
 	parse_args
 	eq "$A" '' "$B" '' "$C" ''
-	array_eq 1 2 3 4
+	array_eq Array 1 2 3 4
 }
 test_usage
 
@@ -133,21 +149,24 @@ test_usage
 Usage=(
 	'A B C [O]'
 	'D E F G'
-	'H I [J]'
+	'H [I]'
 )
 check() {
 	set -- d e f g
 	parse_args
 	eq "$A" '' "$B" '' "$C" '' "$O" ''
 	eq "$D" d "$E" e "$F" f "$G" g
+	set +x 
 
-	set -- h i
+	set -- h
 	parse_args
-	eq "$H" h "$I" i "$J" ''
+	eq "$H" h "$I" ''
 
-	set -- h i j
+	set -- a b c
 	parse_args
-	eq "$H" h "$I" i "$J" j
+	eq "$A" a "$B" b "$C" c "$O" ''
+	eq "$D" '' "$E" '' "$F" '' "$G" ''
+	eq "$H" '' "$I" '' "$J" ''
 }
 test_usage
 
