@@ -1,6 +1,8 @@
 shell=bash
-source-path=SCRIPTDIR
 source-path=.
+source-path=$SHELDRITCH
+source-path=SCRIPTDIR
 
 disable=SC2142 # positional params in aliases
 disable=SC2034 # unused variables
+disable=SC1090 # sourcing variable file

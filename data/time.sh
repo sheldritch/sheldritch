@@ -27,8 +27,9 @@ table_date_comp() {
 	awk -F '( *\t+ *| {2,})' -v DEBUG="$DEBUG" '
 		function Date(str, regex) {
 			if (regex) {
-				match(str, regex, m)
-				str = m[0]
+				match(str, regex)
+				if (RLENGTH == -1) { return }
+				str = substr(str, RSTART, RLENGTH)
 			}
 			if (!str) { return }
 
