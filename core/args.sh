@@ -36,8 +36,8 @@ alias @args_no_cache='declare _SET=_ARGS_NO_CACHE && @set'
 
 # shellcheck disable=SC2142
 alias opts_parse='
-	declare _ArgsSet= __Cache="_Opts_${FUNCNAME:-$funcstack}"
-	declare -a _ARGS=() _ARGS_FORMATS=() _ARGS_VARS=() _ARGS_ARRAYS=()
+	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0##/[^[:alnum:]]/_}}}"
+	declare -a _ARGS=() _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() _ARGS_VARS=() _ARGS_ARRAYS=()
 	declare -A _Opts=() _OptsBool=()
 
 	[[ $- = *x* ]] && _ArgsSet+=x
@@ -46,66 +46,32 @@ alias opts_parse='
 
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
-	if [[ -z "${_ARGS_NO_CACHE:-}" ]] && declare -p ${BASH_VERSION:+-F} -f "$__Cache" >/dev/null 2>/dev/null; then
-		# TODO: clear this cache when a function is redefined (or at least re-summoned)
-		"$__Cache"
-	else
-		_args_options_gen "${Options[@]}" || return $?
-	fi
+	_args_build_parser
+	_ARGS_${__Source}_VARS
 
-	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
-		__Cache="_Args_${FUNCNAME:-$funcstack}"
-		_args_usage_build_vars || return 9
-	fi
-
-	declare _OptCount=0 ${_Opts[@]//[^[:alnum:]]/ } "${_OptsBool[@]}" "${_ARGS_VARS[@]}"
+	declare _ARGS_COUNT=0 _ARGS_RETURN "${_ARGS_VARS[@]}" "${_ARGS_OPTS[@]}" "${_ARGS_OPTS_BOOL[@]}"
 	if (( ${#_ARGS_ARRAYS[@]} )); then
 		declare -a "${_ARGS_ARRAYS[@]}"
 	fi
 
-	if [[ "$_ArgsSet" = *u* ]]; then
-		for __Arg in ${_Opts[@]//[^[:alnum:]]/ } "${_OptsBool[@]}"; do
-			declare "$Arg"=""
-		done
-	fi
+	_ARGS_${__Source} "$@" || safe_quit
+	if [[ -n "$_ARGS_RETURN" ]]; then safe_quit; fi
 
-	_args_options_parse "$@" || return $?
+	# set by _ARGS_* funcs to show how many args to skip
+	shift "${_ARGS_COUNT:-0}"
 
-	# uses a custom opts flag to allow funcs to handle their own implementation if they want
-	if [[ "${_OptsBool[__help]}" ]]; then
-		print_doc 2>&1
-		safe_quit
-	fi
-
-	# _OptCount is set by _args_*_parse funcs to tell us how many args to remove from the start
-	shift "${_OptCount:-0}"
-
-	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
-		if [[ -n "${_ARGS_NO_CACHE:-}" ]] || ! declare -p ${BASH_VERSION:+-F} -f "$__Cache" >/dev/null 2>&1; then
-			_args_build_parser
-		fi
-		"$__Cache" "${_ARGS[@]}" "$@" || { print_doc; ecode 1; safe_quit; }
-
-		# _ARGS already accounted for by previous _OptCount shift
-		# because _ARGS values were mixed in with flags
-		shift "$((_OptCount - ${#_ARGS[@]}))"
-
-	elif (( ${#_ARGS[@]} )); then
-		set -- "${_ARGS[@]}" "$@"
-	fi
-
-    if [[ -n "$ArgsReq" ]]; then
-		if ! var_is_declared ArgsReq; then
-			error "INTERNAL ERR: ArgsReq must be declared"
-			ecode 9
-			safe_quit
-		fi
-		declare $ArgsReq
-		for x in $ArgsReq; do
-			_args_req "$x" "$1" || safe_quit
-			shift
-		done
-	fi
+    #if [[ -n "$ArgsReq" ]]; then
+	#	if ! var_is_declared ArgsReq; then
+	#		error "INTERNAL ERR: ArgsReq must be declared"
+	#		ecode 9
+	#		safe_quit
+	#	fi
+	#	declare $ArgsReq
+	#	for x in $ArgsReq; do
+	#		_args_req "$x" "$1" || safe_quit
+	#		shift
+	#	done
+	#fi
 
 	[[ -n "$_ArgsSet" ]] && set -$_ArgsSet
 '
@@ -268,155 +234,225 @@ _args_name_to_variable() {
 	Name="$First${In:1}"
 }
 
-# used internally by args_parse to create a map of flags to variables for later parsing
-_args_options_gen() {
+_args_build_parser() {
+	local Cache="_ARGS_$__Source"
+	trap 'return 9' ERR
 
-	local Flags Last Name
+	if [[ -z "${_ARGS_NO_CACHE:-}" ]] &&
+		declare -p ${BASH_VERSION:+-F} -f "$Cache" >/dev/null 2>/dev/null
+	then
+		# TODO: clear this cache when a function is redefined (or at least re-summoned)
+		# There must be somewhere we can pull a map of function to filenames we can use
+		# to invalidate cache
+		# Or, we maybe can detect if a file is `source`d outside of source_once (and also invalidate
+		# cache when source_once --force used)
+		return
+	fi
 
+	local Builder=''
+	_args_build_parser_opts
+
+	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
+		_args_usage_build_vars
+		_args_build_parser_usage
+	fi
+
+	if ! eval "$Cache() { $Builder"$'\n }'; then
+		error "Eval failed! See computed builder below:
+		$Builder
+		"
+		return 9
+	fi
+
+	_args_build_varcache
+}
+
+_args_build_varcache() {
+	local Builder=''
+
+	Builder+='
+		_ARGS_VARS=('
+	for x in "${_ARGS_VARS[@]}"; do
+		Builder+=$'\n"'"$x"\"
+	done
+	Builder+=')'
+
+	Builder+='
+		_ARGS_ARRAYS=('
+	for x in "${_ARGS_OPTS_BOOL[@]}"; do
+		Builder+=$'\n"'"$x"\"
+	done
+	Builder+=')'
+
+	Builder+='
+		_ARGS_OPTS=('
+	for x in "${_ARGS_OPTS[@]}"; do
+		Builder+=$'\n"'"$x"\"
+	done
+	Builder+=')'
+
+	Builder+='
+		_ARGS_OPTS_BOOL=('
+	for x in "${_ARGS_OPTS_BOOL[@]}"; do
+		Builder+=$'\n"'"$x"\"
+	done
+	Builder+=')'
+
+
+	Builder+='
+		_ARGS_FORMATS=('
+	for x in "${_ARGS_FORMATS[@]}"; do
+		Builder+=$'\n"'"$x"\"
+	done
+	Builder+=')'
+
+	Builder+='
+		_ARGS_FORMAT_INFO=('
+	for x in "${_ARGS_FORMAT_INFO[@]}"; do
+		Builder+=$'\n"'"$x"\"
+	done
+	Builder+=')'
+
+	eval "_ARGS_${__Source}_VARS() { $Builder; }"
+}
+
+_args_build_parser_opts() {
+	local Func="${1:-_Opts_$__Source}" Shift='((_ARGS_COUNT++)); shift'
 	if ! var_is_declared _Opts; then
 		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
 		ecode 9
 		safe_quit
 	fi
 
-	zsh_run setopt SH_WORD_SPLIT
-
+	Builder+='
+	declare __Flag
 	while (($#)); do
-		Flags=
+
+	if [[ "$1" != -* ]]; then
+		[[ "${_OPTIONS_PARSE_FIRST:-}" = 1 ]] && break
+		_ARGS+=("$1")
+		'"$Shift"'
+		continue
+	fi
+
+	declare __Flag="$1"
+	if [[ "$__Flag" = --no-* ]]; then
+		__Flag="--${__Flag#--no-}=false"
+	fi
+	'
+
+	Builder+=$'case "$__Flag" in\n'
+
+	local Type Name
+	set -- "${Options[@]}"
+	while (($#)); do
 		if ! [[ "$1" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
 			error -p 3 "Rest of array is as follows: $(args_quoted "$@")"
 			return 9
 		fi
 
-		while [[ "$1" = -* ]]; do
-			Flags+=" $1"
-			Last="$1" # the last flag includes the '=VAR_NAME' part (or not if bool)
+		while [[ "$2" = -* ]]; do
+			Builder+=" $1 | $1=* |" 
 			shift
 		done
-		shift # throw away the docstring
 
-		# check if flag has argument or is boolean
-		if [[ "$Last" = *=* ]]; then
-			Name="${Last#*=}"
-
+		if [[ "$1" = *=* ]]; then
+			Type=string
 			# TODO: Implement array flags. will need some opinionated designing.
 			# probably, all bash arguments until the next /^-/ are part of the array,
 			# but this is escapable with '\-'
-			if [[ "$Name" = *... ]]; then
-				error -p 1 "'$Name' elipsis format currently unsupported :("
+			if [[ "$1" = *... ]]; then
+				error -p 1 "'$1' elipsis format currently unsupported :("
 				return 9
 			fi
 
-			_args_name_to_variable "$Name"
-			for Flag in $Flags; do
-				_Opts[${Flag%%=*}]="$Name"
-			done
-		else
-			_args_name_to_variable "${Last#--}"
-			for Flag in $Flags; do
-				_OptsBool[${Flag}]="$Name"
-			done
-		fi
+			Name="${1%%=*}"
 
+		else
+			Type=bool
+			Name="$1"
+		fi
+		_args_name_to_variable "${Name#-}" # function handles possible leading '-'
+
+		# TODO: unless an array, symbol separators should have separate variables
+		_ARGS_VARS+=(${Name//[^[:alnum:]]/}'=')
+
+		# if [[ "$Type" = string && "$Name" = *[^[:alnum:]_]* ]]; then
+		# 	while rematch "$Name" '[^[:alnum:]_]+' >/dev/null; do
+		# 		local Separator="$REPLY"
+
+		# 		Builder+="${Name%%"$Separator"*}='${Value%%"$Separator"*}'"$'\n'
+
+		# 		Name="${Name#*"$Separator"}"
+		# 		[[ "$Value" = *"$Separator"* ]] || Value=''
+		# 		Value="${Value#*"$Separator"}"
+		# 	done
+		# fi
+		# eval "$Name='$Value'"
+
+		Builder+=" ${1%%=*} | ${1%%=*}=* )"$'\n'
+
+		case "$Type" in
+			bool)
+				Builder+='
+				[[ "$__Flag" = *=* ]] && '$Name'="${__Flag#*=}" || '$Name'=true
+
+				if ! [[ "$'$Name'" = true || "$'$Name'" == false ]]; then
+					error -p 1 "Flag '\''$Flag'\'' is boolean"
+					return 1
+				fi'
+				;;
+			string) Builder+='
+				if [[ "$__Flag" = *=* ]]; then
+					'$Name'="${__Flag#*=}";
+					'"$Shift"'; continue;
+				fi
+				'$Name'="$2"
+				'"$Shift"
+				;;
+		esac
+		Builder+="
+			$Shift;;
+		"
+
+		shift; shift # throw away the docstring
 	done
-	local Opts="$(declare -p _Opts _OptsBool)"
+
+
+	Builder+='
+	-h | --help )
+		print_doc 2>&1
+		return 0
+		;;
+	-- )
+		declare _ARGS_BREAK=1
+		'"$Shift"'
+		break
+		;;
+	* )
+		# if no options spec was defined, assume flags are parsed elsewhere
+		(( "${#Options[@]}" )) || return 0
+
+		error -p 1 "Flag \"$1\" not supported!"
+		return 1
+		;;
+
+	esac
+	done
+
+	set -- "${_ARGS[@]}" "$@"
+	'
+}
+
+_args_build_assoc_array() {
+	local Opts="$(declare -p "$@")"
 	Opts="${Opts//declare -A/}"
 	Opts="${Opts//typeset -g -A/}"
-	eval "$__Cache() { $Opts ;};"
+	Builder+="$Opts"
 }
 
-alias __shift='((i++)); shift'
-_args_options_parse() {
-	local Flag Arg Type Value i=0
-
-	while (($#)); do
-		if [[ "$1" != -* ]]; then
-			[[ ${_OPTIONS_PARSE_FIRST:-} = 1 ]] && break
-			_ARGS+=("$1")
-			__shift
-			continue
-		fi
-
-		Type= Arg= Value=
-		[[ "$Flag" = *=* ]] && Flag="${1%%=*}" || Flag="$1"
-
-		# check defined flags
-		if Arg="${_Opts[$Flag]}" && [[ -n "$Arg" ]]; then
-			Type=string
-		elif Arg="${_OptsBool[$Flag]}" && [[ -n "$Arg" ]]; then
-			Type=bool
-		elif [[ "$Flag" = --no-* ]] &&
-			Arg="${_OptsBool[--${Flag#--no-}]}" && [[ -n "$Arg" ]]; then
-			Type=bool
-			Value=false
-		fi
-
-		if [[ -z "$Arg" ]]; then
-
-			# fall back to common defaults
-			case "$Flag" in
-				-h | --help)
-					_OptsBool[__help]=true
-					break
-					;;
-				-- )
-					declare _ARGS_BREAK=1
-					__shift
-					break
-					;;
-				* )
-					# if no options spec was defined, assume flags are parsed elsewhere
-					(( "${#Options[@]}" )) || return 0
-
-					error -p 1 "Flag '$Flag' not supported!"
-					return 1
-					;;
-
-			esac
-		fi
-
-		if [[ -z "$Value" && "$1" = *=* ]]; then
-			Value="${1%%=*}"
-		fi
-		__shift
-
-		if [[ $Type = bool ]]; then
-			Value="${Value:-true}"
-			if ! [[ "$Value" = true || "$Value" == false ]]; then
-				error -p 1 "Flag '$Flag' is boolean"
-				return 1
-			fi
-		fi
-
-		if [[ -z "$Value" ]]; then
-			Value="$1"
-			__shift
-		fi
-
-		# escape any single quotes within value so we can assign with eval
-		Value="${Value//\'/\'\\\'\'}"
-
-		if [[ "$Type" = string && "$Arg" = *[^[:alnum:]_]* ]]; then
-			while rematch "$Arg" '[^[:alnum:]_]+' >/dev/null; do
-				local Separator="$REPLY"
-
-				eval "${Arg%%"$Separator"*}='${Value%%"$Separator"*}'"
-
-				Arg="${Arg#*"$Separator"}"
-				[[ "$Value" = *"$Separator"* ]] || Value=''
-				Value="${Value#*"$Separator"}"
-			done
-		fi
-
-		eval "$Arg='$Value'"
-
-	done
-	_OptCount=$i
-}
-unalias __shift
-
-_args_thinking_priority() {
+_args_thinking_usage_priority() {
 	# LEGEND (extended regex)
 	# R[0-9]+ -- run of required singular arguments (number is count)
 	# O[0-9]+ -- run of optional singular arguments (number is max count)
@@ -470,12 +506,7 @@ _args_usage_priority() {
 }
 
 _args_usage_build_vars() {
-	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return
-
-	_ARGS_FORMATS=()
-	_ARGS_FORMAT_INFO=()
-	_ARGS_VARS=()
-	_ARGS_ARRAYS=()
+	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	# TODO: calculate performance of word split vs manually using ${~~var}
 	zsh_run setopt SH_WORD_SPLIT
@@ -553,6 +584,7 @@ _args_usage_build_vars() {
 
 				*[^[:upper:]_]* )
 					local Temp="$Token"
+					# TODO: unless an array, symbol separators should have separate variables
 					while false && [[ "$Temp" = *[:upper:]_* ]]; do
 						# TODO: FIXME
 						Temp="${Temp%%[[:upper:]]*}${Temp#*[[:upper:]]}"
@@ -635,26 +667,15 @@ _args_usage_parse_token() {
 	fi
 }
 
-_args_build_parser() {
-	local Builder Format
-	if (( ${#_ARGS_FORMATS[@]} == 0 )); then
-		eval "$__Cache() { _OptCount=0; };"
-		return
-	fi
-
-	Builder+="
-	local Format=''
-	declare -a _ARGS_FORMATS=("
-	for x in "${_ARGS_FORMATS[@]}"; do
-		Builder+=$'\n"'"$x\""
-	done
+_args_build_parser_usage() {
+	((${#Usage[@]})) || return 0
 	Builder+='
-	)
+	local _ARGS_FORMAT=""
 	_args_usage_select_format "$@"
 
 	# ${@:slice} starts at 1
 	local __Arg=1
-	case "$Format" in
+	case "$_ARGS_FORMAT" in
 	'
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
 		Builder+="$i) "
@@ -684,13 +705,7 @@ _args_build_parser() {
 		Builder+=$';;\n'
 	done
 
-	Builder+="esac; ((_OptCount = __Arg - 1))"
-
-
-	if ! eval "$__Cache() { $Builder; }"; then
-		error "Eval failed! See computed builder below:"
-		echo >&2 "$Builder"
-	fi
+	Builder+="esac; ((_ARGS_COUNT = __Arg - 1))"
 }
 
 _args_dash_error() {
@@ -714,12 +729,12 @@ _args_usage_select_format() {
 				|| ("$#" = "$ArityMin" && "$ArityMin" = "$ArityMax")
 				|| ( "$ArityMax" != + && "$ArityMin" -le "$#" && "$#" -le "$ArityMax" )
 		]]; then
-			Format=$i
+			_ARGS_FORMAT=$i
 			OldPriority=$Priority
 		fi
 	done
 
-	if [[ -z "$Format" ]]; then
+	if [[ -z "$_ARGS_FORMAT" ]]; then
 		error -p 2 "Arguments did not match any usage strings. $(args_quoted "$@")"
 		print_doc -p 2
 		return 1
