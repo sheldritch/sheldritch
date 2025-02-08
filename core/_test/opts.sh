@@ -66,7 +66,7 @@ parsing_fails() {
 
 @func_info
 
-set -e -x
+set -e
 parse_args
 
 Options=(
@@ -138,24 +138,6 @@ eq "$String" words "$Second" 'arg'
 set -- --string=words --second=arg
 args_parse
 eq "$String" words "$Second" 'arg'
-
-
-echo success
-safe_quit
-
-set -- --one
-parse_args
-eq "$One" true
-set -- --no-one
-parse_args
-eq "$One" false
-set --
-parse_args
-eq "$One" ""
-set -- --one=true
-parse_args
-eq "$One" true
-
 
 set +e
 

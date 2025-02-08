@@ -40,9 +40,9 @@ set -- "${Args[@]}" "$@"
 '
 i=0
 for (( i=0; i < (${#WordsPascal[@]} / 2); i++)); do
-	printf '%s="%s"\n' "${WordsPascal[$i]}" "$((i + 1))"
+	printf '%s="${%s}"\n' "${WordsPascal[$i]}" "$((i + 1))"
 	((i++))
-	[[ $i = 9 ]] && break
+	#[[ $i = 9 ]] && break
 done
 
 echo '
@@ -57,7 +57,7 @@ if [[ "$Help" = true ]]; then
 fi
 '
 for Var in "${WordsPascal[@]:0:$i}"; do
-	echo "if [[ -n \$$Var ]]; then echo \"Argument '$Var' is set to \$$Var.\"; fi"
+	echo "if [[ -n \${$Var} ]]; then echo \"Argument '$Var' is set to \${$Var}.\"; fi"
 done
 
 echo '

@@ -118,8 +118,12 @@ sheldritch_args_example() {
 		# Any symbols within the variable name will split it into separate variables (here we get EqualsOrTarget, EqualsOrVal1 and EqualsOrVal2 all as separate variables)
 		'--equals-or=TARGET=VAL1||VAL2' 'show that multiple vars can be auto-parsed if separated by symbols (other than - or _)'
 
-		# PERFORMANCE: each additional option adds about 33 microseconds to command runtime
-		# If you expect your function to be run hundreds of times, consider parsing args manually:
+		# PERFORMANCE: @func_info has about 0.3 milliseconds initial overhead, plus 25 microseconds
+		# per flag.
+		# In comparison, manual parsing has about .04 milliseconds initial overhead, plus 13
+		# microseconds per flag.
+		#
+		# If you expect your function to be run hundreds of times in a row, consider parsing args manually:
 		# https://mywiki.wooledge.org/BashFAQ/035
 	)
 	args_parse
@@ -236,7 +240,6 @@ _args_name_to_variable() {
 
 _args_build_parser() {
 	local Cache="_ARGS_$__Source"
-	trap 'return 9' ERR
 
 	if [[ -z "${_ARGS_NO_CACHE:-}" ]] &&
 		declare -p ${BASH_VERSION:+-F} -f "$Cache" >/dev/null 2>/dev/null
@@ -246,15 +249,15 @@ _args_build_parser() {
 		# to invalidate cache
 		# Or, we maybe can detect if a file is `source`d outside of source_once (and also invalidate
 		# cache when source_once --force used)
-		return
+		return 0
 	fi
 
 	local Builder=''
-	_args_build_parser_opts
+	_args_build_parser_opts || return 9
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
-		_args_usage_build_vars
-		_args_build_parser_usage
+		_args_usage_build_vars || return 9
+		_args_build_parser_usage || return 9
 	fi
 
 	if ! eval "$Cache() { $Builder"$'\n }'; then
@@ -325,7 +328,7 @@ _args_build_parser_opts() {
 	fi
 
 	Builder+='
-	declare __Flag
+	declare __Flag __Val
 	while (($#)); do
 
 	if [[ "$1" != -* ]]; then
@@ -335,9 +338,13 @@ _args_build_parser_opts() {
 		continue
 	fi
 
-	declare __Flag="$1"
+	__Flag="$1"
 	if [[ "$__Flag" = --no-* ]]; then
 		__Flag="--${__Flag#--no-}=false"
+	fi
+	if [[ "$__Flag" = *=* ]]; then
+		__Val="${__Flag#*=}"
+		__Flag="${__Flag%%=*}"
 	fi
 	'
 
@@ -353,7 +360,7 @@ _args_build_parser_opts() {
 		fi
 
 		while [[ "$2" = -* ]]; do
-			Builder+=" $1 | $1=* |" 
+			Builder+=" $1 |"
 			shift
 		done
 
@@ -391,21 +398,23 @@ _args_build_parser_opts() {
 		# fi
 		# eval "$Name='$Value'"
 
-		Builder+=" ${1%%=*} | ${1%%=*}=* )"$'\n'
+		Builder+=" ${1%%=*} )"$'\n'
 
 		case "$Type" in
 			bool)
 				Builder+='
-				[[ "$__Flag" = *=* ]] && '$Name'="${__Flag#*=}" || '$Name'=true
+				'$Name'="${__Val-true}"
+				unset __Val
 
 				if ! [[ "$'$Name'" = true || "$'$Name'" == false ]]; then
-					error -p 1 "Flag '\''$Flag'\'' is boolean"
+					error -p 1 "Flag '\''$__Flag'\'' is boolean"
 					return 1
 				fi'
 				;;
 			string) Builder+='
-				if [[ "$__Flag" = *=* ]]; then
-					'$Name'="${__Flag#*=}";
+				if [[ -n "${__Val+x}" ]]; then
+					'$Name'="$__Val";
+					unset __Val
 					'"$Shift"'; continue;
 				fi
 				'$Name'="$2"
