@@ -119,6 +119,7 @@ opts_parse
 
 alias parse_opts=opts_parse
 
+# TODO: update to match current formatting
 sheldritch_args_example() {
 
 	# initialise the func_info framework
@@ -143,12 +144,12 @@ sheldritch_args_example() {
 		--print-vars "A boolean flag to enable the print-var feature. Boolean flags usually have no argument, but can support --<arg>=true/false or --no-<arg>"
 		# any number of flags can be provided, including single-letter flags.
 		# the final flag defines the boolean variable name (`printHelp` here)
-		-h '-?' --HALP --print-help "@func_info automatically defines a --help flag, so you don't need to define one yourself like we do here."
+		-h '-?' --HALP --print-help "@func_info automatically defines a --help flag, so you don't need to define one yourself like we do here (but can if you want)."
 
 		# note the declared value name EXAMPLE_TYPE. This is *always* on the last flag. This will create a variable called `exampleType`
 		-x --eg --example=EXAMPLE_TYPE "Print out what the option def format would look like for the given type"
 
-		# Any symbols within the variable name will split it into separate variables (here we get target, val1 and val2 all as separate variables)
+		# Any symbols within the variable name will split it into separate variables (here we get EqualsOrTarget, EqualsOrVal1 and EqualsOrVal2 all as separate variables)
 		'--equals-or=TARGET=VAL1||VAL2' 'show that multiple vars can be auto-parsed if separated by symbols (other than - or _)'
 
 		# PERFORMANCE: each additional option adds about 33 microseconds to command runtime
