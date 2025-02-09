@@ -502,6 +502,9 @@ _args_thinking_usage_priority() {
 }
 
 _args_usage_priority() {
+	# TODO: rework priority once special (literals and symbol-separated) arguments are managed with
+	# _ARGS_SPECIAL.
+	# We might end up relying on arity once special args are considered.
 	case "${1:-$Line}" in
 		# NOTE: the order of each case influences the priority here
 		*[[:lower:]]* ) Priority=5;;
@@ -674,6 +677,76 @@ _args_usage_parse_token() {
 		fi
 		RunType="$1"
 		RunCount=1
+	fi
+}
+
+_args_special_example() {
+declare -a Usage=(
+	'A B lita'
+	'C litb'
+)
+declare -A _ARGS_SPECIAL=(
+	[ArityMin0]=3
+	[ArityMax0]=3
+	[Arg0]=lita
+	[ArityMin0]=3
+	[ArityMax0]=3
+	[Arg0]=lita
+)
+
+
+}
+
+# We need to unpack all possible forms of arguments that have optional portions
+# This function is an example of how we might do so.
+_args_enumerate_internal_optionals() {
+	local Token="${1:-LEFT[+PLUS]=RIGHT[-MINUS[*TIMES]]}" Match
+
+	if [[ -z "$1" ]]; then
+		Token="${Token/\*/\\*}"
+		declare -a OptionalForms OptionalPatterns
+	fi
+
+	local Pre='' Optional='' Post="$Token"
+	Token=''
+	while ((${#Post})); do
+
+		local i Depth=0 Start=0
+		for ((i = 0; i < ${#Post}; i++)); do
+			case "${Post:i:1}" in
+				'[' )
+					if ((++Depth == 1)); then
+						Start=$((i + 1))
+						Token+="${Post:0:i}"
+					fi
+					;;
+				']' )
+					if ((--Depth == 0)); then
+						break
+					fi
+					;;
+			esac
+
+		done
+		if ((i == ${#Post})) then break; fi
+
+		Pre="${Pre}${Post:0:Start - 1}"
+		Optional="${Post:Start:i - Start}"
+		Post="${Post:i + 1:${#Post} - i}"
+		_args_enumerate_internal_optionals "${Pre}${Optional}${Post}"
+
+	done
+
+	Token+="$Post"
+	#if ! contains "$Token" "${OptionalForms[@]}"; then
+		OptionalForms+=("$Token")
+		replace "$Token" '[[:upper:]_]+' '*' >/dev/null
+		OptionalPatterns+=("$REPLY")
+	#fi
+
+	if [[ -z "$1" ]]; then
+		echo "Optional Forms ${OptionalForms[@]}"
+		echo "Optional Patterns ${OptionalPatterns[@]}"
 	fi
 }
 
