@@ -142,8 +142,9 @@ replace() {
 		shift 2
 	done
 	printf '%s\n' "$in"
+	REPLY="$in"
 }
-s() { replace "$@"; }
+s() { @func_passthrough; replace "$@"; }
 
 case_sep() {
 	local sep="$1"

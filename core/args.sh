@@ -9,6 +9,10 @@
 # later in this file
 
 # shellcheck disable=SC2154,SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031,SC2206
+#
+# https://github.com/vlisivka/bash-modules/blob/master/bash-modules/examples/showcase-arguments.sh#L16
+# Is a pretty cool alternative to this. I'll be stealing some of that functionality here (like extra
+# validation info in the doc string)
 
 source "$SHELDRITCH"/sheldritch.base.sh || return 1
 check_is_sourced
@@ -678,6 +682,166 @@ _args_usage_parse_token() {
 		RunType="$1"
 		RunCount=1
 	fi
+}
+
+# PRO TIP: Write a validator before you try and write a precedence selector
+
+# New approach:
+#
+# write a validator that records the change points between arguments, which can then be plugged into
+# the variable creation later on.
+# If multiple usage formats are valid, these lists can then be compared. The first number that
+# differs between valid formats, the lower one is given higher priority
+#
+# But first, write a basic runtime parser
+_args_parse_usage() {
+	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
+
+	declare -a Args=("$@")
+
+	local Name Line Token GlobEnabled BestMatch
+
+	declare -a Bounds=() BestBounds=()
+
+	[[ -o noglob ]] || GlobEnabled=1
+	set -o noglob
+	for ((LinePos = 0; LinePos < ${#Usage[@]}; LinePos++)); do
+		Line="${Usage[LinePos]}"
+		Bounds=()
+		if [[ "$Line" = \#* ]]; then
+			_ARGS_FORMATS+=('#')
+			_ARGS_FORMAT_INFO+=('#')
+			continue
+		fi
+
+		declare -a Tokens
+		if [[ -n "$ZSH_VERSION" ]]; then
+			Tokens=(${=Line})
+		else
+			Tokens=($Line)
+		fi
+		if _args_parse_usage_token 0 0; then
+
+			for ((i = 0; i < ${#Bounds[@]} && i < ${#BestBounds[@]}; i++)); do
+
+				if (( ${#Bounds[i]} < ${#BestBounds[i]} )); then
+					BestBounds=()
+					break
+				elif (( ${#Bounds[i]} > ${#BestBounds[i]} )); then
+					Bounds=()
+					break
+				fi
+			done
+			if ((${#Bounds[@]} > ${#BestBounds[@]})); then
+				BestBounds=("${Bounds[@]}")
+				BestMatch=$LinePos
+			fi
+		fi
+	done
+	[[ $GlobEnabled = 1 ]] && set +o noglob
+	args_quoted "${BestBounds[@]}"
+	((${#BestBounds[@]}))
+}
+
+# creates a new function call for each token
+# Not handling grouped tokens just yet
+_args_parse_usage_token() {
+	local TokenPos="$1" ArgPos="$2" Arg='' Token="$3"
+	Token="${Token:-${Tokens[TokenPos]}}"
+
+	while ((TokenPos < ${#Tokens[@]})); do
+		Bounds["$TokenPos"]=$ArgPos
+		Arg="${Args[ArgPos]}"
+
+		case "$Token" in
+			'{' | \"* | \'* )
+				error -p 1 "FUNCTION BUG: Token '$Token' in usage not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
+				return 9
+				;;
+
+			\[*\]  )
+				# SPLIT
+				# test with optional token
+				_args_parse_usage_token $TokenPos $ArgPos "${Token:1:${#Token} - 2}" && return
+				# and test without
+				_args_parse_usage_token $((TokenPos + 1)) $ArgPos
+				return $?
+				;;
+
+			*... )
+
+				local Run=$ArgPos Min=1
+				Token="${Token%...}"
+				if [[ "$Token" = \[*\] ]]; then
+					Token="${Token:1:${#Token} - 2}"
+					Min=0
+				fi
+
+				replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
+				Match="$REPLY"
+				if [[ "$Match" = '*' ]]; then
+					Run="${#Args[@]}"
+				fi
+				while ((Run < "${#Args[@]}")) && [[ "${Args[Run]}" = $Match ]]; do
+					((Run++))
+				done
+				# From the longest match downward, test validity
+				while (( Run > Min )); do
+					_args_parse_usage_token $((TokenPos + 1)) $((Run + 1)) && return
+					((Run--))
+				done
+				return 1
+				;;
+
+
+			\[*[^]] | [^]]*\] )
+				local Left='' Right='' Next="${Token}"
+				# TODO: this might be the wrong approach. e.g. given [A B], both A and B are
+				# separate tokens, just grouped.
+				# I guess I'll know once I get around to handling grouped args
+				while ((ArgPos < "${#Args[@]}")); do
+					# TODO: copy this logic into usage variable parsing, to catch bad brackets early
+					Left+="${Next//[^[]/}" Right+="${Next//[^]]/}"
+					if ((${#Left} < "${#Right}")); then
+						((ArgPos++))
+						Next="${Args[ArgPos]}"
+						Token+="$Next"
+						continue
+					fi
+					break
+				done
+
+				error -p 1 "FUNCTION BUG: Runs of optional arguments not currently supported. Please split into two usage lines"
+				return 9
+				;;
+
+			*[[:lower:]]* )
+
+				if [[ "$Arg" != $Token ]]; then
+					return 1
+				fi
+				((TokenPos++))
+				((ArgPos++))
+				Token="${Tokens[TokenPos]}"
+				continue
+				;;
+
+			* )
+				replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
+				Match="$REPLY"
+
+				if [[ "$Arg" != $Match ]]; then
+					return 1
+				fi
+				((TokenPos++))
+				((ArgPos++))
+				Token="${Tokens[TokenPos]}"
+				continue
+				;;
+
+		esac
+	done
+	((ArgPos == ${#Args[@]}))
 }
 
 _args_special_example() {
