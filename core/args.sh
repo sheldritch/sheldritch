@@ -25,6 +25,9 @@ function __main {
 # arg parsing frameworks
 #
 
+# NOTE: This file make heavy use of dynamically-scoped variables, to prevent the need of copying
+# arguments between functions.
+
 # aliases needs to be first to ensure later functions can use it
 alias @func_info='declare About="" ArgsReq="" _ARGS_PARSE_USAGE=""
 declare -a Usage=() Options=() Legend=()
@@ -42,7 +45,8 @@ alias @args_no_cache='declare _SET=_ARGS_NO_CACHE && @set'
 # shellcheck disable=SC2142
 alias opts_parse='
 	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0##/[^[:alnum:]]/_}}}"
-	declare -a _ARGS=() _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
+	# NOTE: _ARGS contains "$@"
+	declare -a _ARGS=("$@") _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
 		_ARGS_VARS=() _ARGS_ARRAYS=() _ARGS_OPTS=() _ARGS_OPTS_BOOL=()
 
 	[[ $- = *x* ]] && _ArgsSet+=x
@@ -54,17 +58,15 @@ alias opts_parse='
 	_args_build_parser
 	_ARGS_${__Source}_VARS
 
-	declare _ARGS_COUNT=0 _ARGS_RETURN='' "${_ARGS_VARS[@]}" "${_ARGS_OPTS[@]}" "${_ARGS_OPTS_BOOL[@]}"
+	declare _ARGS_RETURN='' "${_ARGS_VARS[@]}" "${_ARGS_OPTS[@]}" "${_ARGS_OPTS_BOOL[@]}"
 	if (( ${#_ARGS_ARRAYS[@]} )); then
 		declare -a "${_ARGS_ARRAYS[@]}"
 	fi
 
-	_ARGS_${__Source} "$@" || safe_quit
+	_ARGS_${__Source} || safe_quit
 	if [[ -n "$_ARGS_RETURN" ]]; then safe_quit; fi
 
-	# set by _ARGS_* funcs to show how many args to skip
-	shift "${_ARGS_COUNT:-0}"
-	set -- "${_ARGS[@]}" "$@"
+	set -- "${_ARGS[@]}" # modified by parsing function
 
     #if [[ -n "$ArgsReq" ]]; then
 	#	if ! var_is_declared ArgsReq; then
@@ -364,7 +366,6 @@ function _args_build_varcache {
 function _args_build_parser_opts {
 	zsh_run setopt SH_WORD_SPLIT
 
-	local Func="${1:-_Opts_$__Source}" Shift='((_ARGS_COUNT++)); shift'
 	if ! var_is_declared _ARGS_OPTS; then
 		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
 		ecode 9
@@ -376,17 +377,22 @@ function _args_build_parser_opts {
 	# So, we should iterate over a read-only array
 	# (TODO)
 	Builder+='
-	declare __Flag __Val
-	while (($#)); do
+	declare __Flag __Val __Pos=0 __Temp=0
+	declare -a __PosArgs=()
 
-	if [[ "$1" != -* ]]; then
+	while ((__Pos < "${#_ARGS[@]}")); do
+
+	if [[ "${_ARGS[@]:__Pos:1}" != -* ]]; then
+		__Temp=$__Pos
 		[[ "${_OPTIONS_PARSE_FIRST:-}" = 1 ]] && break
-		_ARGS+=("$1")
-		'"$Shift"'
+		while [[ "${_ARGS[@]:__Pos:1}" != -* ]] && ((__Pos < "${#_ARGS[@]}")); do
+			((__Pos++))
+		done
+		__PosArgs+=("${_ARGS[@]:__Temp:__Pos - __Temp}")
 		continue
 	fi
 
-	__Flag="$1"
+	__Flag="${_ARGS[@]:__Pos:1}"
 	if [[ "$__Flag" = --no-* ]]; then
 		__Flag="--${__Flag#--no-}=false"
 	fi
@@ -401,17 +407,17 @@ function _args_build_parser_opts {
 	# --Name=Tag
 	local Type='' Name='' Tag='' Opt=0
 	while ((Opt < "${#Options[@]}")); do
-		if ! [[ "${Options[Opt]}" = -* ]]; then
+		if ! [[ "${Options[@]:Opt:1}" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
 			error -p 3 "Rest of array is as follows: $(args_quoted "$@")"
 			return 9
 		fi
 
-		while [[ "${Options[Opt + 1]}" = -* ]]; do
-			Builder+=" ${Options[Opt]} |"
+		while [[ "${Options[@]:Opt + 1:1}" = -* ]]; do
+			Builder+=" ${Options[@]:Opt:1} |"
 			((Opt++))
 		done
-		Name="${Options[Opt]}"
+		Name="${Options[@]:Opt:1}"
 
 		if [[ "$Name" = *=* ]]; then
 			Type=string
@@ -448,8 +454,7 @@ function _args_build_parser_opts {
 
 		case "$Type" in
 			bool)
-				replace "$Name" '[^[:alnum:]]+' '= '
-				_ARGS_OPTS_BOOL+=($REPLY=)
+				_ARGS_OPTS_BOOL+=($Name=)
 				Builder+='
 				'$Name'="${__Val-true}"
 				unset __Val
@@ -460,15 +465,16 @@ function _args_build_parser_opts {
 				fi'
 				;;
 			string)
-				_ARGS_OPTS+=(${Name//[^[:alnum:]]/= }'=')
+				_ARGS_OPTS+=($Name=)
 				Builder+='
 				if [[ -n "${__Val+x}" ]]; then
 					'$Name'="$__Val";
 					unset __Val
-					'"$Shift"'; continue;
+					((__Pos++)); continue;
 				fi
 				'$Name'="$2"
-				'"$Shift"
+				((__Pos++))
+				'
 				;;
 		esac
 		((Opt++))
@@ -493,7 +499,7 @@ function _args_build_parser_opts {
 		done <<<"${Options[Opt]%%-*}"
 
 		Builder+="
-			$Shift;;
+		((__Pos++));;
 		"
 
 		((Opt++))
@@ -507,8 +513,8 @@ function _args_build_parser_opts {
 		return 0
 		;;
 	-- )
-		declare _ARGS_BREAK=1
-		'"$Shift"'
+		_ARGS_BREAK=1
+		((__Pos++))
 		break
 		;;
 	* )
@@ -522,7 +528,7 @@ function _args_build_parser_opts {
 	esac
 	done
 
-	set -- "${_ARGS[@]}" "$@"
+	_ARGS=("${__PosArgs[@]}" "${_ARGS[@]:__Pos: ${#_ARGS[@]} - __Pos}")
 	'
 }
 
@@ -764,8 +770,6 @@ function _args_usage_parse_token {
 function _args_parse_usage {
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
-	declare -a Args=("$@")
-
 	local Name Line Token GlobEnabled BestMatch
 
 	declare -a Bounds=() BestBounds=()
@@ -773,7 +777,7 @@ function _args_parse_usage {
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
 	for ((LinePos = 0; LinePos < ${#Usage[@]}; LinePos++)); do
-		Line="${Usage[LinePos]}"
+		Line="${Usage[@]:LinePos:1}"
 		Bounds=()
 		if [[ "$Line" = \#* ]]; then
 			_ARGS_FORMATS+=('#')
@@ -791,10 +795,10 @@ function _args_parse_usage {
 
 			for ((i = 0; i < ${#Bounds[@]} && i < ${#BestBounds[@]}; i++)); do
 
-				if (( ${#Bounds[i]} < ${#BestBounds[i]} )); then
+				if (( ${#Bounds[@]:i:1} < ${#BestBounds[@]:i:1} )); then
 					BestBounds=()
 					break
-				elif (( ${#Bounds[i]} > ${#BestBounds[i]} )); then
+				elif (( ${#Bounds[@]:i:1} > ${#BestBounds[@]:i:1} )); then
 					Bounds=()
 					break
 				fi
@@ -814,11 +818,11 @@ function _args_parse_usage {
 # Not handling grouped tokens just yet
 function _args_parse_usage_token {
 	local TokenPos="$1" ArgPos="$2" Arg='' Token="$3"
-	Token="${Token:-${Tokens[TokenPos]}}"
+	Token="${Token:-${Tokens[@]:TokenPos:1}}"
 
 	while ((TokenPos < ${#Tokens[@]})); do
 		Bounds["$TokenPos"]=$ArgPos
-		Arg="${Args[ArgPos]}"
+		Arg="${_ARGS[@]:ArgPos:1}"
 
 		case "$Token" in
 			'{' | \"* | \'* )
@@ -847,9 +851,9 @@ function _args_parse_usage_token {
 				replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
 				Match="$REPLY"
 				if [[ "$Match" = '*' ]]; then
-					Run="${#Args[@]}"
+					Run="${#_ARGS[@]}"
 				fi
-				while ((Run < "${#Args[@]}")) && [[ "${Args[Run]}" = $Match ]]; do
+				while ((Run < "${#_ARGS[@]}")) && [[ "${_ARGS[@]:Run:1}" = $Match ]]; do
 					((Run++))
 				done
 				# From the longest match downward, test validity
@@ -862,16 +866,21 @@ function _args_parse_usage_token {
 
 
 			\[*[^]] | [^]]*\] )
-				local Left='' Right='' Next="${Token}"
+				local Left=0 Right=0 Next="${Token}"
 				# TODO: this might be the wrong approach. e.g. given [A B], both A and B are
 				# separate tokens, just grouped.
 				# I guess I'll know once I get around to handling grouped args
-				while ((ArgPos < "${#Args[@]}")); do
+				while ((ArgPos < "${#_ARGS[@]}")); do
 					# TODO: copy this logic into usage variable parsing, to catch bad brackets early
-					Left+="${Next//[^[]/}" Right+="${Next//[^]]/}"
-					if ((${#Left} < "${#Right}")); then
+					for ((s = 0; s < ${#Next}; s++)); do
+						case ${Next:s:1} in
+							\[ ) ((Left++));;
+							\] ) ((Right++));;
+						esac
+					done
+					if ((Left < Right)); then
 						((ArgPos++))
-						Next="${Args[ArgPos]}"
+						Next="${_ARGS[@]:ArgPos:1}"
 						Token+="$Next"
 						continue
 					fi
@@ -889,7 +898,7 @@ function _args_parse_usage_token {
 				fi
 				((TokenPos++))
 				((ArgPos++))
-				Token="${Tokens[TokenPos]}"
+				Token="${Tokens[@]:TokenPos:1}"
 				continue
 				;;
 
@@ -902,13 +911,13 @@ function _args_parse_usage_token {
 				fi
 				((TokenPos++))
 				((ArgPos++))
-				Token="${Tokens[TokenPos]}"
+				Token="${Tokens[@]:TokenPos:1}"
 				continue
 				;;
 
 		esac
 	done
-	((ArgPos == ${#Args[@]}))
+	((ArgPos == ${#_ARGS[@]}))
 }
 
 function _args_special_example {
@@ -984,12 +993,10 @@ function _args_enumerate_internal_optionals {
 function _args_build_parser_usage {
 	((${#Usage[@]})) || return 0
 	Builder+='
-	_ARGS=()
+	__Pos=0
 	local _ARGS_FORMAT=""
-	_args_usage_select_format "$@"
+	_args_usage_select_format
 
-	# ${@:slice} starts at 1
-	local __Arg=1
 	case "$_ARGS_FORMAT" in
 	'
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
@@ -999,19 +1006,19 @@ function _args_build_parser_usage {
 			Builder+="error -p 1 'INTERNAL ERROR: chosen usage line $i is a comment!'; return 9 ;;"
 		fi
 
-		local __Arg=1 Name
+		local __Pos=1 Name
 		for Token in ${Usage[@]:$i:1}; do
 			_args_name_to_variable "$Token"
 			Name="${Name//[^[:alnum:]]/}"
 			case "$Token" in
 				*...)
 					# TODO: If token is ARG..., check the next value to see what you might need to stop at
-					Builder+="$Name"$'=("${@:$__Arg:$# - $__Arg + 1}")\n((__Arg = $# + 1))\n'
+					Builder+="$Name"$'=("${_ARGS[@]:$__Pos}")\n'
 					;;
 				* )
 					Builder+="
-					$Name"'="${@:$__Arg:1}"
-					((__Arg++))'"
+					$Name"'="${_ARGS[@]:__Pos:1}"
+					((__Pos++))'"
 					[[ -n \${_ARGS_BREAK:-} && \$$Name = -* ]] && _args_dash_error $Name \$$Name && return 1"$'\n'
 					;;
 			esac
@@ -1020,7 +1027,7 @@ function _args_build_parser_usage {
 		Builder+=$';;\n'
 	done
 
-	Builder+="esac; ((_ARGS_COUNT = __Arg - 1))"
+	Builder+="esac; _ARGS=()"
 }
 
 function _args_dash_error {
@@ -1041,8 +1048,8 @@ function _args_usage_select_format {
 
 		if [[
 			( "$ArityMax" = + )
-				|| ("$#" = "$ArityMin" && "$ArityMin" = "$ArityMax")
-				|| ( "$ArityMax" != + && "$ArityMin" -le "$#" && "$#" -le "$ArityMax" )
+				|| ("${#_ARGS[@]}" = "$ArityMin" && "$ArityMin" = "$ArityMax")
+				|| ( "$ArityMax" != + && "$ArityMin" -le "${#_ARGS[@]}" && "${#_ARGS[@]}" -le "$ArityMax" )
 		]]; then
 			_ARGS_FORMAT=$i
 			OldPriority=$Priority
