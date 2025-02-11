@@ -64,6 +64,7 @@ alias opts_parse='
 
 	# set by _ARGS_* funcs to show how many args to skip
 	shift "${_ARGS_COUNT:-0}"
+	set -- "${_ARGS[@]}" "$@"
 
     #if [[ -n "$ArgsReq" ]]; then
 	#	if ! var_is_declared ArgsReq; then
@@ -955,6 +956,7 @@ function _args_enumerate_internal_optionals {
 function _args_build_parser_usage {
 	((${#Usage[@]})) || return 0
 	Builder+='
+	_ARGS=()
 	local _ARGS_FORMAT=""
 	_args_usage_select_format "$@"
 
