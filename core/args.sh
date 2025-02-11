@@ -27,7 +27,7 @@ function __main {
 
 # aliases needs to be first to ensure later functions can use it
 alias @func_info='declare About="" ArgsReq="" _ARGS_PARSE_USAGE=""
-declare -a Usage=() Options=() Settings=()
+declare -a Usage=() Options=() Legend=()
 '
 
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
@@ -300,6 +300,8 @@ function _args_build_parser {
 		_args_build_parser_usage || return 9
 	fi
 
+	_args_build_parser_legend || return 9
+
 	if ! eval "$Cache() { $Builder"$'\n }'; then
 		error "Eval failed! See computed builder below:
 		$Builder
@@ -360,6 +362,8 @@ function _args_build_varcache {
 }
 
 function _args_build_parser_opts {
+	zsh_run setopt SH_WORD_SPLIT
+
 	local Func="${1:-_Opts_$__Source}" Shift='((_ARGS_COUNT++)); shift'
 	if ! var_is_declared _ARGS_OPTS; then
 		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
@@ -394,38 +398,40 @@ function _args_build_parser_opts {
 
 	Builder+=$'case "$__Flag" in\n'
 
-	local Type Name
-	set -- "${Options[@]}"
-	while (($#)); do
-		if ! [[ "$1" = -* ]]; then
+	# --Name=Tag
+	local Type='' Name='' Tag='' Opt=0
+	while ((Opt < "${#Options[@]}")); do
+		if ! [[ "${Options[Opt]}" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
 			error -p 3 "Rest of array is as follows: $(args_quoted "$@")"
 			return 9
 		fi
 
-		while [[ "$2" = -* ]]; do
-			Builder+=" $1 |"
-			shift
+		while [[ "${Options[Opt + 1]}" = -* ]]; do
+			Builder+=" ${Options[Opt]} |"
+			((Opt++))
 		done
+		Name="${Options[Opt]}"
 
-		if [[ "$1" = *=* ]]; then
+		if [[ "$Name" = *=* ]]; then
 			Type=string
 			# TODO: Implement array flags. will need some opinionated designing.
 			# probably, all bash arguments until the next /^-/ are part of the array,
 			# but this is escapable with '\-'
-			if [[ "$1" = *... ]]; then
-				error -p 1 "'$1' elipsis format currently unsupported :("
+			if [[ "$Name" = *... ]]; then
+				error -p 1 "'$Name' elipsis format currently unsupported :("
 				return 9
 			fi
 
-			Name="${1%%=*}"
+			Tag="${Name#*=}"
+			Name="${Name%%=*}"
 		else
 			Type=bool
-			Name="$1"
 		fi
 		_args_name_to_variable "${Name#-}" # function handles possible leading '-'
 
-		# if [[ "$Type" = string && "$Name" = *[^[:alnum:]_]* ]]; then
+		# TODO: handle separators in the tag
+		# if [[ "$Tag" = *[^[:alnum:]_]* ]]; then
 		# 	while rematch "$Name" '[^[:alnum:]_]+' >/dev/null; do
 		# 		local Separator="$REPLY"
 
@@ -438,11 +444,12 @@ function _args_build_parser_opts {
 		# fi
 		# eval "$Name='$Value'"
 
-		Builder+=" ${1%%=*} )"$'\n'
+		Builder+=" ${Options[Opt]%%=*} )"$'\n'
 
 		case "$Type" in
 			bool)
-				_ARGS_OPTS_BOOL+=(${Name//[^[:alnum:]]/= }'=')
+				replace "$Name" '[^[:alnum:]]+' '= '
+				_ARGS_OPTS_BOOL+=($REPLY=)
 				Builder+='
 				'$Name'="${__Val-true}"
 				unset __Val
@@ -464,11 +471,32 @@ function _args_build_parser_opts {
 				'"$Shift"
 				;;
 		esac
+		((Opt++))
+
+		# read predicate requirements from docstring
+		local Predicate='' Test='' Error=''
+		while read -d ';' Predicate; do
+			case "${Predicate# }" in
+				# TODO: populate with
+				int | integer )
+					Test="[[ \"\$$Name\" =~ [0-9]+ ]]"
+					Error='Flag "$__Flag" must be an integer.'
+					;;
+				#\(\(*\)\) ) ;;
+				* ) break
+			esac
+			Builder+="
+				if ! $Test; then
+					error -p 1 \"$Error\"
+				fi
+			"
+		done <<<"${Options[Opt]%%-*}"
+
 		Builder+="
 			$Shift;;
 		"
 
-		shift; shift # throw away the docstring
+		((Opt++))
 	done
 
 
@@ -1028,6 +1056,12 @@ function _args_usage_select_format {
 	fi
 }
 
+function _args_build_parser_legend {
+	# TODO: stub
+	# should pull fields out of the legend to validate, based on variables
+	return
+}
+
 zsh_run unsetopt GLOB
 
 # Shorthand structure for defining arguments
@@ -1207,6 +1241,11 @@ function print_options {
 }
 
 function print_doc {
+	local _ArgsSet=''
+	[[ $- = *x* ]] && _ArgsSet+=x
+	[[ $- = *u* ]] && _ArgsSet+=u
+	${_ArgsSet:+set +$_ArgsSet}
+
 	# run docs in subshell so we don't clobber variables
 	[[ "$(@func_info
 		About='print semantically-structured docs from standardised variables'
@@ -1252,6 +1291,7 @@ function print_doc {
 		{ funcname -p 1 -q && print_args -f "$(funcname -p 1)" || print_args; } 2>&1
 	fi
 
+	${_ArgsSet:+set -$_ArgsSet}
 }
 
 function print_usage {
