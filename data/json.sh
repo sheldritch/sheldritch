@@ -89,7 +89,7 @@ function json_it {
 	esac
 }
 
-json2vars() {
+function json2vars {
 	@func_info
 	About='Extract values from the given JSON object into the specified versions.
 
@@ -103,8 +103,16 @@ json2vars() {
 		-f --filter=FILTER   "jq to apply to the JSON before retrieving values"
 		-c --check           "ensure that each variable is set"
 	)
-	ArgsReq='__Json'
 	opts_parse
+
+	declare __Json="$1"
+	shift
+
+	if [[ -z "${__Json}" ]]; then
+		error "No JSON supplied."
+		print_doc
+		return 1
+	fi
 
 	if [[ -n "$Dict" ]]; then
 		error 'associative array support not currently implemented. Sorry!'
