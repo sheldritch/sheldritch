@@ -3,7 +3,7 @@
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/core/args
 summon sheldritch/data/types
-trap 'STACKTRACE=1; error FAILED; Fail=1' ERR
+trap '{ STACKTRACE=1; error FAILED; Fail=1 } || true' ERR
 
 declare _ARGS_NO_CACHE=1
 
@@ -81,6 +81,7 @@ eval "f() {
 set -- --one
 args_parse
 eq "$One" true
+echo i
 
 set -- --one=true
 args_parse

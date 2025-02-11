@@ -131,8 +131,9 @@ if [[ -v ZSH_VERSION ]]; then
 		printf "%s" "$REPLY"
 	}
 	function recapture {
+		setopt KSH_ARRAYS
 		# shellcheck disable=SC2124
-		REPLY="${match[@]:$1 - 1:1}"
+		REPLY="${match[$1 - 1]}"
 		printf "%s" "$REPLY"
 	}
 	return

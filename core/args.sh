@@ -373,7 +373,7 @@ function _args_build_varcache {
 }
 
 function _args_build_parser_opts {
-	zsh_run setopt SH_WORD_SPLIT
+	zsh_run setopt SH_WORD_SPLIT KSH_ARRAYS
 
 	if ! var_is_declared _ARGS_OPTS; then
 		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
@@ -393,17 +393,17 @@ function _args_build_parser_opts {
 
 	while ((__Pos < "${#_ARGS[@]}")); do
 
-	if [[ "${_ARGS[@]:__Pos:1}" != -* ]]; then
+	if [[ "${_ARGS[__Pos]}" != -* ]]; then
 		__Temp=$__Pos
 		[[ "${_OPTIONS_PARSE_FIRST:-}" = 1 ]] && break
-		while [[ "${_ARGS[@]:__Pos:1}" != -* ]] && ((__Pos < "${#_ARGS[@]}")); do
-			((__Pos++))
+		while [[ "${_ARGS[__Pos]}" != -* ]] && ((__Pos < "${#_ARGS[@]}")); do
+			((++__Pos))
 		done
 		__PosArgs+=("${_ARGS[@]:__Temp:__Pos - __Temp}")
 		continue
 	fi
 
-	__Flag="${_ARGS[@]:__Pos:1}"
+	__Flag="${_ARGS[__Pos]}"
 	if [[ "$__Flag" = --no-* ]]; then
 		__Flag="--${__Flag#--no-}=false"
 	fi
@@ -418,17 +418,17 @@ function _args_build_parser_opts {
 	# --Name=Tag
 	local Type='' Name='' Tag='' Opt=0
 	while ((Opt < "${#Options[@]}")); do
-		if ! [[ "${Options[@]:Opt:1}" = -* ]]; then
+		if ! [[ "${Options[Opt]}" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
 			error -p 3 "Rest of array is as follows: $(args_quoted "$@")"
 			return 9
 		fi
 
-		while [[ "${Options[@]:Opt + 1:1}" = -* ]]; do
-			Builder+=" ${Options[@]:Opt:1} |"
-			((Opt++))
+		while [[ "${Options[Opt + 1]}" = -* ]]; do
+			Builder+=" ${Options[Opt]} |"
+			((++Opt))
 		done
-		Name="${Options[@]:Opt:1}"
+		Name="${Options[Opt]}"
 
 		if [[ "$Name" = *=* ]]; then
 			Type=string
@@ -614,7 +614,11 @@ function _args_usage_build_vars {
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	# TODO: calculate performance of word split vs manually using ${~~var}
-	zsh_run setopt SH_WORD_SPLIT
+	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
+	local GlobEnabled=''
+	[[ -o noglob ]] || GlobEnabled=1
+	set -o noglob
+	bash_run trap '[[ $GlobEnabled = 1 ]] && set +o noglob' RETURN
 
 	# calculate a format summary of each usage. This is used to distinguish one usage line from
 	# another in parsing
@@ -714,21 +718,21 @@ function _args_usage_build_vars {
 	# Compare the computed formats to check that no usage line conflicts with another
 	local i j
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
-		[[ "${_ARGS_FORMATS[@]:$i:1}" = \#* ]] && continue
-		read ArityMinI ArityMaxI InfoI <<<"${_ARGS_FORMAT_INFO[@]:$i:1}"
+		[[ "${_ARGS_FORMATS[$i]}" = \#* ]] && continue
+		read ArityMinI ArityMaxI InfoI <<<"${_ARGS_FORMAT_INFO[$i]}"
 		for ((j=i + 1; j < ${#_ARGS_FORMATS[@]}; j++)); do
-			read ArityMinJ ArityMaxJ InfoJ <<<"${_ARGS_FORMAT_INFO[@]:$j:1}"
+			read ArityMinJ ArityMaxJ InfoJ <<<"${_ARGS_FORMAT_INFO[$j]}"
 			if [[
 				# TODO: literals and symbol arguments will need more complex logic here
 				( $InfoI = $InfoJ && (
 					   ($ArityMinI -ge $ArityMinJ && $ArityMinI -le $ArityMaxJ)
 					|| ($ArityMaxI -ge $ArityMinJ && $ArityMaxI -le $ArityMaxJ)
 				))
-				|| ("${_ARGS_FORMATS[@]:$i:1}" = "${_ARGS_FORMATS[@]:$j:1}")
+				|| ("${_ARGS_FORMATS[$i]}" = "${_ARGS_FORMATS[$j]}")
 			]]; then
 				error -p 1 "$(deindent "FUNCTION BUG: The following usage lines are ambiguous!
-				${Usage[@]:$i:1}
-				${Usage[@]:$j:1}
+				${Usage[$i]}
+				${Usage[$j]}
 				Either distinguish them with flags or other literals, or use 'opts_parse' and manually parse positional args yourself.")"
 				return 9
 			fi
@@ -783,6 +787,7 @@ function _args_usage_parse_token {
 #
 # But first, write a basic runtime parser
 function _args_parse_usage {
+	zsh_run setopt KSH_ARRAYS
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	local Name='' Line='' Token='' GlobEnabled='' BestMatch=''
@@ -792,7 +797,7 @@ function _args_parse_usage {
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
 	for ((LinePos = 0; LinePos < ${#Usage[@]}; LinePos++)); do
-		Line="${Usage[@]:LinePos:1}"
+		Line="${Usage[LinePos]}"
 		Bounds=()
 		if [[ "$Line" = \#* ]]; then
 			_ARGS_FORMATS+=('#')
@@ -810,10 +815,10 @@ function _args_parse_usage {
 
 			for ((i = 0; i < ${#Bounds[@]} && i < ${#BestBounds[@]}; i++)); do
 
-				if (( ${#Bounds[@]:i:1} < ${#BestBounds[@]:i:1} )); then
+				if (( ${#Bounds[i]} < ${#BestBounds[i]} )); then
 					BestBounds=()
 					break
-				elif (( ${#Bounds[@]:i:1} > ${#BestBounds[@]:i:1} )); then
+				elif (( ${#Bounds[i]} > ${#BestBounds[i]} )); then
 					Bounds=()
 					break
 				fi
@@ -832,12 +837,13 @@ function _args_parse_usage {
 # creates a new function call for each token
 # Not handling grouped tokens just yet
 function _args_parse_usage_token {
+	zsh_run setopt KSH_ARRAYS
 	local TokenPos="$1" ArgPos="$2" Arg='' Token="$3"
-	Token="${Token:-${Tokens[@]:TokenPos:1}}"
+	Token="${Token:-${Tokens[TokenPos]}}"
 
 	while ((TokenPos < ${#Tokens[@]})); do
 		Bounds["$TokenPos"]=$ArgPos
-		Arg="${_ARGS[@]:ArgPos:1}"
+		Arg="${_ARGS[ArgPos]}"
 
 		case "$Token" in
 			'{' | \"* | \'* )
@@ -868,7 +874,7 @@ function _args_parse_usage_token {
 				if [[ "$Match" = '*' ]]; then
 					Run="${#_ARGS[@]}"
 				fi
-				while ((Run < "${#_ARGS[@]}")) && [[ "${_ARGS[@]:Run:1}" = $Match ]]; do
+				while ((Run < "${#_ARGS[@]}")) && [[ "${_ARGS[Run]}" = $Match ]]; do
 					((++Run))
 				done
 				# From the longest match downward, test validity
@@ -895,7 +901,7 @@ function _args_parse_usage_token {
 					done
 					if ((Left < Right)); then
 						((++ArgPos))
-						Next="${_ARGS[@]:ArgPos:1}"
+						Next="${_ARGS[ArgPos]}"
 						Token+="$Next"
 						continue
 					fi
@@ -913,7 +919,7 @@ function _args_parse_usage_token {
 				fi
 				((++TokenPos))
 				((++ArgPos))
-				Token="${Tokens[@]:TokenPos:1}"
+				Token="${Tokens[TokenPos]}"
 				continue
 				;;
 
@@ -926,7 +932,7 @@ function _args_parse_usage_token {
 				fi
 				((++TokenPos))
 				((++ArgPos))
-				Token="${Tokens[@]:TokenPos:1}"
+				Token="${Tokens[TokenPos]}"
 				continue
 				;;
 
@@ -1007,6 +1013,7 @@ function _args_enumerate_internal_optionals {
 
 function _args_build_parser_usage {
 	((${#Usage[@]})) || return 0
+	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 	Builder+='
 	__Pos=0
 	local _ARGS_FORMAT=""
@@ -1017,12 +1024,12 @@ function _args_build_parser_usage {
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
 		Builder+="$i) "
 
-		if [[ "${_ARGS_FORMATS[@]:$i:1}" = \#* ]]; then
+		if [[ "${_ARGS_FORMATS[$i]}" = \#* ]]; then
 			Builder+="error -p 1 'INTERNAL ERROR: chosen usage line $i is a comment!'; return 9 ;;"
 		fi
 
 		local __Pos=1 Name=''
-		for Token in ${Usage[@]:$i:1}; do
+		for Token in ${Usage[$i]}; do
 			_args_name_to_variable "$Token"
 			Name="${Name//[^[:alnum:]]/}"
 			case "$Token" in
@@ -1032,7 +1039,7 @@ function _args_build_parser_usage {
 					;;
 				* )
 					Builder+="
-					$Name"'="${_ARGS[@]:__Pos:1}"
+					$Name"'="${_ARGS[__Pos]}"
 					((++__Pos))'"
 					[[ -n \${_ARGS_BREAK:-} && \$$Name = -* ]] && _args_dash_error $Name \$$Name && return 1"$'\n'
 					;;
@@ -1050,13 +1057,14 @@ function _args_dash_error {
 }
 
 function _args_usage_select_format {
+	zsh_run setopt KSH_ARRAYS
 	local i OldPriority=0
 	local ArityMin='' ArityMax='' Priority='' SubPriority='' FirstLiteral='' LiteralArity=''
 
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
 
-		read ArityMin ArityMax Priority SubPriority FirstLiteral LiteralArity <<<"${_ARGS_FORMAT_INFO[@]:$i:1}"
-		if [[ "$-" = *x* ]]; then echo >&2 "${_ARGS_FORMAT_INFO[@]:$i:1}"; fi
+		read ArityMin ArityMax Priority SubPriority FirstLiteral LiteralArity <<<"${_ARGS_FORMAT_INFO[$i]}"
+		if [[ "$-" = *x* ]]; then echo >&2 "${_ARGS_FORMAT_INFO[$i]}"; fi
 		[[ "$ArityMin" = \#* ]] && continue
 
 		if ((OldPriority > Priority)); then continue; fi

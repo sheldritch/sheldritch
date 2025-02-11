@@ -25,6 +25,7 @@ function funcs {
 # `funcname` should not use any other helper functions to avoid recursion
 # except where explicitly commented
 function funcname {
+	zsh_run setopt KSH_ARRAYS
 	local quiet parent=0
 	while [[ $# -gt 0 ]]; do case "$1" in
 		-q | --quiet) quiet=true
@@ -47,10 +48,10 @@ function funcname {
 
 	parent="$((parent + 1))" # this function, `funcname`, counts as an additional layer
 
-	local parentFunc="${FUNCNAME[$parent]}${funcstack[@]:$parent:1}"
+	local parentFunc="${FUNCNAME[$parent]}${funcstack[$parent]}"
 	if [[ -z "$parentFunc" || "$parentFunc" = source ]] ||
 		# Happens when run in shell script
-		[[ "$parentFunc" = main && -z "${FUNCNAME[$(($parent + 1))]}${funcstack[@]:parent + 1:1}" ]]
+		[[ "$parentFunc" = main && -z "${FUNCNAME[$(($parent + 1))]}${funcstack[parent + 1]}" ]]
 	then
 		[[ "$quiet" = true ]] || echo >&2 "Error: funcname: no shell function found."
 		return 1
