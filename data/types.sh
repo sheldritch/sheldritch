@@ -51,7 +51,7 @@ function funcname {
 	local parentFunc="${FUNCNAME[$parent]}${funcstack[$parent]}"
 	if [[ -z "$parentFunc" || "$parentFunc" = source ]] ||
 		# Happens when run in shell script
-		[[ "$parentFunc" = main && -z "${FUNCNAME[$(($parent + 1))]}${funcstack[parent + 1]}" ]]
+		[[ "$parentFunc" = main && -z "${FUNCNAME[parent + 1]}${funcstack[parent + 1]}" ]]
 	then
 		[[ "$quiet" = true ]] || echo >&2 "Error: funcname: no shell function found."
 		return 1

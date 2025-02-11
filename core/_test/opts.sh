@@ -81,7 +81,6 @@ eval "f() {
 set -- --one
 args_parse
 eq "$One" true
-echo i
 
 set -- --one=true
 args_parse

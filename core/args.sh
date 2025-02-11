@@ -294,33 +294,31 @@ function _args_build_parser {
 		return 0
 	fi
 
-	{
 	local Builder='' GlobEnabled=''
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
+	trap '
+	[[ $GlobEnabled = 1 ]] && set +o noglob
+	' ERR
 
-	_args_build_parser_opts || return 9
+	_args_build_parser_opts &&
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
 		_args_usage_build_vars || return 9
 		_args_build_parser_usage || return 9
-	fi
+	fi &&
 
-	_args_build_parser_legend || return 9
+	_args_build_parser_legend &&
 
 	if ! eval "$Cache() { $Builder"$'\n }'; then
 		error "Eval failed! See computed builder below:
 		$Builder
 		"
 		return 9
-	fi
-	} || {
-		[[ $GlobEnabled = 1 ]] && set +o noglob
-		return 9
-	}
-	[[ $GlobEnabled = 1 ]] && set +o noglob
+	fi &&
 
-	_args_build_varcache
+	_args_build_varcache || return 9
+	[[ $GlobEnabled = 1 ]] && set +o noglob
 }
 
 function _args_build_varcache {
