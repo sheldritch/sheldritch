@@ -7,7 +7,7 @@ check_is_sourced
 summon sheldritch/util/complete
 summon sheldritch/data/text
 
-history_delve() {
+function history_delve {
 
 	if [[ "$1" = --force ]]; then
 		rm "$File" 2>/dev/null
@@ -33,4 +33,4 @@ history_delve() {
 	fi
 	source "$File"
 }
-hdelv() { @func_passthrough; history_delve "$@"; }
+function hdelv { @func_passthrough; history_delve "$@"; }

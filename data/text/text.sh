@@ -8,7 +8,7 @@ summon sheldritch/core/args.sh
 summon sheldritch/core/compat.sh
 summon sheldritch/data/types.sh
 
-deindent() {
+function deindent {
 	@func_info
 	About="prints lines from stdin, deindented from the given first line"
 	args_parse
@@ -21,7 +21,7 @@ deindent() {
 	fi
 }
 
-lines() {
+function lines {
 	local about='Count lines. Any text past the final newline counts as a line, unlike raw `wc -l`'
 	@DEFAULT_ARGS
 
@@ -41,7 +41,7 @@ lines() {
 	echo "$REPLY"
 }
 
-lines_eq() {
+function lines_eq {
 	if [[ "$1" = *[^0-9]* ]]; then
 		error -p 1 'First argument must be an integer!!!'
 		sleep 3
@@ -51,7 +51,7 @@ lines_eq() {
 	((REPLY = $1))
 }
 
-lines_gt() {
+function lines_gt {
 	if [[ "$1" = *[^0-9]* ]]; then
 		error -p 1 'First argument must be an integer!!!'
 		sleep 3
@@ -61,7 +61,7 @@ lines_gt() {
 	((REPLY > $1))
 }
 
-lines_lt() {
+function lines_lt {
 	if [[ "$1" = *[^0-9]* ]]; then
 		error -p 1 'First argument must be an integer!!!'
 		sleep 3
@@ -71,19 +71,19 @@ lines_lt() {
 	((REPLY < $1))
 }
 
-lines_one() {
+function lines_one {
 	lines_eq 1 "$@"
 }
 
-lines_none() {
+function lines_none {
 	lines_eq 0 "$@"
 }
 
-lines_multi() {
+function lines_multi {
 	lines_gt 1 "$@"
 }
 
-tgrep() {
+function tgrep {
 	local input
 	input="$(cat)" || return $?
 
@@ -93,7 +93,7 @@ tgrep() {
 
 # This function is very optimised for short, frequent runs
 # so excuse the weird structure
-replace() {
+function replace {
 
 	local in="$1"
 	shift
@@ -144,9 +144,9 @@ replace() {
 	printf '%s\n' "$in"
 	REPLY="$in"
 }
-s() { @func_passthrough; replace "$@"; }
+function s { @func_passthrough; replace "$@"; }
 
-case_sep() {
+function case_sep {
 	local sep="$1"
 	shift || return 9
 	local x="${*//[-_., ]/$sep}"
@@ -160,30 +160,30 @@ case_sep() {
 	fi
 }
 
-case_snake() {
+function case_snake {
 	case_sep _ "$*"
 }
 
-case_big_snake() {
+function case_big_snake {
 	local x
 	x="$(case_sep _ "$*")"
 	echo "${x^^}"
 }
 
-case_kebab() {
+function case_kebab {
 	case_sep - "$*"
 }
 
-case_camel() {
+function case_camel {
 	case_sep _ "$*" | sed "s/_\(.\)/\U\1/g"
 }
 
-case_pascal() {
+function case_pascal {
 	case_camel "$@" | sed 's/^\(.\)/\U\1/'
 }
 
 
-url_encode() {
+function url_encode {
 	if [[ -t 1 ]]; then
 		@func_info
 		Usage='TEXT_TO_ENCODE...'
@@ -239,7 +239,7 @@ url_encode() {
 	local Encoded=""
 	local Pos In Out Escaped
 
-	__encode() {
+	function __encode {
 		if (( ${#OnlyEncode[@]} )) && ! contains "$1" "${OnlyEncode[@]}"; then
 			Encoded+="$1"
 		else
@@ -278,11 +278,11 @@ url_encode() {
 	REPLY="${Encoded}" #+or echo the result (EASIER)... or both... :p
 }
 
-url_decode() {
+function url_decode {
 	python3 -c "import sys, urllib.parse as ul; print (ul.quote('$*'))"
 }
 
-glob() {
+function glob {
 	@func_info
 	About="Matches wildcards against the paths supplied by STDIN. * matches 1 level, and ** matches any number of levels.
 		Will print paths in the order of input, and will not print a line twice if two globs match.
@@ -315,7 +315,7 @@ glob() {
 	done
 }
 
-glob_array() {
+function glob_array {
 	@func_info
 	About="Uses the first argument as a wildcard to test against all other arguments. * matches 1 level, and ** matches any number of levels.
 		The result is returned in the REPLY variable. Will print paths in the order of input. Duplicate arguments will result in duplicfate matches.

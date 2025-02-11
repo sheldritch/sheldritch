@@ -4,9 +4,9 @@
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-_trap_cmd() { Command="${3:-true}"; }
+function _trap_cmd { Command="${3:-true}"; }
 
-trap_return_add() {
+function trap_return_add {
 	@func_use_parent
 
 	local OldTrap Command NewCommand="$1"
@@ -27,7 +27,7 @@ declare -f -t trap_return_add
 # - 1st arg:  code to add
 # - remaining args:  names of traps to modify
 #
-trap_add() {
+function trap_add {
     local NewCommand="$1" Signal Command
 	shift || return 9
 
@@ -38,11 +38,11 @@ trap_add() {
 }
 declare -f -t trap_add
 
-shopt_temp() {
+function shopt_temp {
 	trap_return_add -p 1 "$(shopt -p "$@")"
 	shopt -s "$@"
 }
-shopt_temp_unset() {
+function shopt_temp_unset {
 	trap "$(shopt -p "$@")" RETURN
 	shopt -u "$@"
 }
@@ -54,10 +54,10 @@ shopt_temp_unset() {
 
 REPLY()     { [[ $# -gt 0 ]] && REPLY="$1" || printf '%s\n' "$REPLY"; }
 deref()     { declare -p "$1" >/dev/null && eval "REPLY=\"\$$1\"" && REPLY; }
-lowercase() { REPLY "$(stdin "$1" tr '[:upper:]' '[:lower:]')"; }
-uppercase() { REPLY "$(stdin "$1" tr '[:lower:]' '[:upper:]')"; }
+function lowercase { REPLY "$(stdin "$1" tr '[:upper:]' '[:lower:]')"; }
+function uppercase { REPLY "$(stdin "$1" tr '[:lower:]' '[:upper:]')"; }
 
-stdin() {
+function stdin {
 	local string="$1"
 	shift
 	"$@" <<SHELDRITCH_STDIN_COMPAT
@@ -67,21 +67,21 @@ SHELDRITCH_STDIN_COMPAT
 
 if [[ -v BASH_VERSION ]]; then
 	alias extglob='shopt_temp extglob'
-	lowercase() { REPLY="${1,,}"; printf '%s\n' "$REPLY"; }
-	uppercase() { REPLY="${1^^}"; printf '%s\n' "$REPLY"; }
+	function lowercase { REPLY="${1,,}"; printf '%s\n' "$REPLY"; }
+	function uppercase { REPLY="${1^^}"; printf '%s\n' "$REPLY"; }
 	deref()     { REPLY="${!1}";  printf '%s\n' "$REPLY"; }
 
-	regex() {
+	function regex {
 		if (($#)); then
 			[[ "$1" =~ $2 ]] || return $?
 		fi
 		MATCHES=( "${BASH_REMATCH[@]}" )
 	}
-	rematch() {
+	function rematch {
 		regex "$@" || return $?
 		recapture 0
 	}
-	recapture() {
+	function recapture {
 		REPLY="${BASH_REMATCH[$1]}"
 		printf "%s" "$REPLY"
 	}
@@ -90,20 +90,20 @@ fi
 # shellcheck disable=SC2296
 if [[ -v KSH_VERSION ]]; then
 	alias extglob=':'
-	lowercase() { declare -l Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
-	uppercase() { declare -u Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
+	function lowercase { declare -l Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
+	function uppercase { declare -u Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
 
-	regex() {
+	function regex {
 		if (($#)); then
 			[[ "$1" =~ $2 ]] || return
 		fi
 		MATCHES=( "${.sh.match[@]}" )
 	}
-	rematch() {
+	function rematch {
 		regex "$@" || return $?
 		recapture 0
 	}
-	recapture() {
+	function recapture {
 		REPLY="${.sh.match[$1]}"
 		printf "%s" "$REPLY"
 	}
@@ -112,22 +112,22 @@ fi
 # shellcheck disable=SC2296
 if [[ -v ZSH_VERSION ]]; then
 	alias extglob='setopt KSH_GLOB'
-	lowercase() { REPLY="${1:l}";  printf '%s\n' "$REPLY"; }
-	uppercase() { REPLY="${1:u}";  printf '%s\n' "$REPLY"; }
+	function lowercase { REPLY="${1:l}";  printf '%s\n' "$REPLY"; }
+	function uppercase { REPLY="${1:u}";  printf '%s\n' "$REPLY"; }
 	deref()     { REPLY="${(P)1}"; printf '%s\n' "$REPLY"; }
 
-	regex() {
+	function regex {
 		if (($#)); then
 			[[ "$1" =~ $2 ]] || return
 		fi
 		MATCHES=( "$MATCH" "${match[@]}" )
 	}
-	rematch() {
+	function rematch {
 		regex "$@" || return $?
 		REPLY="$MATCH"
 		printf "%s" "$REPLY"
 	}
-	recapture() {
+	function recapture {
 		# shellcheck disable=SC2124
 		REPLY="${match[@]:$1 - 1:1}"
 		printf "%s" "$REPLY"

@@ -17,7 +17,7 @@
 source "$SHELDRITCH"/sheldritch.base.sh || return 1
 check_is_sourced
 
-__main() {
+function __main {
 	summon sheldritch/data/text || return 1
 }
 
@@ -90,7 +90,7 @@ opts_parse
 
 alias parse_opts=opts_parse
 
-sheldritch_args_example_cp() {
+function sheldritch_args_example_cp {
 	@func_info
 	About='Copy files and directories'
 	Usage=(
@@ -125,7 +125,7 @@ sheldritch_args_example_cp() {
 }
 
 # TODO: update to match current formatting
-sheldritch_args_example() {
+function sheldritch_args_example {
 
 	# initialise the func_info framework
 	@func_info
@@ -235,7 +235,7 @@ sheldritch_args_example() {
 	echo "variable name: '$(case_camel "${Var:-$Flag}")'"
 }
 
-_args_req() {
+function _args_req {
 	local Arg="$1"
 	shift
 	if [[ -z "$1" ]]; then
@@ -252,7 +252,7 @@ _args_req() {
 	eval "$Arg"'="$1"'
 }
 
-_args_name_to_variable() {
+function _args_name_to_variable {
 	local -l In="$1"
 	zsh_run In="${In:l}"
 	local +l In
@@ -277,7 +277,7 @@ _args_name_to_variable() {
 	Name="$First${In:1}"
 }
 
-_args_build_parser() {
+function _args_build_parser {
 	local Cache="_ARGS_$__Source"
 
 	if [[ -z "${_ARGS_NO_CACHE:-}" ]] &&
@@ -309,7 +309,7 @@ _args_build_parser() {
 	_args_build_varcache
 }
 
-_args_build_varcache() {
+function _args_build_varcache {
 	local Builder=''
 
 	Builder+='
@@ -358,7 +358,7 @@ _args_build_varcache() {
 	eval "_ARGS_${__Source}_VARS() { $Builder; }"
 }
 
-_args_build_parser_opts() {
+function _args_build_parser_opts {
 	local Func="${1:-_Opts_$__Source}" Shift='((_ARGS_COUNT++)); shift'
 	if ! var_is_declared _Opts; then
 		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
@@ -366,6 +366,10 @@ _args_build_parser_opts() {
 		safe_quit
 	fi
 
+	# PERFORMANCE: Bash mallocs and frees on every `shift` call in its `shift_args` function
+	# https://github.com/bminor/bash/blob/master/builtins/common.c#L438
+	# So, we should iterate over a read-only array
+	# (TODO)
 	Builder+='
 	declare __Flag __Val
 	while (($#)); do
@@ -493,14 +497,14 @@ _args_build_parser_opts() {
 	'
 }
 
-_args_build_assoc_array() {
+function _args_build_assoc_array {
 	local Opts="$(declare -p "$@")"
 	Opts="${Opts//declare -A/}"
 	Opts="${Opts//typeset -g -A/}"
 	Builder+="$Opts"
 }
 
-_args_thinking_usage_priority() {
+function _args_thinking_usage_priority {
 	# LEGEND (extended regex)
 	# R[0-9]+ -- run of required singular arguments (number is count)
 	# O[0-9]+ -- run of optional singular arguments (number is max count)
@@ -539,7 +543,7 @@ _args_thinking_usage_priority() {
 
 }
 
-_args_usage_priority() {
+function _args_usage_priority {
 	# TODO: rework priority once special (literals and symbol-separated) arguments are managed with
 	# _ARGS_SPECIAL.
 	# We might end up relying on arity once special args are considered.
@@ -556,7 +560,7 @@ _args_usage_priority() {
 	esac
 }
 
-_args_usage_build_vars() {
+function _args_usage_build_vars {
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	# TODO: calculate performance of word split vs manually using ${~~var}
@@ -684,7 +688,7 @@ _args_usage_build_vars() {
 	done
 }
 
-_args_usage_parse_token() {
+function _args_usage_parse_token {
 	_args_name_to_variable "$Token"
 	# Note: arguments with separated names will join:
 	# e.g. FirstNameSecondName
@@ -728,7 +732,7 @@ _args_usage_parse_token() {
 # differs between valid formats, the lower one is given higher priority
 #
 # But first, write a basic runtime parser
-_args_parse_usage() {
+function _args_parse_usage {
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	declare -a Args=("$@")
@@ -779,7 +783,7 @@ _args_parse_usage() {
 
 # creates a new function call for each token
 # Not handling grouped tokens just yet
-_args_parse_usage_token() {
+function _args_parse_usage_token {
 	local TokenPos="$1" ArgPos="$2" Arg='' Token="$3"
 	Token="${Token:-${Tokens[TokenPos]}}"
 
@@ -878,7 +882,7 @@ _args_parse_usage_token() {
 	((ArgPos == ${#Args[@]}))
 }
 
-_args_special_example() {
+function _args_special_example {
 declare -a Usage=(
 	'A B lita'
 	'C litb'
@@ -897,7 +901,7 @@ declare -A _ARGS_SPECIAL=(
 
 # We need to unpack all possible forms of arguments that have optional portions
 # This function is an example of how we might do so.
-_args_enumerate_internal_optionals() {
+function _args_enumerate_internal_optionals {
 	local Token="${1:-LEFT[+PLUS]=RIGHT[-MINUS[*TIMES]]}" Match
 
 	if [[ -z "$1" ]]; then
@@ -948,7 +952,7 @@ _args_enumerate_internal_optionals() {
 	fi
 }
 
-_args_build_parser_usage() {
+function _args_build_parser_usage {
 	((${#Usage[@]})) || return 0
 	Builder+='
 	local _ARGS_FORMAT=""
@@ -989,11 +993,11 @@ _args_build_parser_usage() {
 	Builder+="esac; ((_ARGS_COUNT = __Arg - 1))"
 }
 
-_args_dash_error() {
+function _args_dash_error {
 	error -p 1 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
 }
 
-_args_usage_select_format() {
+function _args_usage_select_format {
 	local i OldPriority=0
 	local ArityMin='' ArityMax='' Priority='' SubPriority='' FirstLiteral='' LiteralArity=''
 
@@ -1083,13 +1087,13 @@ alias @ARGS_END="$ARGS_END"
 
 alias '@ENDARGS='"$ARGS_END"
 
-args_gen() {
+function args_gen {
 	echo "$ARGS"
 	echo "$*"
 	echo "$ARGS_END"
 }
 
-args_gen_tail() {
+function args_gen_tail {
 	echo "$*"
 	echo "$ARGS_END"
 }
@@ -1103,7 +1107,7 @@ zsh_run setopt GLOB
 # Arg parsing utils
 #
 
-args_or_stdin() {
+function args_or_stdin {
 	local Args
 	if [[ $# -eq 0 ]]; then
 		if [[ -t 0 ]]; then
@@ -1135,7 +1139,7 @@ __check_var_set'
 #
 
 # Outputs an argument flag for the given variable name, if and only if that variable is set to `true`
-arg_bool() {
+function arg_bool {
 	local __x
 	for __x in "$@"; do
 		# This works, despite questions you might have about variable scope
@@ -1145,7 +1149,7 @@ arg_bool() {
 	done
 }
 
-args_quoted() {
+function args_quoted {
 	if [[ -v BASH_VERSION ]]; then
 		REPLY="${@@Q}"
 		echo "$REPLY"
@@ -1176,7 +1180,7 @@ args_quoted() {
 # args documentation
 #
 
-print_options() {
+function print_options {
 	echo
 	echo "Options:"
 	while [[ $# -gt 0 ]]; do
@@ -1200,7 +1204,7 @@ print_options() {
 	done
 }
 
-print_doc() {
+function print_doc {
 	# run docs in subshell so we don't clobber variables
 	[[ "$(@func_info
 		About='print semantically-structured docs from standardised variables'
@@ -1213,7 +1217,7 @@ print_doc() {
 	@func_use_parent
 	# TODO: ensure support of standalone scripts
 
-	__has() { var_is_declared "$1" && [[ -n "$(deref "$1")" ]]; }
+	function __has { var_is_declared "$1" && [[ -n "$(deref "$1")" ]]; }
 
 	if __has About; then
 		echo
@@ -1248,7 +1252,7 @@ print_doc() {
 
 }
 
-print_usage() {
+function print_usage {
 	local Name
 	# funcname may not be defined if running this function, but that doesn't matter.
 	# besides, in any user environment it will be defined.
@@ -1265,7 +1269,7 @@ print_usage() {
 	printf >&2 "%s\n" "Usage: $Name $Usage"
 }
 
-print_args() {
+function print_args {
 	@func_info
 	About='Output the args of a script file.
 

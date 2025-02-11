@@ -4,7 +4,7 @@
 #
 # This is a no-dependency file.
 
-xdg() {
+function xdg {
 	local data="${XDG_DATA_HOME:-$HOME/.local/share}" config="${XDG_CONFIG_HOME:-$HOME/.config}"
 	case "$1" in
 		--help       ) printf '%s\n%s\n' 'Usage: xdg DIR_TYPE' 'https://specifications.freedesktop.org/basedir-spec/latest/';;
@@ -19,7 +19,7 @@ xdg() {
 	esac
 }
 
-xdg_search() {
+function xdg_search {
 	local dir type delim='\n'
 	case "$1" in
 		-0 | --zero ) delim='\0'

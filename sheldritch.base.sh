@@ -29,7 +29,7 @@ alias _trace='[[ -n "${TRACE+ }" ]] && echo >&2 '
 
 zsh_run zmodload zsh/parameter
 
-self_file() {
+function self_file {
 	local Level="$((${1:-0} + 1))"
 
 	if [[ -v BASH_VERSION ]]; then
@@ -40,7 +40,7 @@ self_file() {
 	echo "$REPLY"
 }
 
-self_dir() {
+function self_dir {
 	self_file 1 >/dev/null
 	dirname "$REPLY"
 }
@@ -53,7 +53,7 @@ SHELDRITCH_SUBSHELL="${BASH_SUBSHELL:-}${ZSH_SUBSHELL:-}"
 
 # stub out complete if shell does not support autocompletion
 if ! command -v complete >/dev/null 2>/dev/null; then
-	complete() { return; }
+	function complete { return; }
 fi
 
 #
@@ -85,7 +85,7 @@ alias @func_use_parent='
 	fi
 '
 
-_genfunc_log() {
+function _genfunc_log {
 	eval "$1"'() {
 		local Trace="${STACKTRACE:-$DEBUG}" Set
 		if [[ $- = *x* ]]; then
@@ -112,7 +112,7 @@ _genfunc_log warn   Warning
 _genfunc_log _debug Debug
 
 # Echo debug line to stderr if debug turned on
-debug() {
+function debug {
 	local x
 	for x in "$DEBUG" "$TRACE"; do
 		quiet lowercase "$x"
@@ -129,7 +129,7 @@ debug() {
 source "$SHELDRITCH/core/lib.sh"
 source_once "$SHELDRITCH/core/compat.sh"
 
-tmp_dir() {
+function tmp_dir {
 	xdg runtime
 }
 SHELDRITCH_TMP="${SHELDRITCH_TMP:-$(tmp_dir)/${USER:-$user}/sheldritch}"
@@ -144,4 +144,4 @@ alias safe_quit='{ declare E=$?; return "$E" 2>/dev/null || exit "$E"; }'
 alias quiet='>/dev/null 2>/dev/null'
 alias stderr='>&2'
 
-ecode() { return "$1"; }
+function ecode { return "$1"; }

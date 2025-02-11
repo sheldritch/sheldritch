@@ -6,7 +6,7 @@ check_is_sourced
 
 summon sheldritch/core/args.sh
 
-sql_query() {
+function sql_query {
 	local select table where order limit
 	@ARGS
 		-s | --select)
@@ -60,10 +60,10 @@ sql_query() {
 	echo "$query"
 }
 
-sqlq() { sql_query "$@"; }
+function sqlq { sql_query "$@"; }
 
-sql_in() {
-	usage() {
+function sql_in {
+	function usage {
 		print_usage "COLUMN_NAME [POSSIBLE_VALUES...]"
 	}
 

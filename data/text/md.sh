@@ -2,7 +2,7 @@ source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 # Markdown Metadata from front matter
-mdmd() {
+function mdmd {
 	local file start end
 
 	file="$1"

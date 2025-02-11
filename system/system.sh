@@ -44,7 +44,7 @@ if [[ -f "$iop" ]] && grep -sq enabled "$iop"; then
 	export BROWSER="$__browser"
 fi
 
-url_open() {
+function url_open {
 	link="$1"
 	if [[ "$XDG_SESSION_TYPE" = tty ]]; then
 		echo >&2 "Open the following link in your browser:"

@@ -46,7 +46,7 @@ if [[ -z "$SHELDRITCH" ]]; then
 	return 1
 fi
 
-__last() {
+function __last {
 	source_once "$SHELDRITCH/sheldritch.base.sh"
 	source_once "$SHELDRITCH/system/files.sh"
 	source_once "$SHELDRITCH/system/xdg.sh"
@@ -62,14 +62,14 @@ alias glob_args='
     unset _IFS_OLD
 '
 
-check_is_sourced_func() {
+function check_is_sourced_func {
 	if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; then
 		echo "You aren't sourcing ${0}. Make sure you are to have its libs available to you."
 		exit 1
 	fi
 }
 
-path_search() {
+function path_search {
 	local Dir Path Delim='\n' First
 	case "$1" in
 		-0 | --zero ) Delim='\0'
@@ -93,13 +93,13 @@ path_search() {
 	done <<<"$Path"
 }
 
-find_bin() {
+function find_bin {
 	for x in ${PATH//://*${1}* }*${1}*; do
 		[ -f "$x" ] && echo $x
 	done
 }
 
-path_add() {
+function path_add {
 	for Path in "$@"; do
 		if ! [[ "$PATH" = *"$Path"* ]]; then
 			export PATH="$Path:$PATH"
@@ -107,7 +107,7 @@ path_add() {
 	done
 }
 
-source_once() {
+function source_once {
 	local Path='' Exit=''
 
 	for Path in "$@"; do
@@ -141,7 +141,7 @@ source_once() {
 # TODO: If we use .local/lib, there might be stuff in .local/share we also want to use
 # We need to be careful about assuming that .local/lib is the best place for stuff, if
 # .local/share is already being used but ./lib is not.
-lib_find() {
+function lib_find {
 
 	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
 		printf "%s" "$SHELDRITCH/${1#sheldritch/}"
@@ -166,7 +166,7 @@ lib_find() {
 }
 
 
-lib_use() {
+function lib_use {
 	local Help='' Force='' Parent=0
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
@@ -254,7 +254,7 @@ lib_use() {
 }
 
 # imports the given library/file (relative to the library dir)
-summon() {
+function summon {
 	local Help='' Force=''
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
@@ -299,7 +299,7 @@ summon() {
 	lib_use "$@"
 }
 
-conjure() {
+function conjure {
 	local Help='' Force=''
 	while [[ $# -ne 0 ]]; do
 		case "$1" in

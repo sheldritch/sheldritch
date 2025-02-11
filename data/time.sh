@@ -3,9 +3,9 @@ check_is_sourced
 
 summon sheldritch/core/args.sh
 
-now() { echo "$(date +%s.%N)"; }
+function now { echo "$(date +%s.%N)"; }
 
-table_date_comp() {
+function table_date_comp {
 	local doc='prints all rows from stdin'
 	local usage='[options] OPERATOR DATE'
 	local field

@@ -10,7 +10,7 @@ declare _ARGS_NO_CACHE=1
 declare Usage
 STACKTRACE=1
 
-pass() {
+function pass {
 	if ! _args_parse_usage "$@"; then
 		error "unexpected failure for args
 		Usage: $(args_quoted ${Usage[@]})
@@ -20,7 +20,7 @@ pass() {
 	fi
 }
 
-fail() {
+function fail {
 	if _args_parse_usage "$@"; then
 		error "expected invalid args, got valid
 		Usage: $(args_quoted ${Usage[@]})

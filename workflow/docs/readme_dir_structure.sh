@@ -64,8 +64,8 @@ for readme in $(getDirectoryReadmes "$directory"); do
 	for child in "$(dirname "$readme")"/*; do
 		name="$(basename "$child")"
 		filetype="$(file -b "$child")"
-		typeis() { echo "$filetype" | grep -q "$@"; }
-		nameis() { echo "$name" | grep -q "$@" ; }
+		function typeis { echo "$filetype" | grep -q "$@"; }
+		function nameis { echo "$name" | grep -q "$@" ; }
 
 		if [ "$name" = "README.md" ]; then
 			continue

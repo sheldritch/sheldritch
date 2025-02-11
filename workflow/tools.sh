@@ -10,7 +10,7 @@ summon sheldritch/util/complete.sh
 # TODO: this file is broken
 
 # this should be easy to abstract generally
-lib_list() {
+function lib_list {
 	(
 	IFS=:
 	for Dir in ${REPOS:-}; do
@@ -19,19 +19,19 @@ lib_list() {
 	) | grep /$ | sort -u
 }
 
-_complete_sheldritch_lib() {
+function _complete_sheldritch_lib {
 	COMPREPLY=($(compgen -W "$(lib_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
 complete -F _complete_sheldritch_lib summon
 
-be_summoned_by() {
+function be_summoned_by {
 	cd "$(lib_find "$1")"
 }
-bsb() { be_summoned_by "$@"; }
+function bsb { be_summoned_by "$@"; }
 complete -F _complete_sheldritch_lib be_summoned_by
 
-transmute() {
+function transmute {
 	@func_info
 	About='mutate the essential being of a sheldritch library
 	(Find a file in one of your library directories and open it in your editor)

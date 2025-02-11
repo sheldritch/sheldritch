@@ -10,7 +10,7 @@ declare _ARGS_NO_CACHE=1
 declare Usage
 STACKTRACE=1
 
-eq() {
+function eq {
 	local STACKTRACE=1
 	while [[ $# -gt 0 ]]; do
 		if [[ "$1" != "$2" ]]; then
@@ -26,7 +26,7 @@ eq() {
 	done
 }
 
-array_eq() {
+function array_eq {
 	local STACKTRACE=1
 	local actual expected
 	actual="$(eval args_quoted "\"\${$1[@]}\"")"
@@ -40,10 +40,10 @@ array_eq() {
 	fi
 }
 
-__parse() {
+function __parse {
 	parse_args
 } 2>&1
-parsing_fails() {
+function parsing_fails {
 	local STACKTRACE=1 error match
 	match="$1"
 	shift
@@ -60,10 +60,10 @@ parsing_fails() {
 	fi
 }
 
-test_usage() {
+function test_usage {
 	for_permutations run "${Usage[@]}"
 }
-run() {
+function run {
 	declare -a Usage=("$@") Options=()
 	unset _Args_check _Opts_check
 	if ! check; then
@@ -103,7 +103,7 @@ set +e
 
 # Strict Arity: find the exact match
 
-check() {
+function check {
 	set -- a b c
 	parse_args
 	eq "$A" a "$B" b "$C" c
@@ -123,7 +123,7 @@ Usage=(
 	'A B C'
 	'ARRAY...'
 )
-check() {
+function check {
 	set -- a b c
 	parse_args
 	eq "$A" a "$B" b "$C" c
@@ -151,7 +151,7 @@ Usage=(
 	'D E F G'
 	'H [I]'
 )
-check() {
+function check {
 	set -- d e f g
 	parse_args
 	eq "$A" '' "$B" '' "$C" '' "$O" ''
@@ -178,7 +178,7 @@ Usage=(
 	'A B C literal E'
 	'A B C D E'
 )
-check() {
+function check {
 	set -- a b c literal e
 	parse_args
 	eq "$D" ''

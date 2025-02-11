@@ -1,13 +1,13 @@
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-curl_json() {
+function curl_json {
 	curl -X POST -H 'Content-Type: application/json' "$@"
 }
 
-port_wait() {
+function port_wait {
 	local host port
-	usage() {
+	function usage {
 		print_usage '[HOST] PORT'
 	}
 
@@ -34,7 +34,7 @@ port_wait() {
 	timeout 3 sh -c "until nc -z '$host' '$port'; do sleep 0.05; done"
 }
 
-port_publish() {
+function port_publish {
 
 	@ARGS
 		-v | --verbose ) verbose=true
@@ -49,7 +49,7 @@ port_publish() {
 	port_wait $publicPort
 }
 
-ip_local() {
+function ip_local {
 	case $OS in
 		linux) ip route get 1 | perl -ne ' /src (\S+)/ && print "$1\n" ';;
 		mac) ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk 'NR == 1 {print $2}' ;;
@@ -58,7 +58,7 @@ ip_local() {
 }
 alias ipl=ip_local
 
-ip_public() {
+function ip_public {
 	curl ifconfig.me
 }
 alias ipp=ip_public

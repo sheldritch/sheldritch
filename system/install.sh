@@ -6,8 +6,8 @@ check_is_sourced
 summon sheldritch/core/args.sh
 summon sheldritch/system/
 
-_tool_install() {
-	usage() {
+function _tool_install {
+	function usage {
 		print_usage '[options]'
 	}
 
@@ -44,9 +44,9 @@ _tool_install() {
 }
 
 # Given a list of packages, and a given tool, install the first package that exists
-install_first_with() {
+function install_first_with {
 
-	usage() {
+	function usage {
 		print_usage INSTALLER_TOOL POSSIBLE_PACKAGES...
 	}
 
@@ -136,9 +136,9 @@ install_first_with() {
 }
 
 
-install_basic() {
+function install_basic {
 
-	usage() {
+	function usage {
 		print_usage "[options] POSSIBLE_PACKAGE_NAMES..."
 	}
 

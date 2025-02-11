@@ -17,8 +17,8 @@ if [[ -z "${REPOS:-}" ]]; then
 	done
 fi
 
-repo_list() {
-	usage() {
+function repo_list {
+	function usage {
 		echo "repo_list: prints directories from all repos"
 	}
 	local repos
@@ -30,12 +30,12 @@ repo_list() {
 	) | grep /$ | sort -u
 }
 
-_complete_repo_list() {
+function _complete_repo_list {
 	COMPREPLY=($(compgen -W "$(repo_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
 # print the directory for a given repo
-repo_dir() {
+function repo_dir {
 	if [[ -z "$1" ]]; then return 1; fi
 
 	zsh_run setopt sh_word_split
@@ -55,7 +55,7 @@ repo_dir() {
 }
 
 # Will try and cd directly into a repo folder from anywhere on the machine
-repo() {
+function repo {
 
 	if ! dir="$(repo_dir "$1")"; then
 		error "could not find directory '$1' in repos."
@@ -65,7 +65,7 @@ repo() {
 	cd "$dir/$2"
 }
 
-_complete_repo() {
+function _complete_repo {
 	_complete_repo_list
 	bash_run compopt -o nospace
 }

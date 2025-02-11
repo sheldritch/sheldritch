@@ -40,7 +40,7 @@ SHELDRITCH="$(dirname "{BASH_SOURCE[0]:-${(%):-%x}}")"
 
 source "$SHELDRITCH/sheldritch.base.sh"
 
-add_envar() {
+function add_envar {
 	if [ -f "$1" ]; then
 		if grep -q SHELDRITCH= "$1"; then
 			# export needed for executable scripts that use $SHELDRITCH

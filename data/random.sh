@@ -7,7 +7,7 @@ check_is_sourced
 
 summon sheldritch/core/args.sh
 
-random_word() {
+function random_word {
 	local count
 	@ARGS
 	  -c | --count ) count="$2"
@@ -26,7 +26,7 @@ random_word() {
 		| tr '\n' ' ' | sed 's/ $//'
 }
 
-random_hex() {
+function random_hex {
 	local count
 	@ARGS
 	  -c | --count ) count="$2"
@@ -37,7 +37,7 @@ random_hex() {
 	openssl rand -hex $((count / 2 + 1)) | head -c "$count"
 }
 
-random_char() {
+function random_char {
 	@func_info
 	Usage='[ALLOWED_CHARACTERS]'
 	Options=(
@@ -55,7 +55,7 @@ random_char() {
 	} | head -c "${Count:-1}"
 }
 
-random_symbol() {
+function random_symbol {
 	local count
 	@ARGS
 	  -c | --count ) count="$2"
@@ -68,7 +68,7 @@ random_symbol() {
 	tr -dc '!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/random | head -c "$count"
 }
 
-random_digit() {
+function random_digit {
 	local count
 	@ARGS
 	  -c | --count ) count="$2"
@@ -82,7 +82,7 @@ random_digit() {
 }
 
 # A bit of a hacky way to get a random port.
-random_port() {
+function random_port {
 	local port
 	while true; do
 		# 10# means in base 10
@@ -94,8 +94,8 @@ random_port() {
 }
 
 # insert a character at a random position
-random_insert_char() {
-	usage() {
+function random_insert_char {
+	function usage {
 		print_usage "insert_rand_char CHARACTER [STRING]"
 		print_usage "insert_rand_char symbol [STRING]"
 		print_usage "insert_rand_char digit [STRING]"
