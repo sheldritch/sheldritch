@@ -32,7 +32,7 @@ declare -a Usage=() Options=() Settings=()
 
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
-unalias @set
+unalias @set 2>/dev/null || :
 @set() { declare -p "$1" >/dev/null && eval "$1"='"${2:-1}"'; }
 alias @set='declare $_SET && @set $_SET'
 alias @options_first='declare _SET=_OPTIONS_PARSE_FIRST && @set'
