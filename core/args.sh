@@ -42,8 +42,8 @@ alias @args_no_cache='declare _SET=_ARGS_NO_CACHE && @set'
 # shellcheck disable=SC2142
 alias opts_parse='
 	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0##/[^[:alnum:]]/_}}}"
-	declare -a _ARGS=() _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() _ARGS_VARS=() _ARGS_ARRAYS=()
-	declare -A _Opts=() _OptsBool=()
+	declare -a _ARGS=() _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
+		_ARGS_VARS=() _ARGS_ARRAYS=() _ARGS_OPTS=() _ARGS_OPTS_BOOL=()
 
 	[[ $- = *x* ]] && _ArgsSet+=x
 	[[ $- = *u* ]] && _ArgsSet+=u
@@ -54,7 +54,7 @@ alias opts_parse='
 	_args_build_parser
 	_ARGS_${__Source}_VARS
 
-	declare _ARGS_COUNT=0 _ARGS_RETURN "${_ARGS_VARS[@]}" "${_ARGS_OPTS[@]}" "${_ARGS_OPTS_BOOL[@]}"
+	declare _ARGS_COUNT=0 _ARGS_RETURN='' "${_ARGS_VARS[@]}" "${_ARGS_OPTS[@]}" "${_ARGS_OPTS_BOOL[@]}"
 	if (( ${#_ARGS_ARRAYS[@]} )); then
 		declare -a "${_ARGS_ARRAYS[@]}"
 	fi
@@ -360,7 +360,7 @@ function _args_build_varcache {
 
 function _args_build_parser_opts {
 	local Func="${1:-_Opts_$__Source}" Shift='((_ARGS_COUNT++)); shift'
-	if ! var_is_declared _Opts; then
+	if ! var_is_declared _ARGS_OPTS; then
 		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
 		ecode 9
 		safe_quit
@@ -474,7 +474,8 @@ function _args_build_parser_opts {
 
 	Builder+='
 	-h | --help )
-		print_doc 2>&1
+		print_doc -p 1 2>&1
+		_ARGS_RETURN=1
 		return 0
 		;;
 	-- )
