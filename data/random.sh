@@ -8,14 +8,13 @@ check_is_sourced
 summon sheldritch/core/args.sh
 
 function random_word {
-	local count
-	@ARGS
-	  -c | --count ) count="$2"
-		shift
-		shift
-	@ENDARGS
+	@func_info
+	Options=(
+		-c --count=COUNT "integer, defaults to 1. the number of words to generate"
+	)
+	args_parse
 
-	count="${count:-1}"
+	Count="${count:-1}"
 
 	if ! [ -f /usr/share/dict/words ]; then
 		sudo apt-get install wbritish

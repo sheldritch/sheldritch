@@ -4,6 +4,36 @@ check_is_sourced
 
 summon sheldritch/core/args.sh
 
+function is_type {
+	local Val='' Null=''
+	if [[ "$1" = --or-null ]]; then
+		shift
+		Null=1
+	fi
+
+	for Val in "${@:2}"; do
+		if [[ -n "$Null" && -z "$Val" ]]; then
+			continue
+		fi
+		case "$1" in
+			bool | boolean )
+				[[ "$Val" == true || "$Val" == false ]] || return 2
+				;;
+
+			int | integer )
+				[[ "${Val#[+-]}" != *[^[:digit:]]* ]] || return 2
+				;;
+
+			decimal )
+				Type=decimal
+				Test="[[ \"\$$Name\" =~ [+-]?[0-9]+([.,][0-9]+)? ]]"
+				Error='Flag "$__Flag" must be a decimal.'
+				;;
+		esac
+
+	done
+}
+
 #
 # Functions
 #
@@ -115,7 +145,7 @@ anyTrue() {
 		return 2
 	fi
 	for bool in "$@"; do
-		test "$bool" = "true" && return 0
+		[[ "$bool" = "true" ]] && return 0
 	done
 }
 
@@ -124,7 +154,7 @@ isNull() {
 		return 2
 	fi
 	for val in "$@"; do
-		test "$val" = "null" || return 1
+		[[ "$val" = "null" ]] || return 1
 	done
 }
 

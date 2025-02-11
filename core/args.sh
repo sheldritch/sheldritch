@@ -47,7 +47,8 @@ alias opts_parse='
 	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0##/[^[:alnum:]]/_}}}"
 	# NOTE: _ARGS contains "$@"
 	declare -a _ARGS=("$@") _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
-		_ARGS_VARS=() _ARGS_ARRAYS=() _ARGS_OPTS=() _ARGS_OPTS_BOOL=()
+		_ARGS_VARS=() _ARGS_ARRAYS=() _ARGS_OPTS=() _ARGS_OPTS_BOOL=() \
+		_ARGS_CHECKS=()
 
 	[[ $- = *x* ]] && _ArgsSet+=x
 	[[ $- = *u* ]] && _ArgsSet+=u
@@ -492,24 +493,7 @@ function _args_build_parser_opts {
 		esac
 		((++Opt))
 
-		# read predicate requirements from docstring
-		local Predicate='' Test='' Error=''
-		while read -d ';' Predicate; do
-			case "${Predicate# }" in
-				# TODO: populate with
-				int | integer )
-					Test="[[ \"\$$Name\" =~ [0-9]+ ]]"
-					Error='Flag "$__Flag" must be an integer.'
-					;;
-				#\(\(*\)\) ) ;;
-				* ) break
-			esac
-			Builder+="
-				if ! $Test; then
-					error -p 1 \"$Error\"
-				fi
-			"
-		done <<<"${Options[Opt]%%-*}"
+		_args_build_validation <<<"${Options[Opt]%%.*}"
 
 		Builder+="
 		((++__Pos));;
@@ -543,6 +527,74 @@ function _args_build_parser_opts {
 
 	_ARGS=("${__PosArgs[@]}" "${_ARGS[@]:__Pos: ${#_ARGS[@]} - __Pos}")
 	'
+}
+
+function _args_build_validation {
+	# read predicate requirements from docstring
+	local Predicate='' Test='' Error=''
+	while read -d ',' Predicate; do
+		case "${Predicate# }" in
+
+
+			# Type declarations & checks
+			bool | boolean )
+				Type=bool
+				;;
+			int | integer )
+				Type=integer
+				Test="is_type --or-null integer \$$Name"
+				Error='Flag "$__Flag" must be an integer.'
+				;;
+			decimal )
+				Type=decimal
+				Test="is_type --or-null decimal \$$Name"
+				Error='Flag "$__Flag" must be a decimal.'
+				;;
+
+			[\>\<=]* | [\>\<=]=* ) 
+				# TODO: todo
+				Test="[[ -z \$$Name ]] || {
+					is_type integer \$$Name && (( $Name $Predicate ))
+				}"
+				_ARGS_CHECKS+=("${Tag}" "$Test"
+					"Failed test: $Predicate"
+				)
+				;;
+
+			"defaults to "* )
+				Test="${Predicate#defaults to }"
+
+				if [[ "$Test" = [\"\']*[\'\"] ]]; then
+					Test="${Test:1: ${#Test} - 2}"
+				elif [[ "$Test" = *\ * ]]; then
+					error -p 1 "INTERNAL ERROR: $Tag: default containing spaces must be surrounded in quotes."
+					return 9
+				elif [[ "$Test" != *[^[:upper:][:digit:]_]* ]]; then
+					local OldName="$Name"
+					_args_name_to_variable "$Test"
+					Test="\$$Name"
+					Name="$OldName"
+				fi
+
+				if [[ -n "$Type" ]] && ! is_type "$Type"; then
+					error -p 1 "INTERNAL ERROR: ${Tag:-$Name}: default must match option type '$Type'."
+					return 9
+				fi
+
+				_ARGS_CHECKS+=("${Tag:-Name}" "$Name=\${$Name:-$Test}"
+					"$Predicate"
+				)
+				;;
+
+			#\(\(*\)\) ) ;;
+			* ) break
+		esac
+		Builder+="
+			if ! $Test; then
+				error -p 1 \"$Error\"
+			fi
+		"
+	done
 }
 
 function _args_build_assoc_array {
@@ -939,23 +991,6 @@ function _args_parse_usage_token {
 	((ArgPos == ${#_ARGS[@]}))
 }
 
-function _args_special_example {
-declare -a Usage=(
-	'A B lita'
-	'C litb'
-)
-declare -A _ARGS_SPECIAL=(
-	[ArityMin0]=3
-	[ArityMax0]=3
-	[Arg0]=lita
-	[ArityMin0]=3
-	[ArityMax0]=3
-	[Arg0]=lita
-)
-
-
-}
-
 # We need to unpack all possible forms of arguments that have optional portions
 # This function is an example of how we might do so.
 function _args_enumerate_internal_optionals {
@@ -1085,9 +1120,23 @@ function _args_usage_select_format {
 }
 
 function _args_build_parser_legend {
-	# TODO: stub
-	# should pull fields out of the legend to validate, based on variables
-	return
+	zsh_run setopt KSH_ARRAYS
+
+	local i=0 Type='' Name=''
+	for ((i = 0; i < "${#Legend[@]}"; i += 2)); do
+		Type=''
+		_args_name_to_variable "${Legend[i]}"
+		_args_build_validation <<<"${Legend[i + 1]%%.*}"
+	done
+
+	for ((i = 0; i < "${#_ARGS_CHECKS[@]}"; i += 3)); do
+		Builder+="
+		if ! ${_ARGS_CHECKS[i + 1]}; then
+			error -p 1 'Failed check for ${_ARGS_CHECK[i]}: ${_ARGS_CHECK[i + 2]}'
+			return 1
+		fi
+		"
+	done
 }
 
 zsh_run unsetopt GLOB
