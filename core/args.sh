@@ -321,7 +321,7 @@ function _args_build_varcache {
 
 	Builder+='
 		_ARGS_ARRAYS=('
-	for x in "${_ARGS_OPTS_BOOL[@]}"; do
+	for x in "${_ARGS_ARRAYS[@]}"; do
 		Builder+=$'\n"'"$x"\"
 	done
 	Builder+=')'
@@ -418,15 +418,11 @@ function _args_build_parser_opts {
 			fi
 
 			Name="${1%%=*}"
-
 		else
 			Type=bool
 			Name="$1"
 		fi
 		_args_name_to_variable "${Name#-}" # function handles possible leading '-'
-
-		# TODO: unless an array, symbol separators should have separate variables
-		_ARGS_VARS+=(${Name//[^[:alnum:]]/}'=')
 
 		# if [[ "$Type" = string && "$Name" = *[^[:alnum:]_]* ]]; then
 		# 	while rematch "$Name" '[^[:alnum:]_]+' >/dev/null; do
@@ -445,6 +441,7 @@ function _args_build_parser_opts {
 
 		case "$Type" in
 			bool)
+				_ARGS_OPTS_BOOL+=(${Name//[^[:alnum:]]/= }'=')
 				Builder+='
 				'$Name'="${__Val-true}"
 				unset __Val
@@ -454,7 +451,9 @@ function _args_build_parser_opts {
 					return 1
 				fi'
 				;;
-			string) Builder+='
+			string)
+				_ARGS_OPTS+=(${Name//[^[:alnum:]]/= }'=')
+				Builder+='
 				if [[ -n "${__Val+x}" ]]; then
 					'$Name'="$__Val";
 					unset __Val
