@@ -7,7 +7,7 @@ trap 'STACKTRACE=1; error FAILED; Fail=1' ERR
 
 declare _ARGS_NO_CACHE=1
 
-declare Usage
+declare -a Usage=()
 STACKTRACE=1
 
 function eq {

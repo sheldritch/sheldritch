@@ -96,11 +96,16 @@ function _genfunc_log {
 		echo '"$2"'": ${Parent:+$Parent: }$*" >&2
 
 		if [[ "$(lowercase "$Trace")" = true || "$Trace" = 1 || -n "$Set" ]]; then
-			local I=$((ParentLevel - 1)) Caller
-			read Line Fu File < <(caller $I)
-			sed -n "${Line}s/^/\\t/p" "$File"
-			while Caller="$(caller $I)"; do printf "\\t%s\\n" "$Caller"; ((I++)); done
-			printf \\n
+
+			if [[ -v BASH_VERSION ]]; then
+				local I=$((ParentLevel - 1)) Caller
+				read Line Fu File < <(caller $I)
+				sed -n "${Line}s/^/\\t/p" "$File"
+				while Caller="$(caller $I)"; do printf "\\t%s\\n" "$Caller"; ((++I)); done
+				printf \\n
+			elif [[ -v ZSH_VERSION ]]; then
+				args_quoted "${funcstack[@]}" >&2
+			fi
 			set -$Set
 		fi >&2
 	}

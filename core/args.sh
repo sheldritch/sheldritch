@@ -223,7 +223,7 @@ function sheldritch_args_example {
 			return 1
 	esac
 
-	local Flag Var Prefix=--
+	local Flag='' Var='' Prefix=--
 	Var="$(case_big_snake "$2")"
 	Flag="$(case_kebab "$1")"
 
@@ -294,7 +294,11 @@ function _args_build_parser {
 		return 0
 	fi
 
-	local Builder=''
+	{
+	local Builder='' GlobEnabled=''
+	[[ -o noglob ]] || GlobEnabled=1
+	set -o noglob
+
 	_args_build_parser_opts || return 9
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
@@ -310,12 +314,17 @@ function _args_build_parser {
 		"
 		return 9
 	fi
+	} || {
+		[[ $GlobEnabled = 1 ]] && set +o noglob
+		return 9
+	}
+	[[ $GlobEnabled = 1 ]] && set +o noglob
 
 	_args_build_varcache
 }
 
 function _args_build_varcache {
-	local Builder=''
+	local Builder='' x=''
 
 	Builder+='
 		_ARGS_VARS=('
@@ -377,8 +386,10 @@ function _args_build_parser_opts {
 	# So, we should iterate over a read-only array
 	# (TODO)
 	Builder+='
-	declare __Flag __Val __Pos=0 __Temp=0
+	zsh_run setopt KSH_ARRAYS
+	declare __Flag='' __Val='' __Pos=0 __Temp=0
 	declare -a __PosArgs=()
+	unset __Val
 
 	while ((__Pos < "${#_ARGS[@]}")); do
 
@@ -456,8 +467,12 @@ function _args_build_parser_opts {
 			bool)
 				_ARGS_OPTS_BOOL+=($Name=)
 				Builder+='
-				'$Name'="${__Val-true}"
-				unset __Val
+				if [[ -n "${__Val+x}" ]]; then
+					'$Name'="$__Val";
+					unset __Val
+				else
+					'$Name'="true"
+				fi
 
 				if ! [[ "$'$Name'" = true || "$'$Name'" == false ]]; then
 					error -p 1 "Flag '\''$__Flag'\'' is boolean"
@@ -470,14 +485,14 @@ function _args_build_parser_opts {
 				if [[ -n "${__Val+x}" ]]; then
 					'$Name'="$__Val";
 					unset __Val
-					((__Pos++)); continue;
+					((++__Pos)); continue;
 				fi
-				'$Name'="$2"
-				((__Pos++))
+				'$Name'="${_ARGS[__Pos + 1]}"
+				((++__Pos))
 				'
 				;;
 		esac
-		((Opt++))
+		((++Opt))
 
 		# read predicate requirements from docstring
 		local Predicate='' Test='' Error=''
@@ -499,10 +514,10 @@ function _args_build_parser_opts {
 		done <<<"${Options[Opt]%%-*}"
 
 		Builder+="
-		((__Pos++));;
+		((++__Pos));;
 		"
 
-		((Opt++))
+		((++Opt))
 	done
 
 
@@ -514,7 +529,7 @@ function _args_build_parser_opts {
 		;;
 	-- )
 		_ARGS_BREAK=1
-		((__Pos++))
+		((++__Pos))
 		break
 		;;
 	* )
@@ -603,7 +618,7 @@ function _args_usage_build_vars {
 
 	# calculate a format summary of each usage. This is used to distinguish one usage line from
 	# another in parsing
-	local Name Line AlsoLine='' Token
+	local Name='' Line='' AlsoLine='' Token=''
 	for Line in "${Usage[@]}"; do
 
 		if [[ "$Line" = \#* ]]; then
@@ -618,9 +633,7 @@ function _args_usage_build_vars {
 		local ArityMin=0 ArityMax=0 Priority=0 SubPriority=0 FirstLiteral='' LiteralArity=''
 		# TODO: priority should consider the gap between min and max arity
 
-		# duplicating variable with AlsoLine to work around zsh automatic quoting
-		[[ -z "$ZSH_VERSION" ]] && AlsoLine="$Line"
-		for Token in ${ZSH_VERSION:+${~~Line}} $AlsoLine; do
+		for Token in $Line; do
 
 			case "$Token" in
 				'{' | \"* | \'* )
@@ -727,7 +740,9 @@ function _args_usage_parse_token {
 	_args_name_to_variable "$Token"
 	# Note: arguments with separated names will join:
 	# e.g. FirstNameSecondName
-	_ARGS_VARS+=(${Name//[^[:alnum:]]/}'=')
+	if [[ "$RunCount" != + ]]; then
+		_ARGS_VARS+=(${Name//[^[:alnum:]]/}'=')
+	fi
 
 	if [[ "RunCount" = + ]]; then
 		error -p 2 "FUNCTION BUG: args after variadic arg ($Token) not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
@@ -738,7 +753,7 @@ function _args_usage_parse_token {
 	fi
 
 	if [[ "$RunType" = "$1" ]]; then
-		((RunCount++))
+		((++RunCount))
 	else
 
 		if [[ "$RunCount" = + ]] || ((RunCount)); then
@@ -770,7 +785,7 @@ function _args_usage_parse_token {
 function _args_parse_usage {
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
-	local Name Line Token GlobEnabled BestMatch
+	local Name='' Line='' Token='' GlobEnabled='' BestMatch=''
 
 	declare -a Bounds=() BestBounds=()
 
@@ -854,12 +869,12 @@ function _args_parse_usage_token {
 					Run="${#_ARGS[@]}"
 				fi
 				while ((Run < "${#_ARGS[@]}")) && [[ "${_ARGS[@]:Run:1}" = $Match ]]; do
-					((Run++))
+					((++Run))
 				done
 				# From the longest match downward, test validity
 				while (( Run > Min )); do
 					_args_parse_usage_token $((TokenPos + 1)) $((Run + 1)) && return
-					((Run--))
+					((--Run))
 				done
 				return 1
 				;;
@@ -874,12 +889,12 @@ function _args_parse_usage_token {
 					# TODO: copy this logic into usage variable parsing, to catch bad brackets early
 					for ((s = 0; s < ${#Next}; s++)); do
 						case ${Next:s:1} in
-							\[ ) ((Left++));;
-							\] ) ((Right++));;
+							\[ ) ((++Left));;
+							\] ) ((++Right));;
 						esac
 					done
 					if ((Left < Right)); then
-						((ArgPos++))
+						((++ArgPos))
 						Next="${_ARGS[@]:ArgPos:1}"
 						Token+="$Next"
 						continue
@@ -896,8 +911,8 @@ function _args_parse_usage_token {
 				if [[ "$Arg" != $Token ]]; then
 					return 1
 				fi
-				((TokenPos++))
-				((ArgPos++))
+				((++TokenPos))
+				((++ArgPos))
 				Token="${Tokens[@]:TokenPos:1}"
 				continue
 				;;
@@ -909,8 +924,8 @@ function _args_parse_usage_token {
 				if [[ "$Arg" != $Match ]]; then
 					return 1
 				fi
-				((TokenPos++))
-				((ArgPos++))
+				((++TokenPos))
+				((++ArgPos))
 				Token="${Tokens[@]:TokenPos:1}"
 				continue
 				;;
@@ -1006,7 +1021,7 @@ function _args_build_parser_usage {
 			Builder+="error -p 1 'INTERNAL ERROR: chosen usage line $i is a comment!'; return 9 ;;"
 		fi
 
-		local __Pos=1 Name
+		local __Pos=1 Name=''
 		for Token in ${Usage[@]:$i:1}; do
 			_args_name_to_variable "$Token"
 			Name="${Name//[^[:alnum:]]/}"
@@ -1018,7 +1033,7 @@ function _args_build_parser_usage {
 				* )
 					Builder+="
 					$Name"'="${_ARGS[@]:__Pos:1}"
-					((__Pos++))'"
+					((++__Pos))'"
 					[[ -n \${_ARGS_BREAK:-} && \$$Name = -* ]] && _args_dash_error $Name \$$Name && return 1"$'\n'
 					;;
 			esac
@@ -1302,7 +1317,7 @@ function print_doc {
 }
 
 function print_usage {
-	local Name
+	local Name=''
 	# funcname may not be defined if running this function, but that doesn't matter.
 	# besides, in any user environment it will be defined.
 	Name="$(funcname -p 1 2>/dev/null)"
