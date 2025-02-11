@@ -85,11 +85,14 @@ if [[ -v BASH_VERSION ]]; then
 		REPLY="${BASH_REMATCH[$1]}"
 		printf "%s" "$REPLY"
 	}
+	return
 fi
 
 # shellcheck disable=SC2296
 if [[ -v KSH_VERSION ]]; then
 	alias extglob=':'
+	alias local=typeset
+	alias declare=typeset
 	function lowercase { declare -l Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
 	function uppercase { declare -u Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
 
@@ -132,6 +135,7 @@ if [[ -v ZSH_VERSION ]]; then
 		REPLY="${match[@]:$1 - 1:1}"
 		printf "%s" "$REPLY"
 	}
+	return
 
 fi
 
