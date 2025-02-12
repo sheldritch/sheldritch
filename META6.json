@@ -7,6 +7,6 @@
   ],
   "source-url" : "git://github.com/michaelruigrok/sheldritch.git",
   "provides" : {
-    "Sheldritch" : "lang/Sheldritch.rakumod"
+    "Sheldritch" : "dev/Sheldritch.rakumod"
   }
 }
