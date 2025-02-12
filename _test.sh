@@ -1,5 +1,6 @@
-__FILE="${BASH_SOURCE[0]}"
-if [[ -n "$KSH_VERSION" ]]; then
+if [[ -n "$BASH_VERSION" ]]; then
+	__FILE="${BASH_SOURCE[0]}"
+elif [[ -n "$KSH_VERSION" ]]; then
 	__FILE="${.sh.file}"
 elif [[ -n "$ZSH_VERSION" ]]; then
 	__FILE="${(%):-%x}"
