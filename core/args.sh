@@ -545,16 +545,34 @@ function _args_build_validation {
 			bool | boolean )
 				Type=bool
 				;;
-			int | integer )
+			[Ii]nt | [Ii]nteger )
 				Type=integer
 				# --or-null is on because this also handles usage args in parse_legend
 				Test="is_type --or-null integer \$$Name"
 				Error="$Tag"' must be a integer, got ${__Flag:+$__Flag }'"'\$$Name'"' instead.'
 				;;
-			decimal )
+			[Dd]ecimal )
 				Type=decimal
 				Test="is_type --or-null decimal \$$Name"
 				Error="$Tag"' must be a decimal, got ${__Flag:+$__Flag }'"'\$$Name'"' instead.'
+				;;
+
+			[Nn]"ew file" )
+				Type=file
+				Test="[[ -e \$(dirname \"\$$Name\") ]]"
+				Error="Parent directory of file '\$$Name' does not exist."
+				;;
+
+			[Ee]"xisting path" )
+				Type=file
+				Test="[[ -e \$$Name ]]"
+				Error="Path '\$$Name' does not exist."
+				;;
+
+			[Ff]ile | [Ee]"xisting file" )
+				Type=file
+				Test="[[ -f \$$Name ]]"
+				Error="File '\$$Name' does not exist."
 				;;
 
 			[\>\<=]* | [\>\<=]=* ) 
@@ -567,7 +585,7 @@ function _args_build_validation {
 				)
 				;;
 
-			"defaults to "* )
+			[Dd]"efaults to "* )
 				local Default="${Predicate#defaults to }"
 
 				if [[ "$Default" = [\"\']*[\'\"] ]]; then
