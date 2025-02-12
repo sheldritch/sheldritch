@@ -10,7 +10,7 @@ else
 	echo >&2 'Error: cannot determine location of sheldritch.sh. Please set $SHELDRITCH. Even then, your shell is probably not supported.'
 fi
 
-source "${__FILE%.sh}.base.sh"
+source "${__FILE%.sh}.base.sh" "$@"
 
 summon \
 	'sheldritch/core/*'      \
