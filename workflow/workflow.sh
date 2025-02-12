@@ -13,7 +13,7 @@ function history_delve {
 		rm "$File" 2>/dev/null
 	fi
 
-	local Shell=${SHELL##*/}
+	local Shell=${THIS_SHELL}
 	local File="$SHELDRITCH_TMP/history_delve.$Shell" Hist="${HISTFILE:-~/.${Shell}_history}"
 	trap 'rm "$File" 2>/dev/null' RETURN
 

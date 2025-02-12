@@ -1,4 +1,4 @@
-#!/bin/bash
+#j!/bin/bash
 #
 # Base script utilities
 #
@@ -22,15 +22,30 @@ elif [[ -v ZSH_VERSION ]]; then
 	setopt aliases
 fi
 
-alias zsh_run='[[ -z ${ZSH_VERSION:-} ]] || '
-alias bash_run='[[ -z ${BASH_VERSION:-} ]] || '
-alias ksh_run='[[ -z ${KSH_VERSION:-} ]] || '
-alias _trace='[[ -n "${TRACE+ }" || $- = *x* ]] && echo >&2 '
+# KSH is stupid and can't run aliases after defining them
+eval "
+alias zsh_run=':'
+alias bash_run=':'
+alias ksh_run=':'
+alias _trace='[[ -n "\${TRACE+ }" || \$- = *x* ]] && echo >&2 '
+"
 
-zsh_run zmodload zsh/parameter
+if [[ -n "${ZSH_VERSION:-}" ]]; then
+	zmodload zsh/parameter
+	alias zsh_run='false ||'
+	THIS_SHELL='zsh'
+elif [[ -n "${KSH_VERSION:-}" ]]; then
+	eval "alias ksh_run='false ||'"
+	THIS_SHELL='ksh'
+elif [[ -n "${BASH_VERSION:-}" ]]; then
+	alias bash_run='false ||'
+	THIS_SHELL='bash'
+else
+	THIS_SHELL="$(ps -p "$$" | grep -m 1 -o '\b[a-z]*sh\b')"
+fi
 
 function self_file {
-	local Level="$((${1:-0} + 1))"
+	typeset Level="$((${1:-0} + 1))"
 
 	if [[ -v BASH_VERSION ]]; then
 		REPLY="${BASH_SOURCE[$Level]}"
@@ -50,6 +65,7 @@ if ! [[ $SHELDRITCH == /* && -f "$SHELDRITCH/sheldritch.base.sh" ]]; then
 	SHELDRITCH="$(realpath -s "$(self_dir)")" || return 1
 fi
 SHELDRITCH_SUBSHELL="${BASH_SUBSHELL:-}${ZSH_SUBSHELL:-}"
+SHELDRITCH_SUBSHELL="${SHELDRITCH_SUBSHELL:--1}"
 
 # stub out complete if shell does not support autocompletion
 if ! command -v complete >/dev/null 2>/dev/null; then
@@ -63,7 +79,7 @@ fi
 # Dependency for logging
 # shellcheck disable=SC2154
 alias @func_use_parent='
-	local Parent ParentLevel=0
+	typeset Parent ParentLevel=0
 	while [[ -n "$1" ]]; do
 		case "$1" in
 			-p | --parent ) ParentLevel="$2"
@@ -77,7 +93,7 @@ alias @func_use_parent='
 
 	ParentLevel="$((ParentLevel + FUNC_PASSTHROUGH + 1))"
 
-	local Parent=''
+	typeset Parent=''
 	if funcname -p $ParentLevel -q 2>/dev/null; then
 		Parent="$(funcname -p $ParentLevel)"
 	else
@@ -87,7 +103,7 @@ alias @func_use_parent='
 
 function _genfunc_log {
 	eval "$1"'() {
-		local Trace="${STACKTRACE:-$DEBUG}" Set
+		typeset Trace="${STACKTRACE:-$DEBUG}" Set
 		if [[ $- = *x* ]]; then
 			set +x
 			Set=x
@@ -98,7 +114,7 @@ function _genfunc_log {
 		if [[ "$(lowercase "$Trace")" = true || "$Trace" = 1 || -n "$Set" ]]; then
 
 			if [[ -v BASH_VERSION ]]; then
-				local I=$((ParentLevel - 1)) Caller
+				typeset I=$((ParentLevel - 1)) Caller
 				read Line Fu File < <(caller $I)
 				sed -n "${Line}s/^/\\t/p" "$File"
 				while Caller="$(caller $I)"; do printf "\\t%s\\n" "$Caller"; ((++I)); done
@@ -118,7 +134,7 @@ _genfunc_log _debug Debug
 
 # Echo debug line to stderr if debug turned on
 function debug {
-	local x
+	typeset x
 	for x in "$DEBUG" "$TRACE"; do
 		quiet lowercase "$x"
 		if [[ -n "$x" && "$REPLY" =~ ^(1|true)$ ]]; then
@@ -132,7 +148,7 @@ function debug {
 #
 
 source "$SHELDRITCH/core/lib.sh"
-source_once "$SHELDRITCH/core/compat.sh"
+summon sheldritch/core/compat
 
 function tmp_dir {
 	xdg runtime

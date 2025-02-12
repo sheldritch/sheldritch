@@ -14,7 +14,7 @@ case "$(uname -s)" in
     Darwin*)
 
 		if ! command -v brew >/dev/null; then
-			brewCmds="$("$SHELL" -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+			brewCmds="$("${SHELL:-bash}" -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
 				| tee /dev/tty | grep -A 3 'Run these three commands' | tail -n 3
 			)"
 			echo >&2 "We are running those three commands above (you don't need to manually do it)":
@@ -51,7 +51,7 @@ function add_envar {
 	fi
 }
 
-declare Shell=${SHELL##*/}
+declare Shell=$THIS_SHELL
 add_envar ~/.${Shell}rc
 # non-interactive init files need $SHELDRITCH when they source the app
 add_envar ~/.profile

@@ -35,9 +35,8 @@ declare -a Usage=() Options=() Legend=()
 
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
-unalias @set 2>/dev/null || :
-@set() { declare -p "$1" >/dev/null && eval "$1"='"${2:-1}"'; }
-alias @set='declare $_SET && @set $_SET'
+_args_set() { declare -p "$1" >/dev/null && eval "$1"='"${2:-1}"'; }
+alias @set='declare $_SET && _args_set $_SET'
 alias @options_first='declare _SET=_OPTIONS_PARSE_FIRST && @set'
 alias @opts_first=@options_first
 alias @args_no_cache='declare _SET=_ARGS_NO_CACHE && @set'
@@ -839,7 +838,8 @@ function _args_usage_parse_token {
 #
 # But first, write a basic runtime parser
 function _args_parse_usage {
-	zsh_run setopt KSH_ARRAYS
+	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
+
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	local Name='' Line='' TokenPos='' GlobEnabled='' BestMatch=''
@@ -857,12 +857,7 @@ function _args_parse_usage {
 			continue
 		fi
 
-		declare -a Tokens
-		if [[ -n "$ZSH_VERSION" ]]; then
-			Tokens=(${=Line})
-		else
-			Tokens=($Line)
-		fi
+		declare -a Tokens=($Line)
 		if _args_parse_usage_token 0 0; then
 
 			for ((i = 0; i < ${#Bounds[@]} && i < ${#BestBounds[@]}; i++)); do
@@ -1264,16 +1259,22 @@ function arg_bool {
 	done
 }
 
-function args_quoted {
-	if [[ -v BASH_VERSION ]]; then
-		REPLY="${@@Q}"
-		echo "$REPLY"
-	elif [[ -v ZSH_VERSION ]]; then
+if [[ -v ZSH_VERSION ]]; then
+	eval '
+	function args_quoted {
 		REPLY="${@:q}"
 		echo "$REPLY"
-
-	else
-		# from https://unix.stackexchange.com/a/307017
+	}
+	'
+elif [[ -v BASH_VERSION ]]; then
+	eval '
+	function args_quoted {
+		REPLY="${@@Q}"
+		echo "$REPLY"
+	}
+	'
+else
+	function args_quoted {
 		REPLY="$(awk -v q="'" '
 		  function shellquote(s) {
 			gsub(q, q "\\" q q, s)
@@ -1287,8 +1288,8 @@ function args_quoted {
 			printf "\n"
 		}' "$@")"
 		echo "$REPLY"
-	fi
-}
+	}
+fi
 
 
 #

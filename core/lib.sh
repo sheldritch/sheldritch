@@ -39,7 +39,10 @@ alias check_is_sourced="if ! script_is_sourced; then
 	echo \"You aren't sourcing ${0}. Make sure you are to have its libs available to you.\"
 	exit 1
 fi"
-check_is_sourced
+
+if [[ -z "$KSH_VERSION" ]]; then
+	check_is_sourced
+fi
 
 if [[ -z "$SHELDRITCH" ]]; then
 	echo >&2 "Error: sheldritch lib.sh: SHELDRITCH must be set to its directory"
@@ -70,7 +73,7 @@ function check_is_sourced_func {
 }
 
 function path_search {
-	local Dir Path Delim='\n' First
+	typeset Dir Path Delim='\n' First
 	case "$1" in
 		-0 | --zero ) Delim='\0'
 			shift 1 || return 1
@@ -108,7 +111,7 @@ function path_add {
 }
 
 function source_once {
-	local Path='' Exit=''
+	typeset Path='' Exit=''
 
 	for Path in "$@"; do
 		if ! [[ "$Path" = /* ]]; then
@@ -148,7 +151,7 @@ function lib_find {
 		return 0
 	fi
 
-	local Libs
+	typeset Libs
 	if [[ -n "$LIBS" ]]; then
 		Libs="$LIBS"
 	else
@@ -167,7 +170,7 @@ function lib_find {
 
 
 function lib_use {
-	local Help='' Force='' Parent=0
+	typeset Help='' Force='' Parent=0
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
 			-p | --parent ) Parent="$2"
@@ -187,7 +190,7 @@ function lib_use {
 	done
 
 	zsh_run setopt GLOB globsubst
-	local SHELDRITCH_CLEAN="$Force"
+	typeset SHELDRITCH_CLEAN="$Force"
 
 	if [[ "$Help" = true ]]; then
 		echo >&2 "lib_use -- imports the library/file by absolute paths (or relative to working dir)"
@@ -197,7 +200,7 @@ function lib_use {
 		return 0
 	fi
 
-	local Arg Lib Globs='' Prefix=''
+	typeset Arg Lib Globs='' Prefix=''
 	for Arg in "$@"; do
 
 		if [[ "$Arg" = *\** ]]; then
@@ -209,7 +212,7 @@ function lib_use {
 			Globs="${Globs:+[^_]$Globs}"
 		fi
 
-		local Shopt=''
+		typeset Shopt=''
 		if Shopt="$(shopt -p globstar 2>/dev/null)"; then
 			shopt -s globstar
 		fi
@@ -234,7 +237,7 @@ function lib_use {
 			fi
 
 			if ! [[ -e "$Lib" ]]; then
-				file_first "$Lib".{${SHELL##*/},sh,ksh,bash,fish,zsh,*} >/dev/null
+				file_first "$Lib".{${THIS_SHELL},sh,ksh,bash,fish,zsh,*} >/dev/null
 				Lib="${REPLY:-$Lib}"
 			fi
 
@@ -247,6 +250,14 @@ function lib_use {
 				# shellcheck disable=SC2139
 				alias "$(basename "$Lib")=$Lib"
 			elif [[ "$Lib" =~ \.(bash|fish|ksh|sh|zsh)$ ]]; then
+
+				if [[ "$THIS_SHELL" = ksh && "$Lib" =~ \.(bash|fish|zsh)$ ]]; then
+					if [[ "$Lib" != "$SHELDRITCH"* ]]; then
+						warn "not sourcing '$Lib' due to ksh syntax checking."
+					fi
+					continue
+				fi
+
 				if [[ "$SHELDRITCH_CLEAN" = true ]]; then
 					_trace "Force source lib '$Lib'"
 					source "$Lib"
@@ -267,7 +278,7 @@ function lib_use {
 
 # imports the given library/file (relative to the library dir)
 function summon {
-	local Help='' Force=''
+	typeset Help='' Force=''
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
 			-f | --force ) Force=true
@@ -282,7 +293,7 @@ function summon {
 		esac
 	done
 
-	local SHELDRITCH_CLEAN="$Force"
+	typeset SHELDRITCH_CLEAN="$Force"
 	zsh_run setopt GLOB globsubst
 
 	if [[ "$Help" = true ]]; then
@@ -295,7 +306,7 @@ function summon {
 	fi
 
 
-	local Globs=''
+	typeset Globs=''
 	for Arg in "$@"; do
 		# find the absolute path to the library
 		if ! Lib="$(lib_find "${Arg%%\**}")"; then
@@ -318,7 +329,7 @@ function summon {
 }
 
 function conjure {
-	local Help='' Force=''
+	typeset Help='' Force=''
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
 			-f | --force ) Force=true
@@ -333,7 +344,7 @@ function conjure {
 		esac
 	done
 
-	local SHELDRITCH_CLEAN="$Force"
+	typeset SHELDRITCH_CLEAN="$Force"
 	zsh_run setopt GLOB globsubst
 
 	if [[ "$Help" = true ]]; then

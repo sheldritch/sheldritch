@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/ksh
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
@@ -159,7 +159,8 @@ isNull() {
 }
 
 yesNoToBool() {
-	case "${1,,}" in
+	lowercase "$1" >/dev/null
+	case "$REPLY" in
 		y | yes | true | correct) echo "true"
 			;;
 		n | no | false | incorrect) echo "false"
@@ -339,10 +340,11 @@ function _for_permutations_next {
 	fi
 
 	local i=$1 temp=''
-	declare -a copy=("${Array[@]}")
+	declare -a Copy 
+	Copy=("${Array[@]}")
 
 	for (( ; i < ${#Array[@]}; i++ )) ; do
-		Array=("${copy[@]}")
+		Array=("${Copy[@]}")
 		temp="${Array[i]}"
 		Array[i]="${Array[$1]}"
 		Array[$1]="$temp"
@@ -390,8 +392,8 @@ function value {
 function ternary {
 	eval "$1" && echo "$2" || echo "$3"
 }
-bash_run ?:() { ternary "$@"; }
-zsh_run \?:() { ternary "$@"; }
+#function ?: { ternary "$@"; }
+#zsh_run \?: { ternary "$@"; }
 
 function ifdef {
 	if [[ $# -gt 3 ]]; then
@@ -400,7 +402,7 @@ function ifdef {
 	fi
 	[[ -n "$1" ]] && echo "$2" || echo "$3"
 }
-:+ () { ifdef "$@"; }
+#function :+ { ifdef "$@"; }
 
 function safe_set {
 	if ! declare -p $1 >/dev/null; then
@@ -408,7 +410,7 @@ function safe_set {
 		echo >&2 "Please call 'local $1' above this function call, and 'declare -r $1' afterwards."
 		return 9
 
-	elif [[ -n "${!1}" ]]; then
+	elif deref "$1" >/dev/null && [[ -n "${REPLY}" ]]; then
 		error "'$1' Must be a fresh variable, do not set it to some initial value."
 		return 9
 
@@ -417,7 +419,8 @@ function safe_set {
 		return 9
 	fi
 
-	eval $1="${!2}"
+	deref "$2" >/dev/null
+	eval $1='"$REPLY"'
 }
 
 function filter_if {

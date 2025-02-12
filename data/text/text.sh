@@ -156,7 +156,7 @@ function case_sep {
 			-e 's/([A-Z])([A-Z]+)([A-Z])/\1\L\2\U\3/g; # to handle "printURLName" style' \
 			-e "s/[A-Z]/$sep\L&/g"
 	else
-		echo "${x,,}"
+		lowercase "$x"
 	fi
 }
 
@@ -167,7 +167,7 @@ function case_snake {
 function case_big_snake {
 	local x
 	x="$(case_sep _ "$*")"
-	echo "${x^^}"
+	uppercase "$x"
 }
 
 function case_kebab {

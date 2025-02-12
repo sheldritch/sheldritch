@@ -16,7 +16,9 @@ fi
 # 
 # Slightly shorter than echoing yourself
 function jqj {
-	if [[ ! "$1" =~ (^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$) ]]; then
+	# separated because ksh complains
+	local Regex='(^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$)'
+	if [[ ! "$1" =~ $Regex ]]; then
 		error -p 1 "jqj: expected JSON as first argument, instead got '$1'."
 		return 9
 	fi

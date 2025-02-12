@@ -3,7 +3,7 @@ check_is_sourced
 
 function file_first {
 	# dependencyless func
-	local File
+	typeset File=''
 	REPLY=
 	for File in "$@"; do
 		[[ -f "$File" ]] && REPLY="$File" && break
