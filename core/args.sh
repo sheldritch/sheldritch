@@ -540,13 +540,20 @@ function _args_build_validation {
 				Error="File '\$$Name' does not exist."
 				;;
 
-			[\>\<=]* | [\>\<=]=* ) 
-				# TODO: todo
+			[Mm]atches\ /*/ | /*/ )
+				Predicate="${Predicate#*/}"
+				Predicate="${Predicate%/}"
+				Test="[[ -z \$$Name || \$$Name =~ $Predicate ]]"
+				Error="$Tag"' must match /'"$Predicate"'/, got ${__Flag:+$__Flag }'"'\$$Name'"' instead.'
+				;;
+
+			[\>\<=]* | [\>\<=]=* )
+				# TODO: accept tag name variables
 				Test="[[ -z \$$Name ]] || {
 					is_type integer \$$Name && (( $Name $Predicate ))
 				}"
-				_ARGS_CHECKS+=("${Tag}" "$Test"
-					"Failed test: $Predicate"
+				_ARGS_CHECKS+=("$Tag" "$Test"
+					"Failed test: $Tag $Predicate"
 				)
 				;;
 
