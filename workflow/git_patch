@@ -1,0 +1,27 @@
+#!/bin/bash
+
+source "$SHELDRITCH/sheldritch.base.sh" || return 1
+
+summon sheldritch/core/args.sh
+summon sheldritch/workflow/repos.sh
+
+@func_info
+
+Usage=(
+	"PATH_TO_REPO_1 PATH_TO_REPO_2 GIT_DIFF_RANGE [GIT_FORMAT_PATCH_OPTIONS...] [-- PATHS_OF_FILES_TO_PATCH... ]"
+	"# GIT_DIFF_RANGE should be FIRST_COMMIT^..LAST_COMMIT, where FIRST_COMMIT is the first commit you want transferred to the other repo."
+)
+Options=(
+	-d --diff "print the patch diff"
+	-p --parent --level=LEVEL "The path level to apply the patch to. For example, with -p2, a patch against a/dir/file will be applied directly to file."
+
+)
+ArgsReq='repo1 repo2 gitDiffRange'
+args_parse
+
+if isTrue $Diff; then
+	git -C "$Repo1" diff "$GitDiffRange" "$@"
+	exit $?
+fi
+
+git -C "$Repo1" format-patch --stdout "$GitDiffRange" "$@" | git -C "$Repo2" am -3 -p "${Level:-1}"
