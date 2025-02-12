@@ -82,7 +82,7 @@ function path_search {
 			shift 2 || return 1
 	esac
 
-	Path="$1" 
+	Path="$1"
 	shift
 	while read -rd : Dir; do
 		for Path in "$@"; do
@@ -197,18 +197,30 @@ function lib_use {
 		return 0
 	fi
 
-	local Arg Lib
+	local Arg Lib Globs='' Prefix=''
 	for Arg in "$@"; do
 
-		local Globs="${Arg##*[^*]}"
-		Globs="${Globs:+[^_]$Globs}"
+		if [[ "$Arg" = *\** ]]; then
+			Globs="*${Arg#*\*}"
+		fi
+		if [[ "$Globs" = *\*\* ]]; then
+			Globs="$Globs/[^_]*"
+		else
+			Globs="${Globs:+[^_]$Globs}"
+		fi
 
 		local Shopt=''
 		if Shopt="$(shopt -p globstar 2>/dev/null)"; then
 			shopt -s globstar
 		fi
 
-		for Lib in "${Arg%%\*}"$Globs; do
+		Prefix="${Arg%%\**}"
+		for Lib in "$Prefix"$Globs; do
+			Prefix="${Arg%%\**}"
+			if [[ "${Lib#$Prefix}" = */_* ]]; then
+				_trace "Ignoring lib '$Lib' due to underscore"
+				continue
+			fi
 
 			# NOTE: if foo/* was specified, don't import contents of subfolders
 			if [[ -d "$Lib" && -z "$Globs" ]]; then
@@ -282,15 +294,21 @@ function summon {
 		return 0
 	fi
 
+
+	local Globs=''
 	for Arg in "$@"; do
 		# find the absolute path to the library
-		if ! Lib="$(lib_find "${Arg%%\*}")"; then
+		if ! Lib="$(lib_find "${Arg%%\**}")"; then
 			error -p 1 "Library '$Lib' could not be found."
 			continue
 		fi
 
 		# re-attach globs to absolute path
-		local Globs="${Arg##*[^*]}"
+
+		Globs=''
+		if [[ "$Arg" = *\** ]]; then
+			Globs="*${Arg#*\*}"
+		fi
 		set -- "$@" "$Lib$Globs"
 		shift
 	done
