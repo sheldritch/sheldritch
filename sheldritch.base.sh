@@ -25,7 +25,7 @@ fi
 alias zsh_run='[[ -z ${ZSH_VERSION:-} ]] || '
 alias bash_run='[[ -z ${BASH_VERSION:-} ]] || '
 alias ksh_run='[[ -z ${KSH_VERSION:-} ]] || '
-alias _trace='[[ -n "${TRACE+ }" ]] && echo >&2 '
+alias _trace='[[ -n "${TRACE+ }" || $- = *x* ]] && echo >&2 '
 
 zsh_run zmodload zsh/parameter
 
