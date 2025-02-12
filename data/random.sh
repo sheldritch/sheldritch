@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Random generation utilities
 #
@@ -14,14 +15,12 @@ function random_word {
 	)
 	args_parse
 
-	Count="${count:-1}"
-
 	if ! [ -f /usr/share/dict/words ]; then
 		sudo apt-get install wbritish
 	fi
 
 	grep -v "[A-Z']" /usr/share/dict/words \
-		| shuf --random-source=/dev/random --repeat --head-count=$count \
+		| shuf --random-source=/dev/random --repeat --head-count=$Count \
 		| tr '\n' ' ' | sed 's/ $//'
 }
 

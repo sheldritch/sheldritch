@@ -7,23 +7,22 @@ summon sheldritch/core/args.sh
 function now { echo "$(date +%s.%N)"; }
 
 function table_date_comp {
-	local doc='prints all rows from stdin'
-	local usage='[options] OPERATOR DATE'
-	local field
-	@ARGS
-		-f | --field ) field="$2"
-			shift
-			shift
-	@ENDARGS
+	@func_info
+	About='prints all rows from stdin'
+	Usage='OPERATOR DATE'
+	Options=(
+		-f --field=FIELD "integer. the column position containing the time, starting from one"
+	)
 
-	field="${field:-NF}"
-	operator="$1"
-	date="$2"
+	Field="${Field:-NF}"
 
-	if [[ -z "$operator" ]]; then
-		error 'Did not receive any arguments! did you accidentally do file direction instead of greater/less than?'
-		return 9
-	fi
+	case "$Operator" in
+		lt ) Operator='<';;
+		gt ) Operator='>';;
+		* )
+			error 'Did not receive any arguments! did you accidentally do file direction instead of greater/less than?'
+			return 9
+	esac
 
 	awk -F '( *\t+ *| {2,})' -v DEBUG="$DEBUG" '
 		function Date(str, regex) {
@@ -70,7 +69,7 @@ function table_date_comp {
 
 			return 0
 		}
-		BEGIN { date = Epoch("'"$date"'") }
-		Epoch($'"$field"') && date '"$operator"' Epoch($'"$field"')
+		BEGIN { date = Epoch("'"$Date"'") }
+		Epoch($'"$Field"') && date '"$Operator"' Epoch($'"$Field"')
 	'
 }

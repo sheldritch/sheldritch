@@ -493,7 +493,7 @@ function _args_build_parser_opts {
 		esac
 		((++Opt))
 
-		_args_build_validation <<<"${Options[Opt]%%.*}"
+		_args_build_validation "${Options[Opt]}"
 
 		Builder+="
 		((++__Pos));;
@@ -526,15 +526,20 @@ function _args_build_parser_opts {
 	done
 
 	_ARGS=("${__PosArgs[@]}" "${_ARGS[@]:__Pos: ${#_ARGS[@]} - __Pos}")
+	__Flag=''
 	'
 }
 
 function _args_build_validation {
 	# read predicate requirements from docstring
-	local Predicate='' Test='' Error=''
-	while read -d ',' Predicate; do
-		case "${Predicate# }" in
+	local DocString="${1%%.*}" Predicate='' Test='' Error=''
+	while true; do
+		Predicate="${DocString%%,*}"
+		Predicate="${Predicate# }"
+		DocString="${DocString#*, }"
+		Test=''
 
+		case "$Predicate" in
 
 			# Type declarations & checks
 			bool | boolean )
@@ -542,13 +547,14 @@ function _args_build_validation {
 				;;
 			int | integer )
 				Type=integer
+				# --or-null is on because this also handles usage args in parse_legend
 				Test="is_type --or-null integer \$$Name"
-				Error='Flag "$__Flag" must be an integer.'
+				Error="$Tag"' must be a integer, got ${__Flag:+$__Flag }'"'\$$Name'"' instead.'
 				;;
 			decimal )
 				Type=decimal
 				Test="is_type --or-null decimal \$$Name"
-				Error='Flag "$__Flag" must be a decimal.'
+				Error="$Tag"' must be a decimal, got ${__Flag:+$__Flag }'"'\$$Name'"' instead.'
 				;;
 
 			[\>\<=]* | [\>\<=]=* ) 
@@ -562,17 +568,19 @@ function _args_build_validation {
 				;;
 
 			"defaults to "* )
-				Test="${Predicate#defaults to }"
+				local Default="${Predicate#defaults to }"
 
-				if [[ "$Test" = [\"\']*[\'\"] ]]; then
-					Test="${Test:1: ${#Test} - 2}"
-				elif [[ "$Test" = *\ * ]]; then
+				if [[ "$Default" = [\"\']*[\'\"] ]]; then
+					Default="${Default:1: ${#Default} - 2}"
+
+				elif [[ "$Default" = *\ * ]]; then
 					error -p 1 "INTERNAL ERROR: $Tag: default containing spaces must be surrounded in quotes."
 					return 9
-				elif [[ "$Test" != *[^[:upper:][:digit:]_]* ]]; then
+
+				elif [[ "$Default" = *[[:upper:]]* && "$Default" != *[^[:upper:][:digit:]_]* ]]; then
 					local OldName="$Name"
-					_args_name_to_variable "$Test"
-					Test="\$$Name"
+					_args_name_to_variable "$Default"
+					Default="\$$Name"
 					Name="$OldName"
 				fi
 
@@ -581,7 +589,7 @@ function _args_build_validation {
 					return 9
 				fi
 
-				_ARGS_CHECKS+=("${Tag:-Name}" "$Name=\${$Name:-$Test}"
+				_ARGS_CHECKS+=("${Tag:-Name}" "$Name=\${$Name:-$Default}"
 					"$Predicate"
 				)
 				;;
@@ -595,6 +603,9 @@ function _args_build_validation {
 				return 1
 			fi
 		"
+		if [[ "$Predicate" == "$DocString" ]]; then
+			break
+		fi
 	done
 }
 
@@ -1127,7 +1138,7 @@ function _args_build_parser_legend {
 	for ((i = 0; i < "${#Legend[@]}"; i += 2)); do
 		Type=''
 		_args_name_to_variable "${Legend[i]}"
-		_args_build_validation <<<"${Legend[i + 1]%%.*}"
+		_args_build_validation "${Legend[i + 1]}"
 	done
 
 	for ((i = 0; i < "${#_ARGS_CHECKS[@]}"; i += 3)); do
