@@ -592,6 +592,7 @@ function _args_build_validation {
 		Builder+="
 			if ! $Test; then
 				error -p 1 \"$Error\"
+				return 1
 			fi
 		"
 	done
@@ -840,7 +841,7 @@ function _args_parse_usage {
 	zsh_run setopt KSH_ARRAYS
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
-	local Name='' Line='' Token='' GlobEnabled='' BestMatch=''
+	local Name='' Line='' TokenPos='' GlobEnabled='' BestMatch=''
 
 	declare -a Bounds=() BestBounds=()
 
