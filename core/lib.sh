@@ -212,8 +212,9 @@ function lib_use {
 			Globs="${Globs:+[^_]$Globs}"
 		fi
 
-		typeset Shopt=''
-		if Shopt="$(shopt -p globstar 2>/dev/null)"; then
+		typeset Shopt="$(shopt -p globstar 2>/dev/null)"
+
+		if [[ -n "$Shopt" ]]; then
 			shopt -s globstar
 		fi
 
