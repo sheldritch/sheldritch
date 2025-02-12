@@ -30,7 +30,7 @@ RUN apt-get update -q=3 && apt-get install -q=3 --no-install-recommends \
 # Copy the tools and configure them in the bash profile
 COPY . $LIBS/sheldritch
 
-RUN $SHELDRITCH/_install.sh \
+RUN bash $SHELDRITCH/_install.sh \
 	&& bash -c 'source "$SHELDRITCH/_test.sh"'
 
 # --login ensures /etc/profile is read

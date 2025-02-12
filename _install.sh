@@ -14,7 +14,7 @@ case "$(uname -s)" in
     Darwin*)
 
 		if ! command -v brew >/dev/null; then
-			brewCmds="$(/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+			brewCmds="$("$SHELL" -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
 				| tee /dev/tty | grep -A 3 'Run these three commands' | tail -n 3
 			)"
 			echo >&2 "We are running those three commands above (you don't need to manually do it)":
@@ -36,7 +36,7 @@ cat <<-EOF
 ###
 EOF
 
-SHELDRITCH="$(dirname "{BASH_SOURCE[0]:-${(%):-%x}}")"
+SHELDRITCH="$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")"
 
 source "$SHELDRITCH/sheldritch.base.sh"
 
