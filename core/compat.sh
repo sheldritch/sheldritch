@@ -55,30 +55,26 @@ alias _help_deref='
 		echo "deref: Return the value of a variable, given its name"
 		echo "Usage: deref VARIABLE_NAME"
 		return 0
-	fi
-'
+	fi'
 alias _help_regex='
 	if [[ "$#" -eq 1 && "$1" = --help ]]; then
 		echo "regex: Test a string against a given regex pattern"
 		echo "Usage: STRING REGEX_PATTERN"
 		return 0
-	fi
-'
+	fi'
 alias _help_rematch='
 	if [[ "$#" -eq 1 && "$1" = --help ]]; then
 		echo "rematch: Test a string against a given regex pattern and return its full match"
 		echo "Usage: STRING REGEX_PATTERN"
 		return 0
-	fi
-'
+	fi'
 alias _help_recapture='
 	if [[ "$#" -eq 1 && "$1" = --help ]]; then
 		echo "rematch: Return a capture group from the last tested regex pattern"
 		echo "Usage: CAPTURE_GROUP"
 		echo "Usage: { 1-9 }"
 		return 0
-	fi
-'
+	fi'
 
 # shell defaults
 # these are overwritten with more performant shell-specific implementations
