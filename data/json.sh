@@ -30,12 +30,20 @@ function jqj {
 function json_obj {
 
 	local key value query
-	while key="$1" value="$2" && shift 2; do
+	while (($# > 1)); do
+		key="$1" value="$2"
 		if ! jq -n "$value" >/dev/null 2>&1; then
 			value="\"$value\""
 		fi
 		query+=".[\"$key\"] = $value | "
+		shift 2
 	done
+
+	if (($# == 1)); then
+		error 'odd number of arguments'
+		return 1
+	fi
+
 	jq -n "$query ."
 }
 

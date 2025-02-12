@@ -76,13 +76,17 @@ function path_search {
 	typeset Dir Path Delim='\n' First
 	case "$1" in
 		-0 | --zero ) Delim='\0'
-			shift 1 || return 1
+			shift 1
 			;;
 		-d | --delimiter ) Delim="$2"
+			if [[ -z "$delim" ]]; then
+				echo >&2 "Error: xdg_search: no delimiter passed to -d"
+				return 1
+			fi
 			shift 2 || return 1
 			;;
 		-1 | --first ) First=1
-			shift 2 || return 1
+			shift
 	esac
 
 	Path="$1"

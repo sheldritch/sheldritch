@@ -26,7 +26,11 @@ function xdg_search {
 			shift 1 || return 1
 			;;
 		-d | --delimiter ) delim="$2"
-			shift 2 || return 1
+			if [[ -z "$delim" ]]; then
+				echo >&2 "Error: xdg_search: no delimiter passed to -d"
+				return 1
+			fi
+			shift 2
 			;;
 	esac
 

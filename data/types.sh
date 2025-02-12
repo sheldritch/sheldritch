@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
@@ -215,11 +215,12 @@ function item {
 		print_docs 2>&1
 	fi
 
-	local item="$1" operator="$2"
-	if ! shift 2; then
+	if (($# < 2)); then
 		print_docs
 		return 1
 	fi
+	local item="$1" operator="$2"
+	shift 2
 
 	case "$operator" in
 		not)
@@ -255,9 +256,9 @@ function item {
 
 function join_by {
 	local d=${1-} f=${2-}
-	if shift 2; then
-		printf %s "$f" "${@/#/$d}"
-	fi
+	(($# > 1)) || return 0
+	shift 2
+	printf %s "$f" "${@/#/$d}"
 }
 
 function array_map {
@@ -376,7 +377,7 @@ function value {
 	local delimiter='='
 	if [[ "$1" = '-d' ]]; then
 		delimiter="$2"
-		shift 2 || return 9
+		(($# > 1)) && shift 2 || return 9
 	fi
 
 	local value pair
