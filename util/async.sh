@@ -1,4 +1,5 @@
-source "$SHELDRITCH/sheldritch.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.sh" || return 1
 check_is_sourced
 
 summon sheldritch/data/random.sh

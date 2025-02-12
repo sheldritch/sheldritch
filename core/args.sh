@@ -14,7 +14,8 @@
 # Is a pretty cool alternative to this. I'll be stealing some of that functionality here (like extra
 # validation info in the doc string)
 
-source "$SHELDRITCH"/sheldritch.base.sh || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH"/sheldritch.base.sh || return 1
 check_is_sourced
 
 function __main {

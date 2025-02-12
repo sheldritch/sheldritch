@@ -1,7 +1,8 @@
 #!/bin/bash
 # shellcheck disable=SC2064
 
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 function _trap_cmd { Command="${3:-true}"; }

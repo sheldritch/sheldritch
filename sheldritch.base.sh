@@ -6,7 +6,7 @@
 # base.sh is frequently re-run, so enforcing performance is important
 # shellcheck enable=require-double-brackets
 
-if [[ -n "${SHELDRITCH_SUBSHELL+ }" && -z "${SHELDRITCH_CLEAN+ }" && "$1" != "--force" ]]
+if [[ -n "${SHELDRITCH_SUBSHELL:-}" && -z "${SHELDRITCH_CLEAN:-}" && "$1" != "--force" ]]
 then
 	return
 fi

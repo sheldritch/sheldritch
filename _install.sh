@@ -38,7 +38,8 @@ EOF
 
 SHELDRITCH="$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")"
 
-source "$SHELDRITCH/sheldritch.base.sh"
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh"
 
 function add_envar {
 	if [ -f "$1" ]; then

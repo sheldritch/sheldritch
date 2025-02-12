@@ -1,4 +1,5 @@
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/data/text
 trap 'STACKTRACE=1; error FAILED' ERR
 

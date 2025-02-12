@@ -1,6 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2317,SC2199,SC2154,SC2086,SC1091
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/core/args
 summon sheldritch/data/types
 trap 'STACKTRACE=1; error FAILED; Fail=1' ERR

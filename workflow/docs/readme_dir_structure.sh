@@ -8,7 +8,8 @@
 # Does this recursively for all READMEs beneath the current directory.
 
 shopt -s globstar
-source "$SHELDRITCH/sheldritch.base.sh" || exit 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || exit 1
 summon  sheldritch/data/text/print_first_block
 
 directory="${1:-.}"

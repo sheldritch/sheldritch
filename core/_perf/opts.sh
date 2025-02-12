@@ -1,6 +1,7 @@
 #!/bin/bash
 
-source "$SHELDRITCH/sheldritch.sh" || return 1 || exit 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.sh" || return 1 || exit 1
 
 
 args=(-1 a -2 b)
