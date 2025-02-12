@@ -375,7 +375,7 @@ function _args_build_parser_opts {
 	zsh_run setopt SH_WORD_SPLIT KSH_ARRAYS
 
 	if ! var_is_declared _ARGS_OPTS; then
-		error "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
+		error -p "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
 		ecode 9
 		safe_quit
 	fi
@@ -595,14 +595,20 @@ function _args_build_validation {
 				;;
 
 			#\(\(*\)\) ) ;;
-			* ) break
+			* )
+				# TODO: have some kind of lenient error checking to make sure the devs haven't
+				# completely messed up.
+				true
 		esac
-		Builder+="
-			if ! $Test; then
-				error -p 1 \"$Error\"
-				return 1
-			fi
-		"
+
+		if [[ -n "$Test" ]]; then
+			Builder+="
+				if ! $Test; then
+					error -p 1 \"$Error\"
+					return 1
+				fi
+			"
+		fi
 		if [[ "$Predicate" == "$DocString" ]]; then
 			break
 		fi
