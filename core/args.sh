@@ -94,40 +94,6 @@ opts_parse
 
 alias parse_opts=opts_parse
 
-function sheldritch_args_example_cp {
-	@func_info
-	About='Copy files and directories'
-	Usage=(
-		'SOURCE DEST'
-		'SOURCE... DIRECTORY'
-		'-t DIRECTORY SOURCE...'
-	)
-	Options=(
-		-t --target=DIRECTORY 'copy the listed files into the given directory'
-		-T --no-target 'disallow copying inside of directories'
-		-f --force 'force copy, even if the file already exists'
-	)
-	args_parse
-
-	if [[ "$NoTarget" == true ]]; then
-		Dest="$Directory"
-	fi
-
-	if [[ -n "$Dest" ]]; then
-		if [[ -d "$Dest" ]]; then
-			error "Destination '$Dest' may not be a directory!"
-			return 2
-		fi
-		cp "$Source" "$Dest"
-		return
-	fi
-
-	local File
-	for File in "${Source[@]}"; do
-		cp "$File" "$Directory/$File"
-	done
-}
-
 # TODO: update to match current formatting
 function sheldritch_args_example {
 
