@@ -227,24 +227,27 @@ function _args_name_to_variable {
 	local -l In="$1"
 	zsh_run In="${In:l}"
 	local +l In
+	local Separator Match
+
+	local -u First UpperMatch
 
 	# PERF: I've tested this with a per-character array and a pure "${//}" approach.
 	# regex works best for a dozen individual options
 
 	while [[ "$In" =~ ([^[:alnum:]])([[:lower:]]) ]]; do
 		recapture 1 >/dev/null
-		local Separator="$REPLY"
+		Separator="$REPLY"
 		recapture 2 >/dev/null
-		local Match="$REPLY"
-		local -u UpperMatch="$Match"
+		Match="$REPLY"
+		UpperMatch="$Match"
 
 		if [[ "$Separator" = [_-] ]]; then
 			In="${In//$Separator$Match/$UpperMatch}"
 		else
-			In="${In//$Match/$UpperMatch}"
+			In="${In//$Separator$Match/$Separator$UpperMatch}"
 		fi
 	done
-	local -u First="${In:0:1}"
+	First="${In:0:1}"
 	Name="$First${In:1}"
 }
 
@@ -516,7 +519,7 @@ function _args_build_validation {
 				Type=integer
 				# --or-null is on because this also handles usage args in parse_legend
 				Test="is_type --or-null integer \$$Name"
-				Error="$Tag"' must be a integer, got ${__Flag:+$__Flag }'"'\$$Name'"' instead.'
+				Error="$Tag"' must be an integer, got ${__Flag:+$__Flag }'"'\$$Name'"' instead.'
 				;;
 			[Dd]ecimal )
 				Type=decimal
