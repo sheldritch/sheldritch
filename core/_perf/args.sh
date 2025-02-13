@@ -13,9 +13,9 @@ for ((x=1; x < ${1:-20}; x += 2)); do
 done
 
 time eval "$($SHELDRITCH/core/_perf/gen-args.sh "${1:-20}")" || exit 1
-time for x in {1..1000}; do
+time for x in {1..8000}; do
 	perf_baseline "${args[@]}" end end || exit 1
 done | tail
-time for x in {1..1000}; do
+time for x in {1..8000}; do
 	perf_func_info "${args[@]}" end end || exit 1
 done | tail
