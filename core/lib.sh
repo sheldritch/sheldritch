@@ -35,6 +35,10 @@ if [[ -z "${SHELDRTICH_SOURCES[*]+ }" ]]; then
 	typeset -g -A SHELDRITCH_SOURCES
 fi
 
+function source_is_cached {
+	[[ -n "${SHELDRITCH_SOURCES["$1"]}" ]]
+}
+
 # shellcheck disable=SC2142
 alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
 
@@ -46,7 +50,7 @@ if ! script_is_sourced; then
 	exit 1
 fi
 self_file >/dev/null
-if [[ -n "${_ARGS_CACHE:-}" && -n "${SHELDRITCH_SOURCES["$REPLY"]}" ]]; then
+if [[ -n "${_ARGS_CACHE:-}" ]] && source_is_cached "$REPLY"; then
 	funcs_with_prefix _ARGS >/dev/null
 	unset _ARGS_CACHE $REPLY
 fi
@@ -135,7 +139,7 @@ function source_once {
 		fi
 
 		# TODO: test performance of array and hash in large tools context
-		if [[ -n "${SHELDRITCH_SOURCES[$Path]}" ]]; then
+		if source_is_cached "$Path"; then
 			_trace "source_once: skipping export '$Path': Already sourced"
 			return 0
 		fi
@@ -155,11 +159,6 @@ function source_once {
 	done
 	return $Exit
 }
-
-function source_cached {
-	[[ -n "${SHELDRITCH_SOURCES["$1"]}" ]]
-}
-
 
 # TODO: If we use .local/lib, there might be stuff in .local/share we also want to use
 # We need to be careful about assuming that .local/lib is the best place for stuff, if
@@ -262,7 +261,7 @@ function lib_use {
 				Lib="${REPLY:-$Lib}"
 			fi
 
-			if [[ -n "${SHELDRITCH_SOURCES["$Lib"]}" ]]; then
+			if source_is_cached "$Lib"; then
 				continue
 			fi
 
