@@ -51,14 +51,14 @@ function cp {
 	@func_info
 	About='Copy files and directories'
 	Usage=(
-		'SOURCE DEST'
+		'SOURCE DESTINATION'
 		'SOURCE... DIRECTORY'
 		'-t DIRECTORY SOURCE...'
 	)
-    Legend=(
-        SOURCE 'Existing path. A file or directory to be copied into its new location'
-        DEST   'New file. Target for the directory to be copied to.'
-    )
+	Legend=(
+		SOURCE      'Existing path. A file or directory to be copied into its new location'
+		DESTINATION 'Target for the directory to be copied to.'
+	)
 	Options=(
 		-t --target=DIRECTORY 'copy the listed files into the given directory'
 		-T --no-target 'disallow copying inside of directories'
@@ -66,23 +66,29 @@ function cp {
 	)
 	args_parse
 
-	if [[ "$NoTarget" == true ]]; then
-		Dest="${Dest:-$Directory}"
-	fi
-
-	if [[ -n "$Dest" ]]; then
-		if [[ -d "$Dest" ]]; then
-			error "Destination '$Dest' must not be a directory!"
-			return 2
-		fi
-		command cp "$Source" "$Dest"
+	# if Destination is set and not a directory
+	if [[ ! -d "${Destination:/}" ]]; then
+		_cp_file "$Source" "$Destination"
 		return $?
 	fi
+	Directory="${Directory:-$Destination}"
 
+	if [[ "$NoTarget" == true ]]; then
+		error "Destination '$Directory' must not be a directory!"
+		return 2
+	fi
 	local File='' Fail=''
 	for File in "${Source[@]}"; do
-		command cp "$File" "$Directory/$File" || Fail=1
+		_cp_file "$File" "$Directory/$File" || Fail=1
 	done
-    return $Fail
+	return $Fail
+}
+function _cp_file {
+	if isfalse $Force && [[ -e "$2" ]]; then
+		# -p throws the error from the Nth parent function's context
+		error -p 1 "target already exists"
+		return 3
+	fi
+	command cp "$1" "$2"
 }
 ```
