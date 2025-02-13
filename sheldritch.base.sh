@@ -23,12 +23,11 @@ elif [[ -v ZSH_VERSION ]]; then
 fi
 
 # KSH is stupid and can't run aliases after defining them
-eval "
-alias zsh_run=':'
-alias bash_run=':'
-alias ksh_run=':'
-alias _trace='[[ -n "\${TRACE+ }" || \$- = *x* ]] && echo >&2 '
-"
+# So don't use these in this file.
+alias zsh_run='true ||'
+alias bash_run='true ||'
+alias ksh_run='true ||'
+alias _trace='[[ -n "${TRACE+ }" || \$- = *x* ]] && echo >&2 '
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
 	zmodload zsh/parameter
