@@ -81,7 +81,13 @@ alias _help_recapture='
 # these are overwritten with more performant shell-specific implementations
 #
 
-REPLY()     { [[ $# -gt 0 ]] && REPLY="$1" || printf '%s\n' "$REPLY"; }
+REPLY() {
+	if [[ $# -gt 0 ]]; then
+		[[ $1 != "" ]] || return 1
+		REPLY="$1"
+	fi
+	printf '%s\n' "$REPLY"
+}
 
 deref() {
 	_help_deref
@@ -89,6 +95,19 @@ deref() {
 }
 function lowercase { REPLY "$(stdin "$1" tr '[:upper:]' '[:lower:]')"; }
 function uppercase { REPLY "$(stdin "$1" tr '[:lower:]' '[:upper:]')"; }
+
+function vars_with_prefix {
+	REPLY=''
+	REPLY "$(for arg in "$@"; do
+		typeset -p | sed -n 's/^[a-z]\+ [^ ]\+ \('"$1"'[^=]*\).*/\1/p'
+	done)"
+}
+function funcs_with_prefix {
+	REPLY=''
+	REPLY "$(for arg in "$@"; do
+		typeset -p ${BASH_VERSION:+-F} -f | sed -n 's/^[a-z]\+ [^ ]\+ \('"$1"'[^=]*\).*/\1/p'
+	done)"
+}
 
 function stdin {
 	typeset string="$1"
