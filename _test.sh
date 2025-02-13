@@ -13,6 +13,7 @@ fi
 source "${__FILE%_test.sh}sheldritch.base.sh"
 
 bash_run shopt -s globstar
+ksh_run set -o globstar
 echo "Coverage:"
 echo "The following functions do not have tests:"
 for f in $(grep -r '^function [^_]' |

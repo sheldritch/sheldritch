@@ -231,11 +231,9 @@ function lib_use {
 			Globs="${Globs:+[^_]$Globs}"
 		fi
 
-		typeset Shopt="$(shopt -p globstar 2>/dev/null)"
-
-		if [[ -n "$Shopt" ]]; then
-			shopt -s globstar
-		fi
+		typeset Globstar=''
+		bash_run shopt -pq globstar || { Globstar="shopt -u globstar" && shopt -s globstar; }
+		ksh_run [[ -o globstar ]] || { Globstar="set +o globstar" && set -o globstar; }
 
 		Prefix="${Arg%%\**}"
 		for Lib in "$Prefix"$Globs; do
@@ -293,7 +291,7 @@ function lib_use {
 		done
 
 	done
-	$Shopt
+	$Globstar
 }
 
 # imports the given library/file (relative to the library dir)
