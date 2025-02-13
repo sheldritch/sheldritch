@@ -31,10 +31,14 @@ elif [[ "$ZSH_VERSION" ]]; then
 	setopt aliases
 fi
 
+if [[ -z "${SHELDRTICH_SOURCES[*]+ }" ]]; then
+	typeset -g -A SHELDRITCH_SOURCES
+fi
+
 # shellcheck disable=SC2142
 alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
 
-# shellcheck disable=SC2139
+# shellcheck disable=SC2139,SC2154
 alias check_is_sourced='
 if ! script_is_sourced; then
 	# TODO: this might need to be computed at alias compile time???
@@ -42,7 +46,7 @@ if ! script_is_sourced; then
 	exit 1
 fi
 self_file >/dev/null
-if [[ -n "${_ARGS_CACHE:-}" && "${SHELDRITCH_SOURCES:-}" = *"$REPLY"* ]]; then
+if [[ -n "${_ARGS_CACHE:-}" && -n "${SHELDRITCH_SOURCES["$REPLY"]}" ]]; then
 	funcs_with_prefix _ARGS >/dev/null
 	unset _ARGS_CACHE $REPLY
 fi
@@ -131,7 +135,7 @@ function source_once {
 		fi
 
 		# TODO: test performance of array and hash in large tools context
-		if [[ "${SHELDRITCH_SOURCES:-}" = *"$Path"* ]]; then
+		if [[ -n "${SHELDRITCH_SOURCES[$Path]}" ]]; then
 			_trace "source_once: skipping export '$Path': Already sourced"
 			return 0
 		fi
@@ -141,15 +145,19 @@ function source_once {
 			return 1
 		fi
 
-		SHELDRITCH_SOURCES+=$'\n'"$Path" # before source to prevent dependency loops
+		SHELDRITCH_SOURCES["$Path"]=1 # before source to prevent dependency loops
 		_trace "source_once: sourcing '$Path'"
 		_trace ""
 		_trace "sources currently:"
-		_trace "$SHELDRITCH_SOURCES"
+		_trace "declare -p SHELDRITCH_SOURCES"
 
 		source "$1" || Exit=1
 	done
 	return $Exit
+}
+
+function source_cached {
+	[[ -n "${SHELDRITCH_SOURCES["$1"]}" ]]
 }
 
 
@@ -254,7 +262,7 @@ function lib_use {
 				Lib="${REPLY:-$Lib}"
 			fi
 
-			if [[ "$SHELDRITCH_SOURCES" = *"$Lib"* ]]; then
+			if [[ -n "${SHELDRITCH_SOURCES["$Lib"]}" ]]; then
 				continue
 			fi
 
