@@ -12,6 +12,18 @@ fi
 
 source "${__FILE%_test.sh}sheldritch.base.sh"
 
+bash_run shopt -s globstar
+echo "Coverage:"
+echo "The following functions do not have tests:"
+for f in $(grep -r '^function [^_]' |
+	grep -v passthrough |
+	cut -f 2 -d ' ' |
+	sort -u
+); do
+	grep -q "$f " **/_test/**/* **/_test*.sh || echo "$f"
+done
+
+echo "Running tests:"
 (
 trap 'STACKTRACE=1; error FAILED' ERR
 cd "$SHELDRITCH"

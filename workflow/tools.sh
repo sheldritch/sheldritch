@@ -29,7 +29,7 @@ complete -F _complete_sheldritch_lib summon
 function be_summoned_by {
 	cd "$(lib_find "$1")"
 }
-function bsb { be_summoned_by "$@"; }
+function bsb { @func_passthrough; be_summoned_by "$@"; }
 complete -F _complete_sheldritch_lib be_summoned_by
 
 function transmute {
