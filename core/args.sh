@@ -49,6 +49,7 @@ alias opts_parse='
 	declare -a _ARGS=("$@") _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
 		_ARGS_VARS=() _ARGS_ARRAYS=() _ARGS_OPTS=() _ARGS_OPTS_BOOL=() \
 		_ARGS_CHECKS=()
+	[[ -n "${_ARGS_CACHE:-}" ]] || declare -g _ARGS_CACHE=1
 
 	[[ $- = *x* ]] && _ArgsSet+=x
 	[[ $- = *u* ]] && _ArgsSet+=u

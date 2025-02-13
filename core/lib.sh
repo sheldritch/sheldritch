@@ -42,8 +42,9 @@ if ! script_is_sourced; then
 	exit 1
 fi
 self_file >/dev/null
-if [[ "${SHELDRITCH_SOURCES:-}" = *"$REPLY"* ]]; then
-	echo >&2 "TODO: clear args function cache"
+if [[ -n "${_ARGS_CACHE:-}" && "${SHELDRITCH_SOURCES:-}" = *"$REPLY"* ]]; then
+	funcs_with_prefix _ARGS >/dev/null
+	unset _ARGS_CACHE $REPLY
 fi
 '
 
