@@ -4,8 +4,8 @@
 #
 # This is a no-dependency file.
 
-xdg() {
-	local data="${XDG_DATA_HOME:-$HOME/.local/share}" config="${XDG_CONFIG_HOME:-$HOME/.config}"
+function xdg {
+	typeset data="${XDG_DATA_HOME:-$HOME/.local/share}" config="${XDG_CONFIG_HOME:-$HOME/.config}"
 	case "$1" in
 		--help       ) printf '%s\n%s\n' 'Usage: xdg DIR_TYPE' 'https://specifications.freedesktop.org/basedir-spec/latest/';;
 		cache        ) printf '%s\n' "${XDG_CACHE_HOME:-$HOME/.cache}";;
@@ -19,14 +19,18 @@ xdg() {
 	esac
 }
 
-xdg_search() {
-	local dir type delim='\n'
+function xdg_search {
+	typeset dir type delim='\n'
 	case "$1" in
 		-0 | --zero ) delim='\0'
 			shift 1 || return 1
 			;;
 		-d | --delimiter ) delim="$2"
-			shift 2 || return 1
+			if [[ -z "$delim" ]]; then
+				echo >&2 "Error: xdg_search: no delimiter passed to -d"
+				return 1
+			fi
+			shift 2
 			;;
 	esac
 

@@ -8,7 +8,8 @@
 # Does this recursively for all READMEs beneath the current directory.
 
 shopt -s globstar
-source "$SHELDRITCH/sheldritch.base.sh" || exit 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || exit 1
 summon  sheldritch/data/text/print_first_block
 
 directory="${1:-.}"
@@ -64,8 +65,8 @@ for readme in $(getDirectoryReadmes "$directory"); do
 	for child in "$(dirname "$readme")"/*; do
 		name="$(basename "$child")"
 		filetype="$(file -b "$child")"
-		typeis() { echo "$filetype" | grep -q "$@"; }
-		nameis() { echo "$name" | grep -q "$@" ; }
+		function typeis { echo "$filetype" | grep -q "$@"; }
+		function nameis { echo "$name" | grep -q "$@" ; }
 
 		if [ "$name" = "README.md" ]; then
 			continue

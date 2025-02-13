@@ -39,14 +39,17 @@ alias check_is_sourced="if ! script_is_sourced; then
 	echo \"You aren't sourcing ${0}. Make sure you are to have its libs available to you.\"
 	exit 1
 fi"
-check_is_sourced
+
+if [[ -z "$KSH_VERSION" ]]; then
+	check_is_sourced
+fi
 
 if [[ -z "$SHELDRITCH" ]]; then
 	echo >&2 "Error: sheldritch lib.sh: SHELDRITCH must be set to its directory"
 	return 1
 fi
 
-__last() {
+function __last {
 	source_once "$SHELDRITCH/sheldritch.base.sh"
 	source_once "$SHELDRITCH/system/files.sh"
 	source_once "$SHELDRITCH/system/xdg.sh"
@@ -62,27 +65,31 @@ alias glob_args='
     unset _IFS_OLD
 '
 
-check_is_sourced_func() {
+function check_is_sourced_func {
 	if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; then
 		echo "You aren't sourcing ${0}. Make sure you are to have its libs available to you."
 		exit 1
 	fi
 }
 
-path_search() {
-	local Dir Path Delim='\n' First
+function path_search {
+	typeset Dir Path Delim='\n' First
 	case "$1" in
 		-0 | --zero ) Delim='\0'
-			shift 1 || return 1
+			shift 1
 			;;
 		-d | --delimiter ) Delim="$2"
+			if [[ -z "$delim" ]]; then
+				echo >&2 "Error: xdg_search: no delimiter passed to -d"
+				return 1
+			fi
 			shift 2 || return 1
 			;;
 		-1 | --first ) First=1
-			shift 2 || return 1
+			shift
 	esac
 
-	Path="$1" 
+	Path="$1"
 	shift
 	while read -rd : Dir; do
 		for Path in "$@"; do
@@ -93,13 +100,13 @@ path_search() {
 	done <<<"$Path"
 }
 
-find_bin() {
+function find_bin {
 	for x in ${PATH//://*${1}* }*${1}*; do
 		[ -f "$x" ] && echo $x
 	done
 }
 
-path_add() {
+function path_add {
 	for Path in "$@"; do
 		if ! [[ "$PATH" = *"$Path"* ]]; then
 			export PATH="$Path:$PATH"
@@ -107,8 +114,8 @@ path_add() {
 	done
 }
 
-source_once() {
-	local Path='' Exit=''
+function source_once {
+	typeset Path='' Exit=''
 
 	for Path in "$@"; do
 		if ! [[ "$Path" = /* ]]; then
@@ -141,14 +148,14 @@ source_once() {
 # TODO: If we use .local/lib, there might be stuff in .local/share we also want to use
 # We need to be careful about assuming that .local/lib is the best place for stuff, if
 # .local/share is already being used but ./lib is not.
-lib_find() {
+function lib_find {
 
 	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
 		printf "%s" "$SHELDRITCH/${1#sheldritch/}"
 		return 0
 	fi
 
-	local Libs
+	typeset Libs
 	if [[ -n "$LIBS" ]]; then
 		Libs="$LIBS"
 	else
@@ -166,8 +173,8 @@ lib_find() {
 }
 
 
-lib_use() {
-	local Help='' Force='' Parent=0
+function lib_use {
+	typeset Help='' Force='' Parent=0
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
 			-p | --parent ) Parent="$2"
@@ -187,7 +194,7 @@ lib_use() {
 	done
 
 	zsh_run setopt GLOB globsubst
-	local SHELDRITCH_CLEAN="$Force"
+	typeset SHELDRITCH_CLEAN="$Force"
 
 	if [[ "$Help" = true ]]; then
 		echo >&2 "lib_use -- imports the library/file by absolute paths (or relative to working dir)"
@@ -197,18 +204,31 @@ lib_use() {
 		return 0
 	fi
 
-	local Arg Lib
+	typeset Arg Lib Globs='' Prefix=''
 	for Arg in "$@"; do
 
-		local Globs="${Arg##*[^*]}"
-		Globs="${Globs:+[^_]$Globs}"
+		if [[ "$Arg" = *\** ]]; then
+			Globs="*${Arg#*\*}"
+		fi
+		if [[ "$Globs" = *\*\* ]]; then
+			Globs="$Globs/[^_]*"
+		else
+			Globs="${Globs:+[^_]$Globs}"
+		fi
 
-		local Shopt=''
-		if Shopt="$(shopt -p globstar 2>/dev/null)"; then
+		typeset Shopt="$(shopt -p globstar 2>/dev/null)"
+
+		if [[ -n "$Shopt" ]]; then
 			shopt -s globstar
 		fi
 
-		for Lib in "${Arg%%\*}"$Globs; do
+		Prefix="${Arg%%\**}"
+		for Lib in "$Prefix"$Globs; do
+			Prefix="${Arg%%\**}"
+			if [[ "${Lib#$Prefix}" = */_* ]]; then
+				_trace "Ignoring lib '$Lib' due to underscore"
+				continue
+			fi
 
 			# NOTE: if foo/* was specified, don't import contents of subfolders
 			if [[ -d "$Lib" && -z "$Globs" ]]; then
@@ -222,7 +242,7 @@ lib_use() {
 			fi
 
 			if ! [[ -e "$Lib" ]]; then
-				file_first "$Lib".{${SHELL##*/},sh,ksh,bash,fish,zsh,*} >/dev/null
+				file_first "$Lib".{${THIS_SHELL},sh,ksh,bash,fish,zsh,*} >/dev/null
 				Lib="${REPLY:-$Lib}"
 			fi
 
@@ -235,6 +255,14 @@ lib_use() {
 				# shellcheck disable=SC2139
 				alias "$(basename "$Lib")=$Lib"
 			elif [[ "$Lib" =~ \.(bash|fish|ksh|sh|zsh)$ ]]; then
+
+				if [[ "$THIS_SHELL" = ksh && "$Lib" =~ \.(bash|fish|zsh)$ ]]; then
+					if [[ "$Lib" != "$SHELDRITCH"* ]]; then
+						warn "not sourcing '$Lib' due to ksh syntax checking."
+					fi
+					continue
+				fi
+
 				if [[ "$SHELDRITCH_CLEAN" = true ]]; then
 					_trace "Force source lib '$Lib'"
 					source "$Lib"
@@ -254,8 +282,8 @@ lib_use() {
 }
 
 # imports the given library/file (relative to the library dir)
-summon() {
-	local Help='' Force=''
+function summon {
+	typeset Help='' Force=''
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
 			-f | --force ) Force=true
@@ -270,7 +298,7 @@ summon() {
 		esac
 	done
 
-	local SHELDRITCH_CLEAN="$Force"
+	typeset SHELDRITCH_CLEAN="$Force"
 	zsh_run setopt GLOB globsubst
 
 	if [[ "$Help" = true ]]; then
@@ -282,15 +310,21 @@ summon() {
 		return 0
 	fi
 
+
+	typeset Globs=''
 	for Arg in "$@"; do
 		# find the absolute path to the library
-		if ! Lib="$(lib_find "${Arg%%\*}")"; then
+		if ! Lib="$(lib_find "${Arg%%\**}")"; then
 			error -p 1 "Library '$Lib' could not be found."
 			continue
 		fi
 
 		# re-attach globs to absolute path
-		local Globs="${Arg##*[^*]}"
+
+		Globs=''
+		if [[ "$Arg" = *\** ]]; then
+			Globs="*${Arg#*\*}"
+		fi
 		set -- "$@" "$Lib$Globs"
 		shift
 	done
@@ -299,8 +333,8 @@ summon() {
 	lib_use "$@"
 }
 
-conjure() {
-	local Help='' Force=''
+function conjure {
+	typeset Help='' Force=''
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
 			-f | --force ) Force=true
@@ -315,7 +349,7 @@ conjure() {
 		esac
 	done
 
-	local SHELDRITCH_CLEAN="$Force"
+	typeset SHELDRITCH_CLEAN="$Force"
 	zsh_run setopt GLOB globsubst
 
 	if [[ "$Help" = true ]]; then

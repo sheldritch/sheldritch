@@ -1,19 +1,20 @@
 #!/bin/bash
 # move around between certain repos
 
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 summon sheldritch/util/complete
 summon sheldritch/data/text
 
-history_delve() {
+function history_delve {
 
 	if [[ "$1" = --force ]]; then
 		rm "$File" 2>/dev/null
 	fi
 
-	local Shell=${SHELL##*/}
+	local Shell=${THIS_SHELL}
 	local File="$SHELDRITCH_TMP/history_delve.$Shell" Hist="${HISTFILE:-~/.${Shell}_history}"
 	trap 'rm "$File" 2>/dev/null' RETURN
 
@@ -33,4 +34,4 @@ history_delve() {
 	fi
 	source "$File"
 }
-hdelv() { @func_passthrough; history_delve "$@"; }
+function hdelv { @func_passthrough; history_delve "$@"; }

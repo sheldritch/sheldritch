@@ -1,10 +1,11 @@
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 summon sheldritch/core/args.sh
 
-confirm() {
-	usage() {
+function confirm {
+	function usage {
 		echo "confirm: prompt user for yes/no and return the response as an exit code."
 		print_usage "[args...]"
 		echo
@@ -85,7 +86,7 @@ confirm() {
 
 # Display the output of a diff, and ask the user if they want to continue with those changes
 # returns 0 iff they say yes, otherwise return 1
-diff_confirm() {
+function diff_confirm {
 
 	diff="$(diff -yt "$@")"
 

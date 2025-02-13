@@ -1,9 +1,10 @@
 #!/bin/bash
 # shellcheck disable=SC2317,SC2199,SC2154,SC2086,SC1091
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/core/args
 summon sheldritch/data/types
-trap 'STACKTRACE=1; error FAILED; Fail=1' ERR
+trap '{ STACKTRACE=1; error FAILED; Fail=1 } || true' ERR
 
 declare _ARGS_NO_CACHE=1
 
@@ -11,7 +12,7 @@ declare Usage
 STACKTRACE=1
 
 alias safe_quite='warn "QUIT $?"; return'
-eq() {
+function eq {
 	local STACKTRACE=1
 	while [[ $# -gt 0 ]]; do
 		if [[ "$1" != "$2" ]]; then
@@ -29,7 +30,7 @@ eq() {
 	done
 }
 
-array_eq() {
+function array_eq {
 	local STACKTRACE=1
 	local actual expected
 	actual="$(eval args_quoted "\"\${$1[@]}\"")"
@@ -43,10 +44,10 @@ array_eq() {
 	fi
 }
 
-__parse() {
+function __parse {
 	parse_args
 } 2>&1
-parsing_fails() {
+function parsing_fails {
 	local STACKTRACE=1 error match
 	match="$1"
 	shift

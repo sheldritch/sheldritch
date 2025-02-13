@@ -1,8 +1,9 @@
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/data/text
 trap 'STACKTRACE=1; error FAILED' ERR
 
-test_encode() {
+function test_encode {
 	val="$1"
 	shift
 	url_encode "$@" >/dev/null

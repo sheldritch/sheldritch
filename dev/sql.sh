@@ -1,12 +1,13 @@
 #!/bin/bash
 # Common helpers for database management
 
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 summon sheldritch/core/args.sh
 
-sql_query() {
+function sql_query {
 	local select table where order limit
 	@ARGS
 		-s | --select)
@@ -60,10 +61,10 @@ sql_query() {
 	echo "$query"
 }
 
-sqlq() { sql_query "$@"; }
+function sqlq { sql_query "$@"; }
 
-sql_in() {
-	usage() {
+function sql_in {
+	function usage {
 		print_usage "COLUMN_NAME [POSSIBLE_VALUES...]"
 	}
 

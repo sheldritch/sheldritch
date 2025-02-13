@@ -1,8 +1,9 @@
-source "$SHELDRITCH/sheldritch.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.sh" || return 1
 check_is_sourced
 
 # Use FZF to search a JSON array for a particular field match
-fzf_json() {
+function fzf_json {
 	@func_info
 	Options=(
 		-k --key=KEY "The key of the JSON field to search within"

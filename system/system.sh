@@ -1,4 +1,5 @@
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 case $(uname | tr '[:upper:]' '[:lower:]') in
@@ -44,7 +45,7 @@ if [[ -f "$iop" ]] && grep -sq enabled "$iop"; then
 	export BROWSER="$__browser"
 fi
 
-url_open() {
+function url_open {
 	link="$1"
 	if [[ "$XDG_SESSION_TYPE" = tty ]]; then
 		echo >&2 "Open the following link in your browser:"

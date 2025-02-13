@@ -1,4 +1,4 @@
-#!/bin/bash
+#j!/bin/bash
 #
 # Base script utilities
 #
@@ -6,7 +6,7 @@
 # base.sh is frequently re-run, so enforcing performance is important
 # shellcheck enable=require-double-brackets
 
-if [[ -n "${SHELDRITCH_SUBSHELL+ }" && -z "${SHELDRITCH_CLEAN+ }" && "$1" != "--force" ]]
+if [[ -n "${SHELDRITCH_SUBSHELL:-}" && -z "${SHELDRITCH_CLEAN:-}" && "$1" != "--force" ]]
 then
 	return
 fi
@@ -22,15 +22,30 @@ elif [[ -v ZSH_VERSION ]]; then
 	setopt aliases
 fi
 
-alias zsh_run='[[ -z ${ZSH_VERSION:-} ]] || '
-alias bash_run='[[ -z ${BASH_VERSION:-} ]] || '
-alias ksh_run='[[ -z ${KSH_VERSION:-} ]] || '
-alias _trace='[[ -n "${TRACE+ }" ]] && echo >&2 '
+# KSH is stupid and can't run aliases after defining them
+eval "
+alias zsh_run=':'
+alias bash_run=':'
+alias ksh_run=':'
+alias _trace='[[ -n "\${TRACE+ }" || \$- = *x* ]] && echo >&2 '
+"
 
-zsh_run zmodload zsh/parameter
+if [[ -n "${ZSH_VERSION:-}" ]]; then
+	zmodload zsh/parameter
+	alias zsh_run='false ||'
+	THIS_SHELL='zsh'
+elif [[ -n "${KSH_VERSION:-}" ]]; then
+	eval "alias ksh_run='false ||'"
+	THIS_SHELL='ksh'
+elif [[ -n "${BASH_VERSION:-}" ]]; then
+	alias bash_run='false ||'
+	THIS_SHELL='bash'
+else
+	THIS_SHELL="$(ps -p "$$" | grep -m 1 -o '\b[a-z]*sh\b')"
+fi
 
-self_file() {
-	local Level="$((${1:-0} + 1))"
+function self_file {
+	typeset Level="$((${1:-0} + 1))"
 
 	if [[ -v BASH_VERSION ]]; then
 		REPLY="${BASH_SOURCE[$Level]}"
@@ -40,7 +55,7 @@ self_file() {
 	echo "$REPLY"
 }
 
-self_dir() {
+function self_dir {
 	self_file 1 >/dev/null
 	dirname "$REPLY"
 }
@@ -50,10 +65,11 @@ if ! [[ $SHELDRITCH == /* && -f "$SHELDRITCH/sheldritch.base.sh" ]]; then
 	SHELDRITCH="$(realpath -s "$(self_dir)")" || return 1
 fi
 SHELDRITCH_SUBSHELL="${BASH_SUBSHELL:-}${ZSH_SUBSHELL:-}"
+SHELDRITCH_SUBSHELL="${SHELDRITCH_SUBSHELL:--1}"
 
 # stub out complete if shell does not support autocompletion
 if ! command -v complete >/dev/null 2>/dev/null; then
-	complete() { return; }
+	function complete { return; }
 fi
 
 #
@@ -63,7 +79,7 @@ fi
 # Dependency for logging
 # shellcheck disable=SC2154
 alias @func_use_parent='
-	local Parent ParentLevel=0
+	typeset Parent ParentLevel=0
 	while [[ -n "$1" ]]; do
 		case "$1" in
 			-p | --parent ) ParentLevel="$2"
@@ -77,7 +93,7 @@ alias @func_use_parent='
 
 	ParentLevel="$((ParentLevel + FUNC_PASSTHROUGH + 1))"
 
-	local Parent=''
+	typeset Parent=''
 	if funcname -p $ParentLevel -q 2>/dev/null; then
 		Parent="$(funcname -p $ParentLevel)"
 	else
@@ -85,9 +101,9 @@ alias @func_use_parent='
 	fi
 '
 
-_genfunc_log() {
+function _genfunc_log {
 	eval "$1"'() {
-		local Trace="${STACKTRACE:-$DEBUG}" Set
+		typeset Trace="${STACKTRACE:-$DEBUG}" Set
 		if [[ $- = *x* ]]; then
 			set +x
 			Set=x
@@ -96,11 +112,16 @@ _genfunc_log() {
 		echo '"$2"'": ${Parent:+$Parent: }$*" >&2
 
 		if [[ "$(lowercase "$Trace")" = true || "$Trace" = 1 || -n "$Set" ]]; then
-			local I=$((ParentLevel - 1)) Caller
-			read Line Fu File < <(caller $I)
-			sed -n "${Line}s/^/\\t/p" "$File"
-			while Caller="$(caller $I)"; do printf "\\t%s\\n" "$Caller"; ((I++)); done
-			printf \\n
+
+			if [[ -v BASH_VERSION ]]; then
+				typeset I=$((ParentLevel - 1)) Caller
+				read Line Fu File < <(caller $I)
+				sed -n "${Line}s/^/\\t/p" "$File"
+				while Caller="$(caller $I)"; do printf "\\t%s\\n" "$Caller"; ((++I)); done
+				printf \\n
+			elif [[ -v ZSH_VERSION ]]; then
+				args_quoted "${funcstack[@]}" >&2
+			fi
 			set -$Set
 		fi >&2
 	}
@@ -112,8 +133,8 @@ _genfunc_log warn   Warning
 _genfunc_log _debug Debug
 
 # Echo debug line to stderr if debug turned on
-debug() {
-	local x
+function debug {
+	typeset x
 	for x in "$DEBUG" "$TRACE"; do
 		quiet lowercase "$x"
 		if [[ -n "$x" && "$REPLY" =~ ^(1|true)$ ]]; then
@@ -127,9 +148,9 @@ debug() {
 #
 
 source "$SHELDRITCH/core/lib.sh"
-source_once "$SHELDRITCH/core/compat.sh"
+summon sheldritch/core/compat
 
-tmp_dir() {
+function tmp_dir {
 	xdg runtime
 }
 SHELDRITCH_TMP="${SHELDRITCH_TMP:-$(tmp_dir)/${USER:-$user}/sheldritch}"
@@ -144,4 +165,4 @@ alias safe_quit='{ declare E=$?; return "$E" 2>/dev/null || exit "$E"; }'
 alias quiet='>/dev/null 2>/dev/null'
 alias stderr='>&2'
 
-ecode() { return "$1"; }
+function ecode { return "$1"; }

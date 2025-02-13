@@ -1,9 +1,10 @@
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-file_first() {
+function file_first {
 	# dependencyless func
-	local File
+	typeset File=''
 	REPLY=
 	for File in "$@"; do
 		[[ -f "$File" ]] && REPLY="$File" && break
@@ -11,7 +12,7 @@ file_first() {
 	[[ -n "$REPLY" ]] && echo "$REPLY"
 }
 
-fopen() {
+function fopen {
 
 	local _sem="16" # Leave small fds for safety
 	while [ -e /dev/fd/$_sem ]; do
@@ -23,7 +24,7 @@ fopen() {
 	eval "exec ${_sem}<>$SEMS/$1"
 }
 
-su_write() {
+function su_write {
 	if [ $# -ne 1 ]; then
 		error "requires one file name as argument"
 		return 1
@@ -31,7 +32,7 @@ su_write() {
 	sudo tee > /dev/null "$1"
 }
 
-su_append() {
+function su_append {
 	if [ $# -ne 1 ]; then
 		error "requires one file name as argument"
 		return 1

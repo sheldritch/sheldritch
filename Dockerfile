@@ -1,6 +1,3 @@
-# TODO: rewrite
-ARG DEPENDENCY_PROXY=""
-
 FROM ${DEPENDENCY_PROXY}debian:stable-slim as dependencies
 
 ARG HOME=/root
@@ -27,20 +24,36 @@ RUN apt-get update -q=3 && apt-get install -q=3 --no-install-recommends \
 	yq \
 	zip
 
-# Copy the tools and configure them in the bash profile
+ARG DEPENDENCY_PROXY=""
+ARG SHELL=bash
+ENV SHELL=$SHELL
+
+RUN apt-get install -q=3 --no-install-recommends $SHELL
+
+# Copy the tools and configure them in the profile
 COPY . $LIBS/sheldritch
 
-RUN $SHELDRITCH/_install.sh \
-	&& bash -c 'source "$SHELDRITCH/_test.sh"'
+RUN $SHELL $SHELDRITCH/_install.sh \
+	&& $SHELL -c 'source "$SHELDRITCH/_test.sh"'
 
 # --login ensures /etc/profile is read
-RUN echo >>/usr/local/bin/bash '/bin/bash --login "$@"' \
-	&& chmod 755 /usr/local/bin/bash
+RUN echo >>/entrypoint.sh "#!/bin/sh" && \
+	echo >>/entrypoint.sh ' \
+if [ "$#" -eq 1 ]; then \
+	'$SHELL' --login -c "source '$SHELDRITCH'/sheldritch.full.sh; $1" sheldritch \
+; elif [ "$#" -eq 0 ]; then \
+	'$SHELL' --login \
+; else \
+	'$SHELL' --login -c '\''source '$SHELDRITCH'/sheldritch.full.sh; "$0" "$@"'\'' "$@" \
+; fi' \
+	&& chmod 755 /entrypoint.sh
+
+RUN cat /entrypoint.sh
 
 # Entrypoint:
 # If only one arg is given to docker, run as if it were a script (conventional Docker shell operation)
 # If arguments are given, treat like a command and ensure all args are quoted
-ENTRYPOINT ["/bin/bash", "--login", "-c", "[ $# -eq 0 ] && eval $0 || \"$0\" \"$@\" "]
-CMD [ "bash" ]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD []
 
 RUN apt-get -qq update && apt-get -qq upgrade

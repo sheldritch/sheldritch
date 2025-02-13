@@ -1,18 +1,49 @@
 #!/bin/bash
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 summon sheldritch/core/args.sh
+
+function is_type {
+	local Val='' Null=''
+	if [[ "$1" = --or-null ]]; then
+		shift
+		Null=1
+	fi
+
+	for Val in "${@:2}"; do
+		if [[ -n "$Null" && -z "$Val" ]]; then
+			continue
+		fi
+		case "$1" in
+			bool | boolean )
+				[[ "$Val" == true || "$Val" == false ]] || return 2
+				;;
+
+			int | integer )
+				[[ "${Val#[+-]}" != *[^[:digit:]]* ]] || return 2
+				;;
+
+			decimal )
+				Type=decimal
+				Test="[[ \"\$$Name\" =~ [+-]?[0-9]+([.,][0-9]+)? ]]"
+				Error='Flag "$__Flag" must be a decimal.'
+				;;
+		esac
+
+	done
+}
 
 #
 # Functions
 #
 
-is_function() {
+function is_function {
 	declare -p ${BASH_VERSION:+-F} -f "$1" >/dev/null 2>&1
 }
 
-funcs() {
+function funcs {
 	if [[ "$ZSH_VERSION" ]]; then
 		# shellcheck disable=SC2296
 		print -l ${(ok)functions}
@@ -24,7 +55,8 @@ funcs() {
 # WARNING!
 # `funcname` should not use any other helper functions to avoid recursion
 # except where explicitly commented
-funcname() {
+function funcname {
+	zsh_run setopt KSH_ARRAYS
 	local quiet parent=0
 	while [[ $# -gt 0 ]]; do case "$1" in
 		-q | --quiet) quiet=true
@@ -47,10 +79,10 @@ funcname() {
 
 	parent="$((parent + 1))" # this function, `funcname`, counts as an additional layer
 
-	local parentFunc="${FUNCNAME[$parent]}${funcstack[@]:$parent:1}"
+	local parentFunc="${FUNCNAME[$parent]}${funcstack[$parent]}"
 	if [[ -z "$parentFunc" || "$parentFunc" = source ]] ||
 		# Happens when run in shell script
-		[[ "$parentFunc" = main && -z "${FUNCNAME[$(($parent + 1))]}${funcstack[@]:parent + 1:1}" ]]
+		[[ "$parentFunc" = main && -z "${FUNCNAME[parent + 1]}${funcstack[parent + 1]}" ]]
 	then
 		[[ "$quiet" = true ]] || echo >&2 "Error: funcname: no shell function found."
 		return 1
@@ -61,7 +93,7 @@ funcname() {
 
 # for all defined functions, create an alias replacing the given extended regex
 # with the given match
-alias_funcs() {
+function alias_funcs {
 	functionMatch="$1"
 	replacement="$2"
 
@@ -69,13 +101,13 @@ alias_funcs() {
 }
 
 # Print the contents of a given alias. Used for nested aliases.
-alias_print() {
+function alias_print {
 	eval "alias=$(alias $1 | sed -E 's/^(alias )?'"$1"'=//' )"
 	echo "$alias"
 }
 
 # temporarily unset aliases, so they don't interfere with a helper script
-disable_previous_aliases() {
+function disable_previous_aliases {
 	PRE_UTIL_ALIASES="$(alias)"
 	for alias in $(alias | perl -ne "/alias (\w+)='*/ && print "'"$1\n"'); do
 		unalias "$alias"
@@ -83,7 +115,7 @@ disable_previous_aliases() {
 }
 
 # Must be run at the end of a script that disabled previous aliases
-enable_previous_aliases() {
+function enable_previous_aliases {
 	eval "$PRE_UTIL_ALIASES"
 }
 
@@ -114,7 +146,7 @@ anyTrue() {
 		return 2
 	fi
 	for bool in "$@"; do
-		test "$bool" = "true" && return 0
+		[[ "$bool" = "true" ]] && return 0
 	done
 }
 
@@ -123,12 +155,13 @@ isNull() {
 		return 2
 	fi
 	for val in "$@"; do
-		test "$val" = "null" || return 1
+		[[ "$val" = "null" ]] || return 1
 	done
 }
 
 yesNoToBool() {
-	case "${1,,}" in
+	lowercase "$1" >/dev/null
+	case "$REPLY" in
 		y | yes | true | correct) echo "true"
 			;;
 		n | no | false | incorrect) echo "false"
@@ -144,7 +177,7 @@ yesNoToBool() {
 # Lists/Arrays(/Vectors, I guess)
 #
 
-contains() {
+function contains {
 	local Match="$1"
 	shift
 
@@ -156,7 +189,7 @@ contains() {
 	return 1
 }
 
-contains_glob() {
+function contains_glob {
 	local Match="$1"
 	shift
 
@@ -170,7 +203,7 @@ contains_glob() {
 }
 
 
-item() {
+function item {
 	@func_info
 	About="perform a check or operation of a single value against a given list"
 	Usage=(
@@ -181,11 +214,12 @@ item() {
 		print_doc 2>&1
 	fi
 
-	local item="$1" operator="$2"
-	if ! shift 2; then
+	if (($# < 2)); then
 		print_doc
 		return 1
 	fi
+	local item="$1" operator="$2"
+	shift 2
 
 	case "$operator" in
 		not)
@@ -219,14 +253,14 @@ item() {
 	return 1 # If ya wanted tuh succeed ya shoulda done it earlia!!
 }
 
-join_by() {
+function join_by {
 	local d=${1-} f=${2-}
-	if shift 2; then
-		printf %s "$f" "${@/#/$d}"
-	fi
+	(($# > 1)) || return 0
+	shift 2
+	printf %s "$f" "${@/#/$d}"
 }
 
-array_map() {
+function array_map {
 	@func_info
 	Usage='ARRAY_NAME FILTER...'
 	@options_first
@@ -254,7 +288,7 @@ array_map() {
 	'
 }
 
-array_for() {
+function array_for {
 	@func_info
 	Usage='ARRAY_NAME ACTION...'
 	@options_first
@@ -282,7 +316,7 @@ array_for() {
 	'
 }
 
-for_permutations() {
+function for_permutations {
 	@func_info
 	Usage='FUNCTION ARRAY...'
 	@options_first
@@ -299,7 +333,7 @@ for_permutations() {
 	_for_permutations_next 0 || return 1
 	return "$Exit"
 }
-_for_permutations_next() {
+function _for_permutations_next {
 	zsh_run setopt KSH_ARRAYS
 	if (( $1 == ${#Array[@]} - 1 )); then
 		"$Function" "${Array[@]}" || { $Catch; ((Exit < 127 && Exit++)); }
@@ -307,10 +341,11 @@ _for_permutations_next() {
 	fi
 
 	local i=$1 temp=''
-	declare -a copy=("${Array[@]}")
+	declare -a Copy 
+	Copy=("${Array[@]}")
 
 	for (( ; i < ${#Array[@]}; i++ )) ; do
-		Array=("${copy[@]}")
+		Array=("${Copy[@]}")
 		temp="${Array[i]}"
 		Array[i]="${Array[$1]}"
 		Array[$1]="$temp"
@@ -324,7 +359,7 @@ _for_permutations_next() {
 #
 
 # Returns the key for a given key value pair
-key() {
+function key {
 	local delimiter='='
 	if [[ "$1" = '-d' ]]; then
 		delimiter="$2"
@@ -337,11 +372,11 @@ key() {
 }
 
 # Returns the value for a given key value pair
-value() {
+function value {
 	local delimiter='='
 	if [[ "$1" = '-d' ]]; then
 		delimiter="$2"
-		shift 2 || return 9
+		(($# > 1)) && shift 2 || return 9
 	fi
 
 	local value pair
@@ -355,28 +390,28 @@ value() {
 	printf '%s\n' "${pair##*"$delimiter"}"
 }
 
-ternary() {
+function ternary {
 	eval "$1" && echo "$2" || echo "$3"
 }
-bash_run ?:() { ternary "$@"; }
-zsh_run \?:() { ternary "$@"; }
+#function ?: { ternary "$@"; }
+#zsh_run \?: { ternary "$@"; }
 
-ifdef() {
+function ifdef {
 	if [[ $# -gt 3 ]]; then
 		error -p 2 "wrong argument count to ifdef (:+)"
 		return 9
 	fi
 	[[ -n "$1" ]] && echo "$2" || echo "$3"
 }
-:+ () { ifdef "$@"; }
+#function :+ { ifdef "$@"; }
 
-safe_set() {
+function safe_set {
 	if ! declare -p $1 >/dev/null; then
 		error "variable '$1' must be declared beforehand"
 		echo >&2 "Please call 'local $1' above this function call, and 'declare -r $1' afterwards."
 		return 9
 
-	elif [[ -n "${!1}" ]]; then
+	elif deref "$1" >/dev/null && [[ -n "${REPLY}" ]]; then
 		error "'$1' Must be a fresh variable, do not set it to some initial value."
 		return 9
 
@@ -385,10 +420,11 @@ safe_set() {
 		return 9
 	fi
 
-	eval $1="${!2}"
+	deref "$2" >/dev/null
+	eval $1='"$REPLY"'
 }
 
-filter_if() {
+function filter_if {
 	if eval "$1"; then
 		eval "${2:-cat}"
 	else

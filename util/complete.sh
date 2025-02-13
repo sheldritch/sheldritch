@@ -1,10 +1,11 @@
 #!/bin/bash
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 # Returns a list of paths in dir '$1' that start with '$2'
 # Directories are ended with '/', and files are not.
-complete_file_path() {
+function complete_file_path {
 	local directory Path
 	directory="$1"
 	Path="$2"
@@ -31,7 +32,7 @@ complete_file_path() {
 }
 
 # Example use of the function above...
-_complete_file_path() {
+function _complete_file_path {
 	local IFS=$'\n'
 	COMPREPLY=($(complete_file_path . ${COMP_WORDS[COMP_CWORD]}))
 

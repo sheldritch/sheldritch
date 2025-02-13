@@ -1,4 +1,5 @@
-source "$SHELDRITCH/sheldritch.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.sh" || return 1
 check_is_sourced
 
 summon sheldritch/data/random.sh
@@ -7,7 +8,7 @@ ASYNC_TMP=$SHELDRITCH_TMP/async
 SEMS=$ASYNC_TMP/semaphores
 mkdir -p $SEMS
 
-flock() {
+function flock {
 	if command flock --version >/dev/null 2>&1; then
 		command flock "$@"
 	else
@@ -42,7 +43,7 @@ flock() {
 # modified from https://unix.stackexchange.com/a/216475
 
 # initialize a semaphore with a given number of tokens
-async_sem() {
+function async_sem {
 	
 	local _sem
 	_sem="$(random_char -c 8 'A-Za-z0-9')"
@@ -67,11 +68,11 @@ async_sem() {
 	fi
 }
 
-async_close() {
+function async_close {
 	rm "$SEMS/$1"
 }
 
-async_wait() {
+function async_wait {
 	if ! [[ -p "$SEMS/$1" ]]; then
 		error "could not find async id $1"
 		return 9
@@ -89,7 +90,7 @@ async_wait() {
 	return $REPLY
 }
 
-async_done() {
+function async_done {
 	local exit=${2:-$?}
 	local sem="${1:-$SEM}"
 	(
@@ -99,8 +100,8 @@ async_done() {
 	_trace "async: released semaphore $sem"
 }
 
-async_batch() {
-	usage() {
+function async_batch {
+	function usage {
 		echo >&2 'Usage: async_batch [options] COMMAND ELEMENTS...'
 		echo >&2 'Usage: async_batch [options] -f COMMAND_FILE ELEMENTS...'
 		print_usage '[options] --for VAR "COMMAND CONTAINING $VAR" ELEMENTS...'
@@ -230,7 +231,7 @@ async_batch() {
 			echo >&2 Batching item '$ASYNC_BATCH_INDEX', value '$ASYNC_BATCH_ELEMENT'
 		fi
 
-		_batch_done() {
+		function _batch_done {
 			local exit=$?
 			async_done $ASYNC_BATCH_SEM
 			
@@ -248,13 +249,13 @@ async_batch() {
 
 }
 
-async_cat() {
+function async_cat {
 	local tmp=$ASYNC_TMP/cat dir
 	mkdir -p $tmp
 	dir="$(mktemp -d -p $tmp)"
 	debug "Temp dir is '$dir'"
 
-	__cleanup() {
+	function __cleanup {
 		rm -f $catQueue
 		if ! isTrue $DEBUG; then
 			rm -r $dir

@@ -14,7 +14,7 @@ case "$(uname -s)" in
     Darwin*)
 
 		if ! command -v brew >/dev/null; then
-			brewCmds="$(/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+			brewCmds="$("${SHELL:-bash}" -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
 				| tee /dev/tty | grep -A 3 'Run these three commands' | tail -n 3
 			)"
 			echo >&2 "We are running those three commands above (you don't need to manually do it)":
@@ -36,11 +36,12 @@ cat <<-EOF
 ###
 EOF
 
-SHELDRITCH="$(dirname "{BASH_SOURCE[0]:-${(%):-%x}}")"
+SHELDRITCH="$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")"
 
-source "$SHELDRITCH/sheldritch.base.sh"
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh"
 
-add_envar() {
+function add_envar {
 	if [ -f "$1" ]; then
 		if grep -q SHELDRITCH= "$1"; then
 			# export needed for executable scripts that use $SHELDRITCH
@@ -51,7 +52,7 @@ add_envar() {
 	fi
 }
 
-declare Shell=${SHELL##*/}
+declare Shell=$THIS_SHELL
 add_envar ~/.${Shell}rc
 # non-interactive init files need $SHELDRITCH when they source the app
 add_envar ~/.profile

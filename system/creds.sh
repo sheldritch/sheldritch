@@ -1,6 +1,7 @@
 # Helpers for credential management
 
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 summon sheldritch/core/args.sh
@@ -8,8 +9,8 @@ summon sheldritch/core/args.sh
 KEYSTORE="$SHELDRITCH_TMP/keystore"
 
 # A shared frontend for secret management
-keyset() {
-	usage() {
+function keyset {
+	function usage {
 		echo >&2 "A shared frontend for secret management"
 		echo >&2 "Usage: keyset KEY SECRET"
 	}
@@ -96,7 +97,7 @@ keyset() {
 }
 
 # A shared frontend for secret management
-keyget() {
+function keyget {
 	if [ $# -eq 0 -o "$1" = --help ]; then
 		echo >&2 "Usage: keyget key"
 		return 0

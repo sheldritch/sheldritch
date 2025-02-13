@@ -2,7 +2,8 @@
 #
 # Utils for transforming JSON
 
-source "$SHELDRITCH/sheldritch.base.sh" || return 1
+[[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
+	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
 summon sheldritch/core/args.sh
@@ -15,8 +16,10 @@ fi
 # jq, but the first arg is JSON input
 # 
 # Slightly shorter than echoing yourself
-jqj() {
-	if [[ ! "$1" =~ (^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$) ]]; then
+function jqj {
+	# separated because ksh complains
+	local Regex='(^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$)'
+	if [[ ! "$1" =~ $Regex ]]; then
 		error -p 1 "jqj: expected JSON as first argument, instead got '$1'."
 		return 9
 	fi
@@ -24,30 +27,38 @@ jqj() {
 	jq "${@:2}" <<<"$1"
 }
 
-json_obj() {
+function json_obj {
 
 	local key value query
-	while key="$1" value="$2" && shift 2; do
+	while (($# > 1)); do
+		key="$1" value="$2"
 		if ! jq -n "$value" >/dev/null 2>&1; then
 			value="\"$value\""
 		fi
 		query+=".[\"$key\"] = $value | "
+		shift 2
 	done
+
+	if (($# == 1)); then
+		error 'odd number of arguments'
+		return 1
+	fi
+
 	jq -n "$query ."
 }
 
-json_field() {
+function json_field {
 	local query="$(replace "$2"  \" '\"'  '(([^.]|\\.)+)' '["\1"]'  '\\\.' .)"
 	jqj "$1" -re ".$query // empty"
 }
 alias jfield=json_field
 alias jf=json_field
 
-jbool() {
+function jbool {
 	isTrue "$(jqj "$1" "($2) == true")"
 }
 
-jtype() {
+function jtype {
 	if [[ $# -eq 2 ]]; then
 		isTrue "$(jqj "$1" "type == \"$2\"")"
 	else
@@ -59,9 +70,9 @@ jtype() {
 # eg for i in $(json_it "$json"); do
 #    	elem="$(jqj "$json" .[$i])"'
 #    	...
-json_it() {
+function json_it {
 	local json length
-	usage() {
+	function usage {
 		echo >&2 "Iterate over given JSON values"
 		echo >&2 "For example:"
 		echo >&2 "for i in $(json_it "$json"); do"
@@ -89,7 +100,7 @@ json_it() {
 	esac
 }
 
-json2vars() {
+function json2vars {
 	@func_info
 	About='Extract values from the given JSON object into the specified versions.
 
@@ -103,8 +114,16 @@ json2vars() {
 		-f --filter=FILTER   "jq to apply to the JSON before retrieving values"
 		-c --check           "ensure that each variable is set"
 	)
-	ArgsReq='__Json'
 	opts_parse
+
+	declare __Json="$1"
+	shift
+
+	if [[ -z "${__Json}" ]]; then
+		error "No JSON supplied."
+		print_doc
+		return 1
+	fi
 
 	if [[ -n "$Dict" ]]; then
 		error 'associative array support not currently implemented. Sorry!'
@@ -139,7 +158,7 @@ json2vars() {
 	fi
 }
 
-json_array_flat() {
+function json_array_flat {
 	@func_info
 	usage='JSON ELEMENT_FILTER'
 	args_req='json'
@@ -148,12 +167,12 @@ json_array_flat() {
 	jqj "$json" --slurp --compact-output "flatten | .[] | [${1:-.}] | flatten"
 }
 
-json_stream() {
+function json_stream {
 	json_array_flat "$@" | jq -r --compact-output .[]
 }
 alias jstream=json_stream
 
-json_read() {
+function json_read {
 	local __item
 	read -r __item
 	__item="$(jqj "$__item" -re .)" || return 1
@@ -161,7 +180,7 @@ json_read() {
 }
 alias jread=json_read
 
-json_extract_match() {
+function json_extract_match {
 	@func_info
 	About='
 	For each object in a JSON array (STDIN):
@@ -183,7 +202,7 @@ alias jq_extract_match=json_extract_match
 # variable arrN (where N is the int)
 #
 # Does not set or modify dynamic variables if no attribute is found, unless -f is set. outputVar is always set.
-json_pop() {
+function json_pop {
 
 	local force
 	@ARGS
@@ -289,7 +308,7 @@ json_pop() {
 	return $returnCode
 }
 
-json_audit() {
+function json_audit {
 	local ExcludeFields SearchCreds SearchFields
 	@ARGS
 
@@ -330,7 +349,7 @@ json_audit() {
 			)
 		')" || return 1
 
-	__audit_help() {
+	function __audit_help {
 		echo >&2 ""
 		echo >&2 "Note: Pressing a key will _immediately_ move to the next option (for peak efficiency)"
 		echo >&2 ""
@@ -345,7 +364,7 @@ json_audit() {
 
 	local Results LastOption Undo
 
-	__process_item() {
+	function __process_item {
 
 		local I=$1
 		local Item="$(echo "$Items" | awk "NR == $I + 1")"
