@@ -177,14 +177,13 @@ item() {
 		"ITEM not OPERATOR ELEMENTS..."
 		"ITEM in ELEMENTS..."
 	)
-	opts_parse
 	if [[ $# -eq 1 && "$1" =~ (-h|--help) ]]; then
-		print_docs 2>&1
+		print_doc 2>&1
 	fi
 
 	local item="$1" operator="$2"
 	if ! shift 2; then
-		print_docs
+		print_doc
 		return 1
 	fi
 
