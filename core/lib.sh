@@ -35,10 +35,17 @@ fi
 alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
 
 # shellcheck disable=SC2139
-alias check_is_sourced="if ! script_is_sourced; then
-	echo \"You aren't sourcing ${0}. Make sure you are to have its libs available to you.\"
+alias check_is_sourced='
+if ! script_is_sourced; then
+	# TODO: this might need to be computed at alias compile time???
+	echo "You aren nott sourcing ${0}. Make sure you are to have its libs available to you."
 	exit 1
-fi"
+fi
+self_file >/dev/null
+if [[ "${SHELDRITCH_SOURCES:-}" = *"$REPLY"* ]]; then
+	echo >&2 "TODO: clear args function cache"
+fi
+'
 
 if [[ -z "$KSH_VERSION" ]]; then
 	check_is_sourced
