@@ -50,7 +50,7 @@ if ! script_is_sourced; then
 	exit 1
 fi
 self_file >/dev/null
-if [[ -n "${_ARGS_CACHE:-}" ]] && source_is_cached "$REPLY"; then
+if [[ -z "${_ARGS_NO_CACHE:-}" && -n "${_ARGS_CACHE:-}" ]] && source_is_cached "$REPLY"; then
 	funcs_with_prefix _ARGS >/dev/null
 	unset _ARGS_CACHE $REPLY
 fi
