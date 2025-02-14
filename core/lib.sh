@@ -31,6 +31,9 @@ elif [[ "$ZSH_VERSION" ]]; then
 	setopt aliases
 fi
 
+# TODO: probably swap back to arrays, we want to keep the original sourcing order
+# so we can deterministically re-apply sources
+# Actually, if we really want we can probably store both at once...
 if [[ -z "${SHELDRTICH_SOURCES[*]+ }" ]]; then
 	typeset -g -A SHELDRITCH_SOURCES
 fi

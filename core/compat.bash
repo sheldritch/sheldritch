@@ -5,7 +5,10 @@ check_is_sourced
 
 [[ "$THIS_SHELL" = bash ]] || return 0
 
-summon sheldritch/core/compat.sh
+self_file >/dev/null
+# directly source
+# If added to SHELDRITCH_SOURCES, re-syncing may clobber bash overrides
+source "${REPLY%.bash}".sh
 
 alias extglob='shopt_temp extglob'
 function lowercase { REPLY="${1,,}"; printf '%s\n' "$REPLY"; }

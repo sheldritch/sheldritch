@@ -5,7 +5,10 @@ check_is_sourced
 
 [[ "$THIS_SHELL" = zsh ]] || return 0
 
-summon sheldritch/core/compat.sh
+self_file >/dev/null
+# directly source
+# If added to SHELDRITCH_SOURCES, re-syncing may clobber bash overrides
+source "${REPLY%.bash}".sh
 
 alias extglob='setopt KSH_GLOB'
 
