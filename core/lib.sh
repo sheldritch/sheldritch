@@ -36,7 +36,7 @@ if [[ -z "${SHELDRTICH_SOURCES[*]+ }" ]]; then
 fi
 
 function source_is_cached {
-	[[ -n "${SHELDRITCH_SOURCES["$1"]}" ]]
+	[[ -n "${SHELDRITCH_SOURCES[$1]}" ]]
 }
 
 # shellcheck disable=SC2142
@@ -149,7 +149,7 @@ function source_once {
 			return 1
 		fi
 
-		SHELDRITCH_SOURCES["$Path"]=1 # before source to prevent dependency loops
+		SHELDRITCH_SOURCES[$Path]=1 # before source to prevent dependency loops
 		_trace "source_once: sourcing '$Path'"
 		_trace ""
 		_trace "sources currently:"
