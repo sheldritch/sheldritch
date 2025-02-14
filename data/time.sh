@@ -14,6 +14,7 @@ function table_date_comp {
 	Options=(
 		-f --field=FIELD "integer. the column position containing the time, starting from one"
 	)
+	args_parse
 
 	Field="${Field:-NF}"
 
