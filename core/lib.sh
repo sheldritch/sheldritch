@@ -130,6 +130,15 @@ function path_add {
 	done
 }
 
+function sources_sync {
+	local REPLY Key Fail=0
+	keys SHELDRITCH_SOURCES
+	for Key in "${REPLY[@]}"; do
+		source "$Key" || Fail=1
+	done
+	return $Fail
+}
+
 function source_once {
 	typeset Path='' Exit=''
 
