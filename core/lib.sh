@@ -35,20 +35,23 @@ fi
 # so we can deterministically re-apply sources
 # Actually, if we really want we can probably store both at once...
 if [[ -z "${SHELDRTICH_SOURCES[*]+ }" ]]; then
-	typeset -g -A SHELDRITCH_SOURCES
+	typeset -g -A SHELDRITCH_SOURCES=
 fi
 
 function source_is_cached {
 	[[ -n "${SHELDRITCH_SOURCES[$1]}" ]]
 }
 
-function source_cache_update {
+alias source_cache_update='
 	self_file >/dev/null
-	if [[ -z "${_ARGS_NO_CACHE:-}" && -n "${_ARGS_CACHE:-}" ]] && source_is_cached "$REPLY"; then
-		funcs_with_prefix _ARGS >/dev/null
-		unset _ARGS_CACHE $REPLY
+	if [[ -z "${_ARGS_NO_CACHE:-}" && -n "${_ARGS_CACHE:-}" ]]; then
+		[[ "$REPLY" = /* ]] || REPLY="$PWD/$REPLY"
+		if source_is_cached "$REPLY"; then
+			funcs_with_prefix _ARGS
+			unset _ARGS_CACHE $REPLY
+		fi
 	fi
-}
+'
 
 # shellcheck disable=SC2142
 alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
@@ -79,7 +82,7 @@ function __last {
 }
 
 alias glob_args='
-    declare _IFS_OLD
+    typeset _IFS_OLD
 	[[ -z "${IFS+x}" ]] || _IFS_OLD=${IFS}
 	IFS=''
     set -- $@
@@ -169,7 +172,7 @@ function source_once {
 		_trace "source_once: sourcing '$Path'"
 		_trace ""
 		_trace "sources currently:"
-		_trace "declare -p SHELDRITCH_SOURCES"
+		_trace "$(typeset -p SHELDRITCH_SOURCES)"
 
 		source "$1" || Exit=1
 	done

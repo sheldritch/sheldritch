@@ -44,6 +44,7 @@ alias @args_no_cache='declare _SET=_ARGS_NO_CACHE && @set'
 
 # shellcheck disable=SC2142
 alias opts_parse='
+	ksh_run typeset KSH_FUNCTION="${.sh.fun}"
 	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0##/[^[:alnum:]]/_}}}"
 	# NOTE: _ARGS contains "$@"
 	declare -a _ARGS=("$@") _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \

@@ -7,6 +7,9 @@
 # shellcheck enable=require-double-brackets
 
 if [[ -n "${SHELDRITCH_SUBSHELL:-}" ]]; then
+	# NOTE: This doesn't work for ksh because there's no file stack
+	# There is an alias version in check_is_sourced in lib.sh that ksh
+	# can fall back on, though
 	source_cache_update
 	if [[ -z "${SHELDRITCH_CLEAN:-}" && "$1" != "--force" ]]; then
 		return
@@ -46,7 +49,20 @@ else
 fi
 
 function self_file {
-	typeset Level="$((${1:-0} + 1))"
+	if [[ -v KSH_VERSION ]]; then
+		if [[ "${2:-0}" = 0 ]]; then
+			REPLY="$1"
+			echo "$1"
+			return
+		fi
+		return 1
+	fi
+
+	if [[ "$Level" = -* ]]; then
+		typeset Level="$1"
+	else
+		typeset Level="$((${1:-0} + 1))"
+	fi
 
 	if [[ -v BASH_VERSION ]]; then
 		REPLY="${BASH_SOURCE[$Level]}"
@@ -57,9 +73,20 @@ function self_file {
 }
 
 function self_dir {
-	self_file 1 >/dev/null
+	if [[ -v KSH_VERSION ]]; then
+		if [[ "${2:-0}" = 0 ]]; then
+			dirname "$1"
+			return
+		fi
+		return 1
+	fi
+	>/dev/null self_file 1 
 	dirname "$REPLY"
 }
+if [[ -v KSH_VERSION ]]; then
+	alias self_file='self_file "${.sh.file}"'
+	alias self_dir='self_dir "${.sh.file}"'
+fi
 
 if ! [[ $SHELDRITCH == /* && -f "$SHELDRITCH/sheldritch.base.sh" ]]; then
 	export SHELDRITCH
