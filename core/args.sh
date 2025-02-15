@@ -42,6 +42,8 @@ alias @options_first='declare _SET=_OPTIONS_PARSE_FIRST && @set'
 alias @opts_first=@options_first
 alias @args_no_cache='declare _SET=_ARGS_NO_CACHE && @set'
 
+alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'
+
 # shellcheck disable=SC2142
 alias opts_parse='
 	ksh_run typeset KSH_FUNCTION="${.sh.fun}"
@@ -235,28 +237,32 @@ function _args_name_to_variable {
 	# PERF: I've tested this with a per-character array and a pure "${//}" approach.
 	# regex works best for a dozen individual options
 
-	while [[ "$In" =~ ([^[:alnum:]])([[:lower:]]) ]]; do
+	while [[ "$In" =~ ([^[:alnum:]])+([[:lower:]]) ]]; do
 		recapture 1 >/dev/null
 		Separator="$REPLY"
 		recapture 2 >/dev/null
 		Match="$REPLY"
 		UpperMatch="$Match"
 
+		# This has a nice side effect of being able to escape - and _ in usage strings
 		if [[ "$Separator" = [_-] ]]; then
 			In="${In//$Separator$Match/$UpperMatch}"
 		else
-			In="${In//$Separator$Match/$Separator$UpperMatch}"
+			In="${In//$Separator$Match/ $UpperMatch}"
 		fi
 	done
 	First="${In:0:1}"
-	Name="$First${In:1}"
+	Name="${First/ /}${In:1//[^[:upper:][:digit:]_ ]/}"
+	if [[ "$Name" != *[[:alnum:]_]* ]]; then
+		error -p 1 "INTERNAL ERROR: variable '$Token' ends with "
+	fi
 }
 
 function _args_build_parser {
 	local Cache="_ARGS_$__Source"
 
 	if [[ -z "${_ARGS_NO_CACHE:-}" ]] &&
-		declare -p ${BASH_VERSION:+-F} -f "$Cache" >/dev/null 2>/dev/null
+		_has_func "$Cache"
 	then
 		# TODO: clear this cache when a function is redefined (or at least re-summoned)
 		# There must be somewhere we can pull a map of function to filenames we can use
@@ -282,7 +288,7 @@ function _args_build_parser {
 
 	_args_build_parser_legend &&
 
-	if ! eval "$Cache() { $Builder"$'\n }'; then
+	if ! eval "function $Cache { $Builder"$'\n }'; then
 		error "Eval failed! See computed builder below:
 		$Builder
 		"
@@ -339,7 +345,7 @@ function _args_build_varcache {
 	done
 	Builder+=')'
 
-	eval "_ARGS_${__Source}_VARS() { $Builder; }"
+	eval "function _ARGS_${__Source}_VARS { $Builder; }"
 }
 
 function _args_build_parser_opts {
@@ -418,6 +424,8 @@ function _args_build_parser_opts {
 		_args_name_to_variable "${Name#-}" # function handles possible leading '-'
 
 		# TODO: handle separators in the tag
+		# NOTE: Name is now space separated
+		# Also, maybe _args_name_to_variable with an interior processing here
 		# if [[ "$Tag" = *[^[:alnum:]_]* ]]; then
 		# 	while rematch "$Name" '[^[:alnum:]_]+' >/dev/null; do
 		# 		local Separator="$REPLY"
@@ -674,7 +682,35 @@ function _args_usage_priority {
 	esac
 }
 
-function _args_parse_builder2 {
+
+function _args_parse_builder {
+	# one parser for each usage line
+	declare -a Parsers
+	Parsers[${#Usage[@]} - 1]=' ' # reserve space???
+	Parsers[${#Usage[@]} - 1]=''
+
+	_args_build_usage_parsers
+
+	Builder+='
+	__Pos=0
+	local _ARGS_FORMAT=""
+	_args_usage_select_format
+
+	case "$_ARGS_FORMAT" in
+	'
+	local i
+	for ((i=0; i < ${#Usage[@]}; i++)); do
+		Builder+="$i) "
+		if [[ "${Parsers[$i]}" = \#* ]]; then
+			Builder+="error -p 1 'INTERNAL ERROR: chosen usage line $i is a comment!'; return 9 ;;"
+			continue
+		fi
+
+		Builder+=" ${Parsers[i]};;"$'\n'
+	done
+}
+
+function _args_build_usage_parsers {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
@@ -686,10 +722,20 @@ function _args_parse_builder2 {
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
 
+	# a Run is the current string of variable arguments. Hitting a literal argument starts a new run
+	# certain sequential arguments are not allowed in a given run.
+	local Format='' RunType='' RunCount=''
+	# Format info values, used to identify which Usage string should be used to parse args
+	local ArityMin=0 ArityMax=0 Priority=0 SubPriority=0 FirstLiteral='' LiteralArity=''
+	# TODO: priority should consider the gap between min and max arity
+
 	# Flags for the token talker to telepath with
 	local Match Regex Optional Variadic
 
+	local LineBuilder=''
+
 	for ((LinePos = 0; LinePos < ${#Usage[@]}; LinePos++)); do
+		LineBuilder=''
 		Line="${Usage[LinePos]}"
 		if [[ "$Line" = \#* ]]; then
 			_ARGS_FORMATS+=('#')
@@ -703,16 +749,75 @@ function _args_parse_builder2 {
 			if ! _token_talker "$Token"; then
 				return 9
 			fi
-			if [[ $Variadic ]]; then
-				# Note: Variadic arguments with separated names will join:
-				# e.g. FirstNameSecondName
-				_args_name_to_variable "$Token"
-				_ARGS_ARRAYS+=(${Name//[^[:alnum:]]/})
+			
+			# TODO: handle the case when parsing requires lookahead
 
-			elif [[ -n $Regex ]]; then
-				Regex="^$Regex$"
+			_args_name_to_variable "$Token"
+
+			if [[ $Variadic ]]; then
+				if [[ -z $Optional ]]; then
+					((++ArityMin))
+				fi
+				if [[ "$Name" != *\ * ]]; then
+					_ARGS_ARRAYS+=($Name)
+				else
+					# argument is split into separate vars
+
+					# create empty vars for each portion of argument
+					_ARGS_VARS+=(${Name// /= }=)
+					# and sparse *List arrays for each individual portion
+					_ARGS_ARRAYS+=(${Name// /List= }List=)
+				fi
+
+			elif [[ -z $Literal ]]; then
+				_ARGS_VARS+=(${Name//[^[:alnum:]]/ }'=')
+				LineBuilder+="$Name"$'=("${_ARGS[@]:$__Pos}")\n'
+
+			else
+
+				LineBuilder+="
+				$Name"'="${_ARGS[__Pos]}"
+				((++__Pos))'"
+				_args_check_dash $Name \$$Name || return 1"$'\n'
+			fi
+			if [[ -n $Regex ]]; then
+				Regex="$Regex"
 				# TODO: determine which capture groups to extract to build out our variables
-				Builder+='[[ $__Arg =~ $Regex ]]'
+				LineBuilder+='[[ $__Arg =~ $Regex ]]'
+			fi
+
+			_args_name_to_variable "$Token"
+			# Note: arguments with separated names will join:
+			# e.g. FirstNameSecondName
+			if [[ "$RunCount" != + ]]; then
+				echo >&2 SAD!
+			fi
+
+			if [[ "RunCount" = + ]]; then
+				error -p 2 "FUNCTION BUG: args after variadic arg ($Token) not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
+				return 9
+				# Once implemented, we'd just keep our variadic arity marker here,
+				# hence return
+				return
+			fi
+
+			if [[ "$RunType" = "$1" ]]; then
+				((++RunCount))
+			else
+
+				if [[ "$RunCount" = + ]] || ((RunCount)); then
+					Format+=" ${RunType}$RunCount"
+
+					if [[ "$RunCount" = + ]]; then
+						ArityMax=+
+					elif [[ "$RunType" = *R* ]]; then
+						(( ArityMin += RunCount ))
+					else
+						(( ArityMax += RunCount ))
+					fi
+				fi
+				RunType="$1"
+				RunCount=1
 			fi
 		done
 	done
@@ -864,11 +969,9 @@ function _args_token2regex {
 	fi
 	# TODO: handle escaping \[ and \]
 	replace "$Token" '([$.[()|*+?{\^])' '\\\1'
-	Token="${REPLY//\[/(}"
-	Token="${Token//\[/(}"
-	Token="${Token//\]/)?}"
-	replace "$Token" '[[:upper:][:digit:]_]+' '(.+)'
-	# TODO: remember to wrap with ^$ for non-variadic args
+	Token="${REPLY//\[/\(}"
+	Token="${Token//\]/\)?}"
+	replace "^$Token\$" '[[:upper:][:digit:]_]+' '(.+)'
 }
 
 
@@ -893,7 +996,7 @@ function _args_usage_build_vars {
 	# calculate a format summary of each usage. This is used to distinguish one usage line from
 	# another in parsing
 	local Name='' Line=0 Token=''
-	while ((Line < "${Usage[@]}")); do
+	while ((Line < "${#Usage[@]}")); do
 		Tokens="${Usage[Line]}"
 
 		if [[ "$Tokens" = \#* ]]; then
@@ -1160,6 +1263,7 @@ function _args_parse_usage_token {
 
 			\[*[^]\ ] | [^]\ ]*\] )
 				# 
+				return 9
 
 				;;
 
@@ -1323,7 +1427,7 @@ function _args_build_parser_usage {
 					Builder+="
 					$Name"'="${_ARGS[__Pos]}"
 					((++__Pos))'"
-					[[ -n \${_ARGS_BREAK:-} && \$$Name = -* ]] && _args_dash_error $Name \$$Name && return 1"$'\n'
+					_args_check_dash $Name \$$Name || return 1"$'\n'
 					;;
 			esac
 		done
@@ -1335,7 +1439,10 @@ function _args_build_parser_usage {
 }
 
 function _args_dash_error {
-	error -p 1 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
+	if [[ -n ${_ARGS_BREAK:-} && $2 = -* ]]; then 
+		error -p 1 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
+		return 1
+	fi
 }
 
 function _args_usage_select_format {
@@ -1386,6 +1493,50 @@ function _args_build_parser_legend {
 		fi
 		"
 	done
+}
+
+alias arg_group_read='declare __ArgGroup __ArgGroupI; _arg_group_read'
+function _arg_group_read {
+	if [[ -z "$1" ]]; then
+		error -p 2 "No variables provided."
+		return 9
+	fi
+	local Builder='' Func="_ARGS_GROUP_READ_${*// /_}" Arg=''
+	_ARGS_CACHE=1
+
+	if [[ -z $__ArgGroup ]]; then
+		__ArgGroup="$*"
+		__ArgGroupI="0"
+		if ! _has_func "$Func"; then
+			Builder+='
+			if [[ "$__ArgGroup" != "$*" ]]; then
+				error -p 2 "Cannot parse multiple argument groups at once!
+				Tried to parse \"$*\" but \"$__ArgGroup\" already set!"
+				return 9
+			elif ((__ArgGroupI == 0)); then
+				if ! declare -p -a "${@/%/List}" >/dev/null; then
+					return 9
+				fi
+			fi
+			if (("$__ArgGroupI" >= "${#'$1'List[@]}")); then
+				# break loop
+				__ArgGroup='' __ArgGroupI=''
+				return 1
+			fi
+			'
+			for Arg in "$@"; do
+				Builder+=$'\n'"$Arg=\"\${${Arg}List[\$__ArgGroupI]}\""
+			done
+			Builder+=$'\n((++__ArgGroupI))'
+			eval "function $Func { $Builder"$'\n}'
+		fi
+	fi
+	$Func "$@" || {
+		local Exit=$?
+		__ArgGroup='' __ArgGroupI=''
+		[[ $? -eq 1 ]] || unset "$Func"
+		return $Exit
+	}
 }
 
 zsh_run unsetopt GLOB
