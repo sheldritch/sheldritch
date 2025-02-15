@@ -6,9 +6,11 @@
 # base.sh is frequently re-run, so enforcing performance is important
 # shellcheck enable=require-double-brackets
 
-if [[ -n "${SHELDRITCH_SUBSHELL:-}" && -z "${SHELDRITCH_CLEAN:-}" && "$1" != "--force" ]]
-then
-	return
+if [[ -n "${SHELDRITCH_SUBSHELL:-}" ]]; then
+	source_cache_update
+	if [[ -z "${SHELDRITCH_CLEAN:-}" && "$1" != "--force" ]]; then
+		return
+	fi
 fi
 
 #

@@ -42,6 +42,14 @@ function source_is_cached {
 	[[ -n "${SHELDRITCH_SOURCES[$1]}" ]]
 }
 
+function source_cache_update {
+	self_file >/dev/null
+	if [[ -z "${_ARGS_NO_CACHE:-}" && -n "${_ARGS_CACHE:-}" ]] && source_is_cached "$REPLY"; then
+		funcs_with_prefix _ARGS >/dev/null
+		unset _ARGS_CACHE $REPLY
+	fi
+}
+
 # shellcheck disable=SC2142
 alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
 
@@ -49,14 +57,10 @@ alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_
 alias check_is_sourced='
 if ! script_is_sourced; then
 	# TODO: this might need to be computed at alias compile time???
-	echo "You aren nott sourcing ${0}. Make sure you are to have its libs available to you."
+	echo "You aren not sourcing ${0}. Make sure you are to have its libs available to you."
 	exit 1
 fi
-self_file >/dev/null
-if [[ -z "${_ARGS_NO_CACHE:-}" && -n "${_ARGS_CACHE:-}" ]] && source_is_cached "$REPLY"; then
-	funcs_with_prefix _ARGS >/dev/null
-	unset _ARGS_CACHE $REPLY
-fi
+source_cache_update
 '
 
 if [[ -z "$KSH_VERSION" ]]; then
