@@ -31,12 +31,15 @@ elif [[ "$ZSH_VERSION" ]]; then
 	setopt aliases
 fi
 
+# TODO: probably swap back to arrays, we want to keep the original sourcing order
+# so we can deterministically re-apply sources
+# Actually, if we really want we can probably store both at once...
 if [[ -z "${SHELDRTICH_SOURCES[*]+ }" ]]; then
 	typeset -g -A SHELDRITCH_SOURCES
 fi
 
 function source_is_cached {
-	[[ -n "${SHELDRITCH_SOURCES["$1"]}" ]]
+	[[ -n "${SHELDRITCH_SOURCES[$1]}" ]]
 }
 
 # shellcheck disable=SC2142
@@ -130,6 +133,15 @@ function path_add {
 	done
 }
 
+function sources_sync {
+	local REPLY Key Fail=0
+	keys SHELDRITCH_SOURCES
+	for Key in "${REPLY[@]}"; do
+		source "$Key" || Fail=1
+	done
+	return $Fail
+}
+
 function source_once {
 	typeset Path='' Exit=''
 
@@ -149,7 +161,7 @@ function source_once {
 			return 1
 		fi
 
-		SHELDRITCH_SOURCES["$Path"]=1 # before source to prevent dependency loops
+		SHELDRITCH_SOURCES[$Path]=1 # before source to prevent dependency loops
 		_trace "source_once: sourcing '$Path'"
 		_trace ""
 		_trace "sources currently:"

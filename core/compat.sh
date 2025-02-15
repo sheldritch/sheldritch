@@ -119,6 +119,6 @@ function stdin {
 	fi
 
 	"$@" <<SHELDRITCH_STDIN_COMPAT
-		$string
+$string
 SHELDRITCH_STDIN_COMPAT
 }

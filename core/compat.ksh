@@ -1,4 +1,5 @@
 #!/bin/ksh
+# shellcheck shell=ksh
 source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
@@ -12,6 +13,8 @@ alias declare=typeset
 
 function lowercase { typeset -l Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
 function uppercase { typeset -u Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
+function deref     { _help_deref; typeset var="$1"; REPLY="${!var}";  printf '%s\n' "$REPLY"; }
+
 function regex {
 	_help_regex
 	if (($#)); then
@@ -28,6 +31,10 @@ function recapture {
 	_help_recapture
 	REPLY="${.sh.match[$1]}"
 	printf "%s" "$REPLY"
+}
+
+function keys {
+	eval 'REPLY=("${!'"$1"'[@]}")'
 }
 
 unalias \
