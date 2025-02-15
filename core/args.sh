@@ -36,11 +36,16 @@ declare -a Usage=() Options=() Legend=()
 
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
-_args_set() { declare -p "$1" >/dev/null && eval "$1"='"${2:-1}"'; }
-alias @set='declare $_SET && _args_set $_SET'
-alias @options_first='declare _SET=_OPTIONS_PARSE_FIRST && @set'
-alias @opts_first=@options_first
-alias @args_no_cache='declare _SET=_ARGS_NO_CACHE && @set'
+function _args_set {
+	read "$1" <<<"${2:-true}"
+	#eval "$1"='"${2:-true}"'
+}
+function args_edict {
+	alias "@$1=declare $2 && _args_set $2"
+}
+args_edict options_before_args _OPTIONS_PARSE_FIRST
+alias @opts_first=@options_before_args
+args_edict args_no_cache _ARGS_NO_CACHE
 
 alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'
 
@@ -252,9 +257,10 @@ function _args_name_to_variable {
 		fi
 	done
 	First="${In:0:1}"
-	Name="${First/ /}${In:1//[^[:upper:][:digit:]_ ]/}"
+	# TODO: may need to clean up left over weird values?
+	Name="${First/ /}${In:1}"
 	if [[ "$Name" != *[[:alnum:]_]* ]]; then
-		error -p 1 "INTERNAL ERROR: variable '$Token' ends with "
+		error -p 1 "INTERNAL ERROR: variable '$Token' ends with a bad -- '$Name'"
 	fi
 }
 
@@ -722,8 +728,9 @@ function _args_build_usage_parsers {
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
 
-	# a Run is the current string of variable arguments. Hitting a literal argument starts a new run
-	# certain sequential arguments are not allowed in a given run.
+	# a Run is a consecutive series of arguments that share the same required pattern
+	# a run may only contain a single variadic argument, however it can contain any number
+	# of optional or required arguments.
 	local Format='' RunType='' RunCount=''
 	# Format info values, used to identify which Usage string should be used to parse args
 	local ArityMin=0 ArityMax=0 Priority=0 SubPriority=0 FirstLiteral='' LiteralArity=''
@@ -835,6 +842,14 @@ function _args_token_talker {
 	local Token="$1"
 
 	case "$Token" in
+		'' )
+			# Empty tokens are intentionally wiped by lookaheads like [ ARG ] and { ARG }, telling
+			# us to ignore control characters that have already been handled.
+			# Don't worry, they're completely impossible for users to inject themselves, we're safe
+			# to use it.
+			return
+			;;
+
 		'{' | \"* | \'* )
 			error -p 1 "FUNCTION BUG: Token '$Token' in usage not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
 			return 9
@@ -844,37 +859,27 @@ function _args_token_talker {
 			# TODO: two or more tokens that must be parsed together
 			return 9
 			;;
+
 		\[*\]  )
 			Optional=1
-			_args_token_talker "${Token:1:${#Token} - 2}"
-			REPLY=("${REPLY[@]}" Optional)
+			if [[ "$Token" = *...\] ]]; then
+				Variadic=1
+				_args_token_talker "${Token:1:${#Token} - 5}"
+			else
+				_args_token_talker "${Token:1:${#Token} - 2}"
+			fi
 			return
 			;;
 
 		*... )
-
 			Variadic=1
-
-			local Min=1
-
-			Token="${Token%...}"
 			if [[ "$Token" = \[*\] ]]; then
 				Optional=1
-				Token="${Token:1:${#Token} - 2}"
-				Min=0
-			fi
-
-			replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
-			Match="$REPLY"
-			if [[ "$REPLY" = '*' || "$REPLY" != *\** ]]; then
-				Match="$REPLY"
-				return
+				_args_token_talker "${Token:1:${#Token} - 5}"
 			else
-				_args_token2regex
-				Regex="$REPLY"
-				return
+				_args_token_talker "${Token%...}"
 			fi
-
+			return
 			;;
 
 		# after full bounding `[]` check, so we can be looser here
@@ -897,14 +902,18 @@ function _args_token_talker {
 				fi
 
 				if ((Left == Right)); then
-					# Nice, a single token with exactly the number of brackets we need :relieved:
-					_args_token2regex
-					Regex="$REPLY"
-					return
+					if [[ "$Token" == "$Next" ]]; then
+						# Nice, a single token with exactly the number of brackets we need :relieved:
+						_args_token2regex
+						Regex="$REPLY"
+						return
+					fi
+					# TODO: handle grouped args here. See comment below.
 				fi
 
 
 				if ((Left > Right)); then
+					Optional=1
 					# TODO: This only happens if two or more tokens are grouped, making it a fairly
 					# complex situation. I haven't started considering how to manage these yet.
 					# I guess I'll know once I get around to handling grouped args
@@ -918,6 +927,10 @@ function _args_token_talker {
 				fi
 				break
 			done
+
+			# If a string of optional arguments are to be excluded from the array, we can just store
+			# the boundary as 0 (i.e. not moving). We already do this for standard optional
+			# arguments so it's cool.
 
 			error -p 1 "FUNCTION BUG: Runs of optional arguments not currently supported. Please split into two usage lines"
 			return 9
@@ -1163,7 +1176,7 @@ function _args_usage_parse_token {
 # differs between valid formats, the lower one is given higher priority
 #
 # But first, write a basic runtime parser
-function _args_parse_usage {
+function _args_parse_dynamic {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
@@ -1222,14 +1235,47 @@ function _args_parse_usage_token {
 		Arg="${_ARGS[ArgPos]}"
 
 		case "$Token" in
+			'' )
+				# Empty tokens are intentionally wiped by lookaheads like [ ARG ] and { ARG }, telling
+				# us to ignore control characters that have already been handled.
+				# Don't worry, they're completely impossible for users to inject themselves, we're safe
+				# to use it.
+				return
+				;;
+
 			'{' | \"* | \'* )
 				error -p 1 "FUNCTION BUG: Token '$Token' in usage not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
 				return 9
 				;;
 
 			\[*\]  )
-				# SPLIT
-				# test with optional token
+				# SPLIT -- execute test for both both with and without the optional arg
+				#
+				# TODO: write out a heap of examples and really stress test the boundaries of
+				# optionals
+				#
+				# Current considerations:
+				#
+				# ARRAY... contains ELEMENTS...
+				# This is definitely not okay, `contains contains contains contains contains`
+				#
+				# ARRAY... [not] contains ELEMENT
+				# ARRAY might contain `not`, there is a chance of a function bug here
+				# But devs can check themselves for `not`, explicitly disallow it, etc
+				# Should probably throw an error that needs to be quashed by an 'allow ambiguous'
+				# annotation
+				# 
+				# OBJECT is [not] PROPERTIES...
+				# This one is a little more clear, it's pretty obvious that the first `not` will be
+				# taken by the functiongg
+				#
+				#
+				# A [B] literal ARRAY...
+				#
+				# Fine:
+				# A [B] literal KEY=VALUE...
+
+				# test *with* optional token
 				_args_parse_usage_token $TokenPos $ArgPos "${Token:1:${#Token} - 2}" && return
 				# and test without
 				_args_parse_usage_token $((TokenPos + 1)) $ArgPos
@@ -1270,7 +1316,7 @@ function _args_parse_usage_token {
 			\[*[^]] | [^]]*\] )
 
 				# Collect all arguments into a single token
-				local Left=0 Right=0 Next="${Token}"
+				local Left=0 Right=0 Next="$Token" OptionalStart=$ArgPos
 				# TODO: this might be the wrong approach. e.g. given [A B], both A and B are
 				# separate tokens, just grouped.
 				# I guess I'll know once I get around to handling grouped args
@@ -1289,7 +1335,15 @@ function _args_parse_usage_token {
 						return 9
 					fi
 
-					if ((Left == Right)); then
+					if ((Left > Right)); then
+						((++ArgPos))
+						Next="${_ARGS[ArgPos]}"
+						Token+="$Next"
+						continue
+					fi
+					# Left == Right
+
+					if ((ArgPos == OptionalStart)); then
 						# Nice, a single token with exactly the number of brackets we need :relieved:
 						echo hi
 						# TODO: convert token into regex match with capture groups
@@ -1298,12 +1352,6 @@ function _args_parse_usage_token {
 					fi
 
 
-					if ((Left > Right)); then
-						((++ArgPos))
-						Next="${_ARGS[ArgPos]}"
-						Token+="$Next"
-						continue
-					fi
 					break
 				done
 

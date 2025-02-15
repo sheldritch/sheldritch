@@ -35,7 +35,7 @@ fi
 # so we can deterministically re-apply sources
 # Actually, if we really want we can probably store both at once...
 if [[ -z "${SHELDRTICH_SOURCES[*]+ }" ]]; then
-	typeset -g -A SHELDRITCH_SOURCES=
+	typeset -g -A SHELDRITCH_SOURCES
 fi
 
 function source_is_cached {
