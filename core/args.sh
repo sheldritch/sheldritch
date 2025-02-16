@@ -396,6 +396,7 @@ function _args_build_parser_opts {
 	'
 
 	Builder+=$'case "$__Flag" in\n'
+	local Validation='' # used to build validation for each arg
 
 	# --Name=Tag
 	local Type='' Name='' Tag='' Opt=0
@@ -447,6 +448,10 @@ function _args_build_parser_opts {
 
 		Builder+=" ${Options[Opt]%%=*} )"$'\n'
 
+
+		# build validation early to extract type info
+		_args_build_validation "${Options[Opt]}"
+
 		case "$Type" in
 			bool)
 				_ARGS_OPTS_BOOL+=($Name=)
@@ -463,7 +468,7 @@ function _args_build_parser_opts {
 					return 1
 				fi'
 				;;
-			string)
+			*)
 				_ARGS_OPTS+=($Name=)
 				Builder+='
 				if [[ -n "${__Val+x}" ]]; then
@@ -478,7 +483,7 @@ function _args_build_parser_opts {
 		esac
 		((++Opt))
 
-		_args_build_validation "${Options[Opt]}"
+		Builder+="$Validation"
 
 		Builder+="
 		((++__Pos));;
@@ -518,6 +523,7 @@ function _args_build_parser_opts {
 function _args_build_validation {
 	# read predicate requirements from docstring
 	local DocString="${1%%.*}" Predicate='' Test='' Error=''
+	Validation=''
 	while true; do
 		Predicate="${DocString%%,*}"
 		Predicate="${Predicate# }"
@@ -612,7 +618,7 @@ function _args_build_validation {
 		esac
 
 		if [[ -n "$Test" ]]; then
-			Builder+="
+			Validation+="
 				if ! $Test; then
 					error -p 1 \"$Error\"
 					return 1
@@ -1526,11 +1532,12 @@ function _args_usage_select_format {
 function _args_build_parser_legend {
 	zsh_run setopt KSH_ARRAYS
 
-	local i=0 Type='' Name=''
+	local i=0 Type='' Name='' Validation=''
 	for ((i = 0; i < "${#Legend[@]}"; i += 2)); do
 		Type=''
 		_args_name_to_variable "${Legend[i]}"
 		_args_build_validation "${Legend[i + 1]}"
+		Builder+="$Validation"
 	done
 
 	for ((i = 0; i < "${#_ARGS_CHECKS[@]}"; i += 3)); do
