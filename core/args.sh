@@ -288,8 +288,10 @@ function _args_build_parser {
 	_args_build_parser_opts &&
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
-		_args_usage_build_vars || return 9
-		_args_build_parser_usage || return 9
+		_args_parse_builder || return 9
+		#_args_build_usage_parsers || return 9
+		# _args_usage_build_vars || return 9
+		# _args_build_parser_usage || return 9
 	fi &&
 
 	_args_build_parser_legend &&
@@ -297,6 +299,8 @@ function _args_build_parser {
 	if ! eval "function $Cache { $Builder"$'\n }'; then
 		error "Eval failed! See computed builder below:
 		$Builder
+		And Usage was:
+		${Usage[@]}
 		"
 		return 9
 	fi &&
@@ -696,20 +700,31 @@ function _args_usage_priority {
 
 
 function _args_parse_builder {
+	((${#Usage[@]} > 0)) || return 0
+
 	# one parser for each usage line
 	declare -a Parsers
-	Parsers[${#Usage[@]} - 1]=' ' # reserve space???
-	Parsers[${#Usage[@]} - 1]=''
+	# Parsers["${#Usage[@]}" - 1]=' ' # reserve space???
+	# Parsers["${#Usage[@]}" - 1]=''
 
 	_args_build_usage_parsers
+	echo >&2 "BUILDIN'!!"
 
 	Builder+='
 	__Pos=0
-	local _ARGS_FORMAT=""
-	_args_usage_select_format
 
-	case "$_ARGS_FORMAT" in
+	# TODO: use it or lose it
+	#_args_usage_select_format
+
+	# TODO: make generic
+	local BestMatch=''
+	declare -a __Bounds=()
+	_args_parse_dynamic
+
+	case "$BestMatch" in
 	'
+	echo >&2 "We got a usage ${#Usage[@]}"
+	echo >&2 "We got a usage ${Usage[@]}"
 	local i
 	for ((i=0; i < ${#Usage[@]}; i++)); do
 		Builder+="$i) "
@@ -720,6 +735,7 @@ function _args_parse_builder {
 
 		Builder+=" ${Parsers[i]};;"$'\n'
 	done
+	Builder+=$'esac'
 }
 
 function _args_build_usage_parsers {
@@ -727,9 +743,7 @@ function _args_build_usage_parsers {
 
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
-	local Name='' Line='' TokenPos='' GlobEnabled='' BestMatch=''
-
-	declare -a Bounds=() BestBounds=()
+	local Format='' Name='' Line='' TokenPos='' GlobEnabled=''
 
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
@@ -737,7 +751,7 @@ function _args_build_usage_parsers {
 	# a Run is a consecutive series of arguments that share the same required pattern
 	# a run may only contain a single variadic argument, however it can contain any number
 	# of optional or required arguments.
-	local Format='' RunType='' RunCount=''
+	local RunMin='' RunMax='' RunPattern=''
 	# Format info values, used to identify which Usage string should be used to parse args
 	local ArityMin=0 ArityMax=0 Priority=0 SubPriority=0 FirstLiteral='' LiteralArity=''
 	# TODO: priority should consider the gap between min and max arity
@@ -745,7 +759,7 @@ function _args_build_usage_parsers {
 	# Flags for the token talker to telepath with
 	local Match Regex Optional Variadic
 
-	local LineBuilder=''
+	local LineBuilder='' RunMin=0 RunMax=0 TokenPos=0
 
 	for ((LinePos = 0; LinePos < ${#Usage[@]}; LinePos++)); do
 		LineBuilder=''
@@ -758,8 +772,9 @@ function _args_build_usage_parsers {
 
 		# Parse the given line
 		declare -a Tokens=($Line)
-		for Token in "${Tokens[@]}"; do
-			if ! _token_talker "$Token"; then
+		for (( TokenPos = 0; TokenPos < ${#Tokens[@]}; TokenPos++ )); do
+			Token="${Tokens[TokenPos]}"
+			if ! _args_token_talker "$Token"; then
 				return 9
 			fi
 			
@@ -767,12 +782,27 @@ function _args_build_usage_parsers {
 
 			_args_name_to_variable "$Token"
 
+			if [[ -z $Optional ]]; then
+				((++RunMin))
+			elif [[ "$RunMax" != + ]]; then
+				((++RunMax))
+			fi
+
+			#if [[ -n $Regex ]]; then
+			#	# TODO: determine which capture groups to extract to build out our variables
+			#	#LineBuilder+='[[ $__Arg =~ $Regex ]]'
+			#fi
+
 			if [[ $Variadic ]]; then
-				if [[ -z $Optional ]]; then
-					((++ArityMin))
-				fi
+				RunMax=+
 				if [[ "$Name" != *\ * ]]; then
 					_ARGS_ARRAYS+=($Name)
+
+					LineBuilder+="
+					__Pos="${__Bounds['$TokenPos']}"
+					$Name"'="${_ARGS[@]: __Pos : ${__Bounds['$TokenPos' + 1]} - __Pos }"
+					#((++__Pos))'"
+					_args_check_dash $Name \$$Name || return 1"$'\n'
 				else
 					# argument is split into separate vars
 
@@ -784,24 +814,19 @@ function _args_build_usage_parsers {
 
 			elif [[ -z $Literal ]]; then
 				_ARGS_VARS+=(${Name//[^[:alnum:]]/ }'=')
-				LineBuilder+="$Name"$'=("${_ARGS[@]:$__Pos}")\n'
-
-			else
+				#LineBuilder+="$Name"$'=("${_ARGS[@]:$__Pos}")\n'
 
 				LineBuilder+="
-				$Name"'="${_ARGS[__Pos]}"
-				((++__Pos))'"
+				$Name"'="${_ARGS[ ${__Bounds['$TokenPos']} ]}"
+				#((++__Pos))'"
 				_args_check_dash $Name \$$Name || return 1"$'\n'
-			fi
-			if [[ -n $Regex ]]; then
-				Regex="$Regex"
-				# TODO: determine which capture groups to extract to build out our variables
-				LineBuilder+='[[ $__Arg =~ $Regex ]]'
+			else
+				error -p 1 'INTERNAL ERROR: got literal and do not know what to do about it.'
+
 			fi
 
 			_args_name_to_variable "$Token"
-			# Note: arguments with separated names will join:
-			# e.g. FirstNameSecondName
+
 			if [[ "$RunCount" != + ]]; then
 				echo >&2 SAD!
 			fi
@@ -833,8 +858,12 @@ function _args_build_usage_parsers {
 				RunCount=1
 			fi
 		done
+
+		Parsers[$LinePos]="$LineBuilder"
 	done
+	echo >&2 "DONE!"
 	[[ $GlobEnabled = 1 ]] && set +o noglob
+	echo >&2 "DEGLOBBED!!"
 }
 
 ### Uhhhhh
@@ -952,7 +981,7 @@ function _args_token_talker {
 			((++TokenPos))
 			((++ArgPos))
 			Token="${Tokens[TokenPos]}"
-			continue
+			return
 			;;
 
 
@@ -999,7 +1028,7 @@ function _args_token2regex {
 #  - determine if we can sort argument parsing now or defer to later
 #  - determine if we can distinguish the right usage for all user inputs
 #  - prioritise which usage line should be selected first
-function _args_usage_build_vars {
+function _args_old_parse_build_vars {
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
@@ -1187,7 +1216,7 @@ function _args_parse_dynamic {
 
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
-	local Name='' Line='' TokenPos='' GlobEnabled='' BestMatch=''
+	local Name='' Line='' TokenPos='' GlobEnabled=''
 
 	declare -a Bounds=() BestBounds=()
 
@@ -1227,6 +1256,7 @@ function _args_parse_dynamic {
 	[[ $GlobEnabled = 1 ]] && set +o noglob
 	args_quoted "${BestBounds[@]}"
 	((${#BestBounds[@]}))
+	__Bounds=("${BestBounds[@]}")
 }
 
 # creates a new function call for each token
@@ -1492,7 +1522,7 @@ function _args_build_parser_usage {
 	Builder+="esac; _ARGS=()"
 }
 
-function _args_dash_error {
+function _args_check_dash {
 	if [[ -n ${_ARGS_BREAK:-} && $2 = -* ]]; then 
 		error -p 1 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
 		return 1
