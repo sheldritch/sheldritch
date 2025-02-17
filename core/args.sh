@@ -52,15 +52,14 @@ alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'
 # shellcheck disable=SC2142
 alias opts_parse='
 	ksh_run typeset KSH_FUNCTION="${.sh.fun}"
-	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0##/[^[:alnum:]]/_}}}"
+	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0//[^[:alnum:]]/_}}}"
 	# NOTE: _ARGS contains "$@"
 	declare -a _ARGS=("$@") _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
 		_ARGS_VARS=() _ARGS_ARRAYS=() _ARGS_OPTS=() _ARGS_OPTS_BOOL=() \
 		_ARGS_CHECKS=()
 	[[ -n "${_ARGS_CACHE:-}" ]] || declare -g _ARGS_CACHE=1
 
-	[[ $- = *x* ]] && _ArgsSet+=x
-	[[ $- = *u* ]] && _ArgsSet+=u
+	_ArgsSet="${-//[^xu]/}"
 	#[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
 
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
@@ -708,7 +707,6 @@ function _args_parse_builder {
 	# Parsers["${#Usage[@]}" - 1]=''
 
 	_args_build_usage_parsers
-	echo >&2 "BUILDIN'!!"
 
 	Builder+='
 	__Pos=0
@@ -719,12 +717,16 @@ function _args_parse_builder {
 	# TODO: make generic
 	local BestMatch=''
 	declare -a __Bounds=()
-	_args_parse_dynamic
+	if ! _args_parse_dynamic; then
+		#TODO: apply manual priority heuristics
+
+		error -p 2 "Arguments did not match any usage strings. $(args_quoted "$@")"
+		print_doc -p 2
+		return 1
+	fi
 
 	case "$BestMatch" in
 	'
-	echo >&2 "We got a usage ${#Usage[@]}"
-	echo >&2 "We got a usage ${Usage[@]}"
 	local i
 	for ((i=0; i < ${#Usage[@]}; i++)); do
 		Builder+="$i) "
@@ -774,13 +776,13 @@ function _args_build_usage_parsers {
 		declare -a Tokens=($Line)
 		for (( TokenPos = 0; TokenPos < ${#Tokens[@]}; TokenPos++ )); do
 			Token="${Tokens[TokenPos]}"
+
+			Match='' Regex='' Optional='' Variadic=''
 			if ! _args_token_talker "$Token"; then
 				return 9
 			fi
 			
 			# TODO: handle the case when parsing requires lookahead
-
-			_args_name_to_variable "$Token"
 
 			if [[ -z $Optional ]]; then
 				((++RunMin))
@@ -798,9 +800,10 @@ function _args_build_usage_parsers {
 				if [[ "$Name" != *\ * ]]; then
 					_ARGS_ARRAYS+=($Name)
 
-					LineBuilder+="
+					LineBuilder+='
 					__Pos="${__Bounds['$TokenPos']}"
-					$Name"'="${_ARGS[@]: __Pos : ${__Bounds['$TokenPos' + 1]} - __Pos }"
+					_trace "${__Bounds['$TokenPos' + 1]:-${#_ARGS[@]}} - $__Pos"
+					'$Name'=("${_ARGS[@]: __Pos : ${__Bounds['$TokenPos' + 1]:-${#_ARGS[@]}} - __Pos }")
 					#((++__Pos))'"
 					_args_check_dash $Name \$$Name || return 1"$'\n'
 				else
@@ -826,10 +829,6 @@ function _args_build_usage_parsers {
 			fi
 
 			_args_name_to_variable "$Token"
-
-			if [[ "$RunCount" != + ]]; then
-				echo >&2 SAD!
-			fi
 
 			if [[ "RunCount" = + ]]; then
 				error -p 2 "FUNCTION BUG: args after variadic arg ($Token) not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
@@ -861,9 +860,7 @@ function _args_build_usage_parsers {
 
 		Parsers[$LinePos]="$LineBuilder"
 	done
-	echo >&2 "DONE!"
 	[[ $GlobEnabled = 1 ]] && set +o noglob
-	echo >&2 "DEGLOBBED!!"
 }
 
 ### Uhhhhh
@@ -922,7 +919,7 @@ function _args_token_talker {
 
 			# Collect all arguments into a single token
 			local Left=0 Right=0 Next="${Token}"
-			while ((ArgPos < "${#_ARGS[@]}")); do
+			while ((TokenPos < "${Tokens[@]}")); do
 				for ((s = 0; s < ${#Next}; s++)); do
 					case ${Next:s:1} in
 						\[ ) ((++Left));;
@@ -941,6 +938,7 @@ function _args_token_talker {
 						# Nice, a single token with exactly the number of brackets we need :relieved:
 						_args_token2regex
 						Regex="$REPLY"
+						_args_name_to_variable "$Token"
 						return
 					fi
 					# TODO: handle grouped args here. See comment below.
@@ -955,8 +953,9 @@ function _args_token_talker {
 					#
 					# The tricky thing with grouped args is that Min and Max break down. Given args
 					# A [B C] you can have 1 argument or 3, but not two.
-					((++ArgPos))
-					Next="${_ARGS[ArgPos]}"
+					error -p 1 'No logic for grouping optional args yet.'
+					((++TokenPos))
+					Next="${_ARGS[TokenPos]}"
 					Token+="$Next"
 					continue
 				fi
@@ -974,13 +973,7 @@ function _args_token_talker {
 		*[[:upper:]_]* )
 			replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
 			Match="$REPLY"
-
-			if [[ "$Arg" != $Match ]]; then
-				return 1
-			fi
-			((++TokenPos))
-			((++ArgPos))
-			Token="${Tokens[TokenPos]}"
+			_args_name_to_variable "$Token"
 			return
 			;;
 
@@ -990,15 +983,15 @@ function _args_token_talker {
 			# TODO: Don't forget to use _OPTS_BOOL to determine if it has an argument!
 			# (false might always be an argument, but thankfully that's literal so easy to
 			# handle)
-			REPLY=("$Token" Flag)
+			Flag=1
+			Literal=1 # maybe remove?
 			return
 			;;
 
 		# anything only containing lowercase, digits or symbols are considered literal.
 		# (assuming control characters like [ ] or { } are parsed out earlier)
 		*[[:lower:]]* )
-
-			REPLY=("$Token")
+			Literal=1
 			return
 			;;
 
@@ -1218,7 +1211,7 @@ function _args_parse_dynamic {
 
 	local Name='' Line='' TokenPos='' GlobEnabled=''
 
-	declare -a Bounds=() BestBounds=()
+	declare -a Bounds=()
 
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
@@ -1237,26 +1230,24 @@ function _args_parse_dynamic {
 
 			# if a match, decide if it's better than the best found thusfar
 			# TODO: we can check this in _args_parse_usage_token to break early
-			for ((i = 0; i < ${#Bounds[@]} && i < ${#BestBounds[@]}; i++)); do
+			for ((i = 0; i < ${#Bounds[@]} && i < ${#__Bounds[@]}; i++)); do
 
-				if (( ${#Bounds[i]} < ${#BestBounds[i]} )); then
-					BestBounds=()
+				if (( ${#Bounds[i]} < ${#__Bounds[i]} )); then
+					__Bounds=()
 					break
-				elif (( ${#Bounds[i]} > ${#BestBounds[i]} )); then
+				elif (( ${#Bounds[i]} > ${#__Bounds[i]} )); then
 					Bounds=()
 					break
 				fi
 			done
-			if ((${#Bounds[@]} > ${#BestBounds[@]})); then
-				BestBounds=("${Bounds[@]}")
+			if ((${#Bounds[@]} > ${#__Bounds[@]})); then
+				__Bounds=("${Bounds[@]}")
 				BestMatch=$LinePos
 			fi
 		fi
 	done
 	[[ $GlobEnabled = 1 ]] && set +o noglob
-	args_quoted "${BestBounds[@]}"
-	((${#BestBounds[@]}))
-	__Bounds=("${BestBounds[@]}")
+	((${#__Bounds[@]}))
 }
 
 # creates a new function call for each token
@@ -1326,6 +1317,7 @@ function _args_parse_usage_token {
 					Token="${Token:1:${#Token} - 2}"
 					Min=0
 				fi
+				((Min += ArgPos))
 
 				replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
 				Match="$REPLY"
@@ -1336,8 +1328,8 @@ function _args_parse_usage_token {
 					((++Run))
 				done
 				# From the longest match downward, test validity
-				while (( Run > Min )); do
-					_args_parse_usage_token $((TokenPos + 1)) $((Run + 1)) && return
+				while (( Run >= Min )); do
+					_args_parse_usage_token $((TokenPos + 1)) $((Run)) && return
 					((--Run))
 				done
 				return 1
@@ -1809,9 +1801,7 @@ function print_options {
 }
 
 function print_doc {
-	local _ArgsSet=''
-	[[ $- = *x* ]] && _ArgsSet+=x
-	[[ $- = *u* ]] && _ArgsSet+=u
+	local _ArgsSet="${-//[^xu]/}"
 	${_ArgsSet:+set +$_ArgsSet}
 
 	# run docs in subshell so we don't clobber variables

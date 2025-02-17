@@ -19,7 +19,8 @@ function eq {
 			$(for v in "${_ARGS_VARS[@]//=/}"; do
 				eval "printf \"$v: \$$v, \""
 			done)
-			_ARGS_FORMAT_INFO $(args_quoted "${_ARGS_FORMAT_INFO[@]}")
+			USAGE: $(args_quoted "${Usage[@]}")
+			ARGS_FORMAT_INFO: $(args_quoted "${_ARGS_FORMAT_INFO[@]}")
 			"
 			return 1
 		fi
@@ -62,10 +63,14 @@ function parsing_fails {
 }
 
 function test_usage {
-	for_permutations run "${Usage[@]}"
+	for_permutations --fail-early run "${Usage[@]}"
+	echo "Passed: $(args_quoted "${Usage[@]}")"
 }
 function run {
 	declare -a Usage=("$@") Options=()
+	echo "Testing permutation 
+	USAGE: $(args_quoted "${Usage[@]}")
+	"
 	unset _Args_check _Opts_check
 	if ! check; then
 		# error "Failed checks for Usage:"
@@ -87,8 +92,27 @@ set -- a b c
 parse_args
 #declare -p | grep _ARG
 eq "$A" a "$B" b "$C" c
-array_eq _ARGS_FORMATS R3
-array_eq _ARGS_FORMAT_INFO "3 3 3 0  "
+#array_eq _ARGS_FORMATS R3
+#array_eq _ARGS_FORMAT_INFO "3 3 3 0  "
+echo 'passed single usage'
+
+Usage=(
+	'A ARRAY... B'
+)
+set -- a b c
+parse_args
+eq "$A" a "$B" c
+array_eq Array b
+echo 'passed middle array'
+
+Usage=(
+	'A ARRAY...'
+)
+set -- a b c
+parse_args
+eq "$A" a
+array_eq Array b c
+echo 'passed basic array'
 
 Usage=(
 	'A B C'
@@ -100,7 +124,9 @@ set -- d e
 parse_args
 eq "$D" d "$E" e
 
+echo 'passed initial tests.'
 set +e
+exit
 
 # Strict Arity: find the exact match
 

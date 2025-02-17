@@ -90,6 +90,7 @@ function funcname {
 	[[ "$quiet" = true ]] || echo "$parentFunc"
 	REPLY="$parentFunc"
 }
+ksh_run alias funcname='REPLY "${.sh.fun}"'
 
 # for all defined functions, create an alias replacing the given extended regex
 # with the given match
@@ -263,7 +264,7 @@ function join_by {
 function array_map {
 	@func_info
 	Usage='ARRAY_NAME FILTER...'
-	@options_first
+	@options_before_args
 	Options=(
 		--stdin "filter takes element via standard input instead of an argument"
 	)
@@ -291,7 +292,7 @@ function array_map {
 function array_for {
 	@func_info
 	Usage='ARRAY_NAME ACTION...'
-	@options_first
+	@options_before_args
 	Options=(
 		--stdin "action takes element via standard input instead of an argument"
 	)
@@ -319,7 +320,7 @@ function array_for {
 function for_permutations {
 	@func_info
 	Usage='FUNCTION ARRAY...'
-	@options_first
+	@options_before_args
 	Options=(
 		--fail-early "Fail as soon as FUNCTION returns a failure."
 	)

@@ -1,4 +1,4 @@
-#j!/bin/bash
+#!/bin/bash
 #
 # Base script utilities
 #
@@ -32,7 +32,7 @@ fi
 alias zsh_run='true ||'
 alias bash_run='true ||'
 alias ksh_run='true ||'
-alias _trace='[[ -n "${TRACE+ }" || \$- = *x* ]] && echo >&2 '
+alias _trace='[[ -n "${TRACE+ }" || $- = *x* ]] && echo >&2 '
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
 	zmodload zsh/parameter
