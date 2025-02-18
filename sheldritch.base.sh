@@ -129,28 +129,61 @@ alias @func_use_parent='
 	fi
 '
 
+function stacktrace {
+	@func_use_parent
+	typeset Set="${-//[^x]/}"
+	${Set:+set +$_ArgsSet}
+
+	typeset I=$((ParentLevel - 1)) Caller Line Func File 
+
+	if Caller="$(caller $I)" 2>/dev/null; then
+
+		read Line Func File < <(caller $I)
+		printf "%s:%s: %s:" "$File" "$Line" "$Func"
+		sed -n "${Line}s/^/\\t/p" "$File"
+
+		while Caller="$(caller $I)"; do
+			printf '\t%s\n' "$Caller"
+			((++I))
+		done
+
+	elif ((${#funcstack[@]})); then
+		while ((I < ${#funcstack[@]})); do
+			printf '\t%s\n' "${funcstack[I]}"
+			((++I))
+		done
+
+	elif ((${#FUNCNAME[@]})); then
+		for I in "${FUNCNAME[@]}"; do
+			printf >&2 '\t%s\n' "${FUNCNAME[I]}"
+		done
+
+	elif [[ -v KSH_VERSION ]]; then
+		printf >&2 '\t%s\n' "${.sh.fun}"
+	fi
+
+	printf \\n
+	${Set:+ set -$Set }
+}
+
 function _genfunc_log {
 	eval "$1"'() {
-		typeset Trace="${STACKTRACE:-$DEBUG}" Set
-		if [[ $- = *x* ]]; then
-			set +x
-			Set=x
-		fi
+		typeset Trace="${STACKTRACE:-$DEBUG}" Set Line Func File Last="$_"
+		Set="${-//[^x]/}"
+		${Set:+ set +$Set }
+
 		@func_use_parent
-		echo '"$2"'": ${Parent:+$Parent: }$*" >&2
+		Line='"$2"'": ${Parent:+$Parent: }$*"
+
+		if is_function deindent 2>/dev/null; then
+			Line="$(deindent "$Line")"
+		fi
+
+		echo "$Line" >&2
 
 		if [[ "$(lowercase "$Trace")" = true || "$Trace" = 1 || -n "$Set" ]]; then
-
-			if [[ -v BASH_VERSION ]]; then
-				typeset I=$((ParentLevel - 1)) Caller
-				read Line Fu File < <(caller $I)
-				sed -n "${Line}s/^/\\t/p" "$File"
-				while Caller="$(caller $I)"; do printf "\\t%s\\n" "$Caller"; ((++I)); done
-				printf \\n
-			elif [[ -v ZSH_VERSION ]]; then
-				args_quoted "${funcstack[@]}" >&2
-			fi
-			set -$Set
+			printf "%s\n" "$Last"
+			stacktrace -p "$ParentLevel" >&2
 		fi >&2
 	}
 	'
