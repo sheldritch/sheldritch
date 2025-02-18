@@ -5,8 +5,6 @@
 # This includes the @func_info framework, the recommended way for structuring
 # bash functions
 #
-# For an example of how to use it, see sheldritch_args_example() function definition
-# later in this file
 
 # shellcheck disable=SC2154,SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031,SC2206
 #
@@ -54,7 +52,7 @@ alias opts_parse='
 	ksh_run typeset KSH_FUNCTION="${.sh.fun}"
 	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0//[^[:alnum:]]/_}}}"
 	# NOTE: _ARGS contains "$@"
-	declare -a _ARGS=("$@") _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
+	declare -a ${KSH_VERSION:+-g} _ARGS=("$@") _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
 		_ARGS_VARS=() _ARGS_ARRAYS=() _ARGS_OPTS=() _ARGS_OPTS_BOOL=() \
 		_ARGS_CHECKS=()
 	[[ -n "${_ARGS_CACHE:-}" ]] || declare -g _ARGS_CACHE=1
@@ -77,158 +75,15 @@ alias opts_parse='
 
 	set -- "${_ARGS[@]}" # modified by parsing function
 
-    #if [[ -n "$ArgsReq" ]]; then
-	#	if ! var_is_declared ArgsReq; then
-	#		error "INTERNAL ERR: ArgsReq must be declared"
-	#		ecode 9
-	#		safe_quit
-	#	fi
-	#	declare $ArgsReq
-	#	for x in $ArgsReq; do
-	#		_args_req "$x" "$1" || safe_quit
-	#		shift
-	#	done
-	#fi
-
 	[[ -n "$_ArgsSet" ]] && set -$_ArgsSet
 '
-
-alias parse_args=args_parse
 
 alias args_parse='
 declare _ARGS_PARSE_USAGE=1
 opts_parse
 '
-
+alias parse_args=args_parse
 alias parse_opts=opts_parse
-
-# TODO: update to match current formatting
-function sheldritch_args_example {
-
-	# initialise the func_info framework
-	@func_info
-
-	# structured definition of function operation metadata
-	About='an example function showing how to use @func_info to parse --option-flags and auto-document'
-	Usage=(
-		# this usage array (which can also be a single string) is currently only used for documentation
-		# it shows all the different allowed formats excluding optional arguments.
-		# That is, the arguments of the command MUST include the arguments of one of these examples.
-		"# (strings starting with '#' are comments)"
-		"--print-vars [SPECIFIC_VARS_TO_PRINT...]"
-		"{ -h | --print-help }"
-		"--example=boolean FUNCTION_FLAG"
-		"--example=string  FUNCTION_FLAG FUNCTION_VARIABLE"
-	)
-
-	# A list of the flags that can be passed into the command.
-	Options=(
-		# format is FLAGS... FLAG_DESCRIPTION
-		--print-vars "A boolean flag to enable the print-var feature. Boolean flags usually have no argument, but can support --<arg>=true/false or --no-<arg>"
-		# any number of flags can be provided, including single-letter flags.
-		# the final flag defines the boolean variable name (`printHelp` here)
-		-h '-?' --HALP --print-help "@func_info automatically defines a --help flag, so you don't need to define one yourself like we do here (but can if you want)."
-
-		# note the declared value name EXAMPLE_TYPE. This is *always* on the last flag. This will create a variable called `exampleType`
-		-x --eg --example=EXAMPLE_TYPE "Print out what the option def format would look like for the given type"
-
-		# Any symbols within the variable name will split it into separate variables (here we get EqualsOrTarget, EqualsOrVal1 and EqualsOrVal2 all as separate variables)
-		'--equals-or=TARGET=VAL1||VAL2' 'show that multiple vars can be auto-parsed if separated by symbols (other than - or _)'
-
-		# PERFORMANCE: @func_info has about 0.3 milliseconds initial overhead, plus 25 microseconds
-		# per flag.
-		# In comparison, manual parsing has about .04 milliseconds initial overhead, plus 13
-		# microseconds per flag.
-		#
-		# If you expect your function to be run hundreds of times in a row, consider parsing args manually:
-		# https://mywiki.wooledge.org/BashFAQ/035
-	)
-	args_parse
-
-	if [[ -n "$Target$Val1$Val2" ]]; then
-		echo "equals or!! checking to see if '$Target' equals either '$Val1' or '$Val2'..."
-		case "$Target" in
-			"$Val1" )
-				echo "'$Target' equals the first value, $Val1!";&
-			"$Val2" )
-				echo "'$Target' equals the second value, $Val2!";&
-		esac
-	fi
-
-	# variables are automatically declared in args_parse
-	if [[ "$PrintVars" = true ]]; then
-		if [[ $# -gt 0 && -z "$ExampleType" ]]; then
-			local -p "$@"
-		else
-			echo "standard args:"
-			local -p "${_Opts[@]}" | sort --unique
-			echo "boolean args:"
-			local -p "${_OptsBool[@]}" | sort --unique
-		fi
-	fi
-
-	# you can still set defaults like so:
-	PrintHelp="${PrintHelp:-false}"
-
-	# if the command didn't specify, flag variables are empty (''), including boolean flags
-	# so be careful in your boolean checks -- if Var='', then [[ "$Var" = true ]] is false and [[ "$Var" != false ]] is true
-	if [[ "$PrintHelp" = true ]]; then
-		print_doc
-		return
-	fi
-
-	case "$ExampleType" in
-		'' ) return ;;
-
-		string )
-			if [[ -z "$2" ]]; then
-				error "string arguments must define a variable name/argument value name. See args.sh for the example's code"
-				return 1
-			fi
-			;;
-		bool | boolean )
-			if [[ -n "$2" ]]; then
-				error "boolean arguments cannot set a custom variable name. See args.sh for this example's code."
-				return 1
-			fi
-			;;
-
-		* )
-			error "flag type not supported!"
-			return 1
-	esac
-
-	local Flag='' Var='' Prefix=--
-	Var="$(case_big_snake "$2")"
-	Flag="$(case_kebab "$1")"
-
-	if [[ "$Flag" =~ ^-?.$ ]]; then
-		Prefix=-
-	fi
-	Flag="${Flag#$Prefix}"
-
-	echo 'Options=('
-	printf "\t%s%s%s 'STRING EXPLAINING THE FLAG'\n" "$Prefix" "$Flag" "${Var:+=$Var}"
-	echo ')'
-	echo "variable name: '$(case_camel "${Var:-$Flag}")'"
-}
-
-function _args_req {
-	local Arg="$1"
-	shift
-	if [[ -z "$1" ]]; then
-		error -p 1 "arg '$Arg' must be set"
-
-		if var_is_declared Usage; then
-			print_doc
-		else
-			print_usage "$(case_big_snake $ArgsReq)"
-		fi
-		return 1
-	fi
-
-	eval "$Arg"'="$1"'
-}
 
 function _args_name_to_variable {
 	local -l In="$1"
@@ -266,31 +121,17 @@ function _args_name_to_variable {
 function _args_build_parser {
 	local Cache="_ARGS_$__Source"
 
-	if [[ -z "${_ARGS_NO_CACHE:-}" ]] &&
-		_has_func "$Cache"
-	then
-		# TODO: clear this cache when a function is redefined (or at least re-summoned)
-		# There must be somewhere we can pull a map of function to filenames we can use
-		# to invalidate cache
-		# Or, we maybe can detect if a file is `source`d outside of source_once (and also invalidate
-		# cache when source_once --force used)
-		return 0
-	fi
-
+	# TODO: for ksh compatibility, we'd need to change all dynamic variables to optionally be global
+	# if using ksh, e.g. _ARGS_BUILDER
 	local Builder='' GlobEnabled=''
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
-	trap '
-	[[ $GlobEnabled = 1 ]] && set +o noglob
-	' ERR
+	trap ' [[ $GlobEnabled = 1 ]] && set +o noglob ' ERR
 
 	_args_build_parser_opts &&
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
 		_args_parse_builder || return 9
-		#_args_build_usage_parsers || return 9
-		# _args_usage_build_vars || return 9
-		# _args_build_parser_usage || return 9
 	fi &&
 
 	_args_build_parser_legend &&
@@ -369,7 +210,6 @@ function _args_build_parser_opts {
 	# PERFORMANCE: Bash mallocs and frees on every `shift` call in its `shift_args` function
 	# https://github.com/bminor/bash/blob/master/builtins/common.c#L438
 	# So, we should iterate over a read-only array
-	# (TODO)
 	Builder+='
 	zsh_run setopt KSH_ARRAYS
 	declare __Flag='' __Val='' __Pos=0 __Temp=0
@@ -701,6 +541,8 @@ function _args_usage_priority {
 function _args_parse_builder {
 	((${#Usage[@]} > 0)) || return 0
 
+	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
+
 	# one parser for each usage line
 	declare -a Parsers
 	# Parsers["${#Usage[@]}" - 1]=' ' # reserve space???
@@ -740,6 +582,10 @@ function _args_parse_builder {
 	Builder+=$'esac'
 }
 
+#  MAIN GOALS OF THIS FUNCTION
+#  - determine if we can sort argument parsing now or defer to later
+#  - determine if we can distinguish the right usage for all user inputs
+#  - prioritise which usage line should be selected first
 function _args_build_usage_parsers {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 
@@ -796,6 +642,13 @@ function _args_build_usage_parsers {
 			#fi
 
 			if [[ $Variadic ]]; then
+				if [[ "$RunMax" = + ]]; then
+					error -p 1 'FUNCTION BUG: cannot have two VARIADIC... arguments in
+					a series of tokens with the same pattern. You need to have a literal
+					or argument containing a symbol in between.'
+					return 9
+				fi
+
 				RunMax=+
 				if [[ "$Name" != *\ * ]]; then
 					_ARGS_ARRAYS+=($Name)
@@ -828,20 +681,14 @@ function _args_build_usage_parsers {
 
 			fi
 
+			# TODO: can we remove this?
 			_args_name_to_variable "$Token"
 
-			if [[ "RunCount" = + ]]; then
-				error -p 2 "FUNCTION BUG: args after variadic arg ($Token) not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
-				return 9
-				# Once implemented, we'd just keep our variadic arity marker here,
-				# hence return
-				return
-			fi
-
-			if [[ "$RunType" = "$1" ]]; then
+			if [[ "$Match" != "$RunType" ]]; then
 				((++RunCount))
 			else
 
+				# TODO: ensure this info is present in the function above, then remove this block
 				if [[ "$RunCount" = + ]] || ((RunCount)); then
 					Format+=" ${RunType}$RunCount"
 
@@ -860,6 +707,7 @@ function _args_build_usage_parsers {
 
 		Parsers[$LinePos]="$LineBuilder"
 	done
+	_args_check_usage_conflicts
 	[[ $GlobEnabled = 1 ]] && set +o noglob
 }
 
@@ -998,6 +846,7 @@ function _args_token_talker {
 	esac
 }
 
+
 function _args_token2regex {
 	#Token="[ALPHA=BETA]=GAMMA[LAMMA]"
 
@@ -1009,130 +858,54 @@ function _args_token2regex {
 		return 9
 	fi
 	# TODO: handle escaping \[ and \]
-	replace "$Token" '([$.[()|*+?{\^])' '\\\1'
-	Token="${REPLY//\[/\(}"
-	Token="${Token//\]/\)?}"
+	# TODO: fix replace escaping
+	replace "$Token" '([$.()|*+?{\^])' '\\1'
+	Token="${REPLY//\[/(}"
+	Token="${Token//\]/)?}"
 	replace "^$Token\$" '[[:upper:][:digit:]_]+' '(.+)'
 }
 
+function _args_regex_parser {
+	local Token="$1" CaptureGroup=0 i=0 Arg=2
+	if [[ "$Token" != ^*$ ]]; then
+		_args_token2regex
+		Token="$REPLY"
+	fi
 
-# TODO: rename
-#  MAIN GOALS OF THIS FUNCTION
-#  - determine if we can sort argument parsing now or defer to later
-#  - determine if we can distinguish the right usage for all user inputs
-#  - prioritise which usage line should be selected first
-function _args_old_parse_build_vars {
-	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
+	local Check='' i=0 Builder=''
+	while ((i < "${#Token}")); do
+		Check="${Token:i:3}"
+		if [[ $Check == [^\\]\(* ]]; then
+			((++CaptureGroup))
+		elif [[ $Check == [^\\]\)* ]]; then
+			if [[ $Check == *[^?] ]]; then
 
-	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
+				if ((Arg > $#)); then
+					error "INTERNAL ERROR: Given regex '$Token' has more capture groups than the provided Args! ${@:2}"
+					return 9
+				fi
 
-	local GlobEnabled=''
-	[[ -o noglob ]] || GlobEnabled=1
-	set -o noglob
-	bash_run trap '[[ $GlobEnabled = 1 ]] && set +o noglob' RETURN
-
-	# one parser for each usage
-	declare -a Parsers=() Tokens=()
-
-	# calculate a format summary of each usage. This is used to distinguish one usage line from
-	# another in parsing
-	local Name='' Line=0 Token=''
-	while ((Line < "${#Usage[@]}")); do
-		Tokens="${Usage[Line]}"
-
-		if [[ "$Tokens" = \#* ]]; then
-			_ARGS_FORMATS+=('#')
-			_ARGS_FORMAT_INFO+=('#')
-			continue
+				Builder+="
+				recapture $CaptureGroup
+				${@:Arg:1}=\"\$REPLY\"
+				"
+				((++Arg))
+			fi
 		fi
-
-		# a Run is the current string of variable arguments. Hitting a literal argument starts a new run
-		# certain sequential arguments are not allowed in a given run.
-		local Format='' RunType='' RunCount=''
-		# Format info values, used to identify which Usage string should be used to parse args
-		local ArityMin=0 ArityMax=0 Priority=0 SubPriority=0 FirstLiteral='' LiteralArity=''
-		# TODO: priority should consider the gap between min and max arity
-
-		for Token in $Tokens; do
-
-			case "$Token" in
-				'{' | \"* | \'* )
-					# TODO: I guess I could do a new RunType for grouped variables like this?
-					error -p 1 "FUNCTION BUG: Token '$Token' in usage not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
-					return 9
-					;;
-
-				*... )
-
-					# Note: Variadic arguments with separated names will join:
-					# e.g. FirstNameSecondName
-					_args_name_to_variable "$Token"
-					_ARGS_ARRAYS+=(${Name//[^[:alnum:]]/})
-
-					if [[ "$RunCount" = + ]]; then
-						error -p 1 'FUNCTION BUG: cannot have two variadics without a literal argument or argument separator between the two.'
-						return 9
-					fi
-
-					RunCount=+
-					# TODO: If token is ARG..., check the next value to see what you might need to stop at
-					Builder+="$Name"$'=("${_ARGS[@]:$__Pos}")\n'
-					;;
-
-				# Optional Args
-
-				\[*...\]  )
-					if [[ "$RunCount" = + ]]; then
-						error -p 1 'FUNCTION BUG: cannot have two variadics without a literal argument or argument separator between the two.'
-						return 9
-					fi
-					RunCount=+
-					;;
-				\[*\]  )
-					Token="${Token//[][]/}"
-					_args_usage_parse_token O || return $?
-					;;
-				\[*[^]] )
-					error -p 1 "FUNCTION BUG: Runs of optional arguments not currently supported. Please split into two usage lines"
-					return 9
-					;;
-
-				*[[:lower:]]* )
-					error -p 1 "FUNCTION BUG: literals not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
-					if [[ -z "$FirstLiteral" ]]; then
-						FirstLiteral="$Token"
-						LiteralArity="$((ArityMin + RunCount))"
-					fi
-					return 9
-					;;
-
-
-				*[^[:upper:]_]* )
-					local Temp="$Token"
-					# TODO: unless an array, symbol separators should have separate variables
-					while false && [[ "$Temp" = *[:upper:]_* ]]; do
-						# TODO: FIXME
-						Temp="${Temp%%[[:upper:]]*}${Temp#*[[:upper:]]}"
-					done
-					_args_usage_parse_token "$Temp" || return $?
-					error -p 1 "FUNCTION BUG: Internal separators ($Token) not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
-					return 9
-					;;
-
-				* ) _args_usage_parse_token R || return $?
-			esac
-		done
-		_args_usage_parse_token END || return $?
-
-		if [[ "$ArityMax" != + ]]; then
-			((ArityMax += ArityMin))
-		fi
-		_args_usage_priority
-
-		_ARGS_FORMAT_INFO+=("$ArityMin $ArityMax $Priority $SubPriority $FirstLiteral $LiteralArity")
-		_ARGS_FORMATS+=("${Format# }")
+		((++i))
 	done
 
+	REPLY="$Builder"
+}
+
+function _args_check_dash {
+	if [[ -n ${_ARGS_BREAK:-} && $2 = -* ]]; then 
+		error -p 1 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
+		return 1
+	fi
+}
+
+function _args_check_usage_conflicts {
 	# Compare the computed formats to check that no usage line conflicts with another
 	local i j
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
@@ -1158,61 +931,21 @@ function _args_old_parse_build_vars {
 	done
 }
 
-function _args_usage_parse_token {
-	_args_name_to_variable "$Token"
-	# Note: arguments with separated names will join:
-	# e.g. FirstNameSecondName
-	if [[ "$RunCount" != + ]]; then
-		_ARGS_VARS+=(${Name//[^[:alnum:]]/}'=')
-	fi
 
-	if [[ "RunCount" = + ]]; then
-		error -p 2 "FUNCTION BUG: args after variadic arg ($Token) not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
-		return 9
-		# Once implemented, we'd just keep our variadic arity marker here,
-		# hence return
-		return
-	fi
-
-	if [[ "$RunType" = "$1" ]]; then
-		((++RunCount))
-	else
-
-		if [[ "$RunCount" = + ]] || ((RunCount)); then
-			Format+=" ${RunType}$RunCount"
-
-			if [[ "$RunCount" = + ]]; then
-				ArityMax=+
-			elif [[ "$RunType" = *R* ]]; then
-				(( ArityMin += RunCount ))
-			else
-				(( ArityMax += RunCount ))
-			fi
-		fi
-		RunType="$1"
-		RunCount=1
-	fi
-}
-
-# PRO TIP: Write a validator before you try and write a precedence selector
-
-# New approach:
-#
-# write a validator that records the change points between arguments, which can then be plugged into
-# the variable creation later on.
-# If multiple usage formats are valid, these lists can then be compared. The first number that
-# differs between valid formats, the lower one is given higher priority
-#
-# But first, write a basic runtime parser
+# Find all possible matches for the given usages
+# Select the usage with the best match
+# record the change points between each usage token, which can then be referenced by the variable
+# setting.
 function _args_parse_dynamic {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
-	local Name='' Line='' TokenPos='' GlobEnabled=''
+	local Name='' Line='' TokenPos='' GlobEnabled='' i=0
 
-	declare -a Bounds=()
+	declare -a Bounds=() Priorities=() BestLinePriorities=()
 
+	# TODO: can probably move this to root level of @func_info
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
 	for ((LinePos = 0; LinePos < ${#Usage[@]}; LinePos++)); do
@@ -1228,20 +961,26 @@ function _args_parse_dynamic {
 		declare -a Tokens=($Line)
 		if _args_parse_usage_token 0 0; then
 
-			# if a match, decide if it's better than the best found thusfar
-			# TODO: we can check this in _args_parse_usage_token to break early
+			# check if the new match has better criteria than the previous best
+			# and thus should replace it
+			# TODO: we can frontload some checks in _args_parse_usage_token to break early
+
 			for ((i = 0; i < ${#Bounds[@]} && i < ${#__Bounds[@]}; i++)); do
 
-				if (( ${#Bounds[i]} < ${#__Bounds[i]} )); then
+				if (( ${Bounds[i]} < ${__Bounds[i]} )); then
 					__Bounds=()
-					break
-				elif (( ${#Bounds[i]} > ${#__Bounds[i]} )); then
-					Bounds=()
-					break
+				elif (( ${Priorities[i]} > ${BestLinePriorities[i]} )); then
+					__Bounds=()
+
+				else
+					continue
 				fi
+				break
 			done
-			if ((${#Bounds[@]} > ${#__Bounds[@]})); then
+			if ((${#__Bounds[@]} == 0)) # prioritise existing bounds
+			then
 				__Bounds=("${Bounds[@]}")
+				BestLinePriorities=("${Priorities[@]}")
 				BestMatch=$LinePos
 			fi
 		fi
@@ -1250,16 +989,22 @@ function _args_parse_dynamic {
 	((${#__Bounds[@]}))
 }
 
-# creates a new function call for each token
-# Not handling grouped tokens just yet
+# recursive function for checking a given token matches, moving on to the next one,
+# and branching out when multiple matching formats are possible
 function _args_parse_usage_token {
 	zsh_run setopt KSH_ARRAYS
 	local TokenPos="$1" ArgPos="$2" Arg='' Token="$3"
 	Token="${Token:-${Tokens[TokenPos]}}"
 
 	while ((TokenPos < ${#Tokens[@]})); do
-		Bounds["$TokenPos"]=$ArgPos
+
+		if ((${#BestMatch[@]} && ${BestMatch[TokenPos]} < ArgPos)); then
+			return 1
+		fi
+
+		Bounds[$TokenPos]=$ArgPos
 		Arg="${_ARGS[ArgPos]}"
+		Priorities[$TokenPos]=0
 
 		case "$Token" in
 			'' )
@@ -1302,6 +1047,8 @@ function _args_parse_usage_token {
 				# Fine:
 				# A [B] literal KEY=VALUE...
 
+				Priorities[$TokenPos]=-10 # likely overridden
+
 				# test *with* optional token
 				_args_parse_usage_token $TokenPos $ArgPos "${Token:1:${#Token} - 2}" && return
 				# and test without
@@ -1323,6 +1070,8 @@ function _args_parse_usage_token {
 				Match="$REPLY"
 				if [[ "$Match" = '*' ]]; then
 					Run="${#_ARGS[@]}"
+				else
+					Priorities[$TokenPos]=40
 				fi
 				while ((Run < "${#_ARGS[@]}")) && [[ "${_ARGS[Run]}" = $Match ]]; do
 					((++Run))
@@ -1390,9 +1139,12 @@ function _args_parse_usage_token {
 			*[[:upper:]_]* )
 				replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
 				Match="$REPLY"
-
 				if [[ "$Arg" != $Match ]]; then
 					return 1
+				fi
+
+				if [[ "$Match" != '*' ]]; then
+					Priorities[$TokenPos]=50 # has separators
 				fi
 				((++TokenPos))
 				((++ArgPos))
@@ -1403,11 +1155,12 @@ function _args_parse_usage_token {
 
 			# anything only containing lowercase, digits or symbols are considered literal.
 			# (assuming control characters like [ ] or { } are parsed out earlier)
-			*[[:lower:]]* )
-
+			* )
 				if [[ "$Arg" != $Token ]]; then
 					return 1
 				fi
+
+				Priorities[$TokenPos]=100
 				((++TokenPos))
 				((++ArgPos))
 				Token="${Tokens[TokenPos]}"
@@ -1419,59 +1172,6 @@ function _args_parse_usage_token {
 	((ArgPos == ${#_ARGS[@]}))
 }
 
-
-# We need to unpack all possible forms of arguments that have optional portions
-# This function is an example of how we might do so.
-function _args_enumerate_internal_optionals {
-	local Token="${1:-LEFT[+PLUS]=RIGHT[-MINUS[*TIMES]]}" Match
-
-	if [[ -z "$1" ]]; then
-		Token="${Token/\*/\\*}"
-		declare -a OptionalForms OptionalPatterns
-	fi
-
-	local Pre='' Optional='' Post="$Token"
-	Token=''
-	while ((${#Post})); do
-
-		local i Depth=0 Start=0
-		for ((i = 0; i < ${#Post}; i++)); do
-			case "${Post:i:1}" in
-				'[' )
-					if ((++Depth == 1)); then
-						Start=$((i + 1))
-						Token+="${Post:0:i}"
-					fi
-					;;
-				']' )
-					if ((--Depth == 0)); then
-						break
-					fi
-					;;
-			esac
-
-		done
-		if ((i == ${#Post})) then break; fi
-
-		Pre="${Pre}${Post:0:Start - 1}"
-		Optional="${Post:Start:i - Start}"
-		Post="${Post:i + 1:${#Post} - i}"
-		_args_enumerate_internal_optionals "${Pre}${Optional}${Post}"
-
-	done
-
-	Token+="$Post"
-	#if ! contains "$Token" "${OptionalForms[@]}"; then
-		OptionalForms+=("$Token")
-		replace "$Token" '[[:upper:]_]+' '*' >/dev/null
-		OptionalPatterns+=("$REPLY")
-	#fi
-
-	if [[ -z "$1" ]]; then
-		echo "Optional Forms ${OptionalForms[@]}"
-		echo "Optional Patterns ${OptionalPatterns[@]}"
-	fi
-}
 
 function _args_build_parser_usage {
 	((${#Usage[@]})) || return 0
@@ -1512,13 +1212,6 @@ function _args_build_parser_usage {
 	done
 
 	Builder+="esac; _ARGS=()"
-}
-
-function _args_check_dash {
-	if [[ -n ${_ARGS_BREAK:-} && $2 = -* ]]; then 
-		error -p 1 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
-		return 1
-	fi
 }
 
 function _args_usage_select_format {
@@ -1605,6 +1298,8 @@ function _arg_group_read {
 				Builder+=$'\n'"$Arg=\"\${${Arg}List[\$__ArgGroupI]}\""
 			done
 			Builder+=$'\n((++__ArgGroupI))'
+			# TODO: for ksh, this will have to be an alias, since dynamic variables aren't an
+			# option.
 			eval "function $Func { $Builder"$'\n}'
 		fi
 	fi
@@ -1615,6 +1310,60 @@ function _arg_group_read {
 		return $Exit
 	}
 }
+
+# We need to unpack all possible forms of arguments that have optional portions
+# This function is an example of how we might do so.
+function _args_enumerate_internal_optionals {
+	local Token="${1:-LEFT[+PLUS]=RIGHT[-MINUS[*TIMES]]}" Match
+
+	if [[ -z "$1" ]]; then
+		Token="${Token/\*/\\*}"
+		declare -a OptionalForms OptionalPatterns
+	fi
+
+	local Pre='' Optional='' Post="$Token"
+	Token=''
+	while ((${#Post})); do
+
+		local i Depth=0 Start=0
+		for ((i = 0; i < ${#Post}; i++)); do
+			case "${Post:i:1}" in
+				'[' )
+					if ((++Depth == 1)); then
+						Start=$((i + 1))
+						Token+="${Post:0:i}"
+					fi
+					;;
+				']' )
+					if ((--Depth == 0)); then
+						break
+					fi
+					;;
+			esac
+
+		done
+		if ((i == ${#Post})) then break; fi
+
+		Pre="${Pre}${Post:0:Start - 1}"
+		Optional="${Post:Start:i - Start}"
+		Post="${Post:i + 1:${#Post} - i}"
+		_args_enumerate_internal_optionals "${Pre}${Optional}${Post}"
+
+	done
+
+	Token+="$Post"
+	#if ! contains "$Token" "${OptionalForms[@]}"; then
+		OptionalForms+=("$Token")
+		replace "$Token" '[[:upper:]_]+' '*' >/dev/null
+		OptionalPatterns+=("$REPLY")
+	#fi
+
+	if [[ -z "$1" ]]; then
+		echo "Optional Forms ${OptionalForms[@]}"
+		echo "Optional Patterns ${OptionalPatterns[@]}"
+	fi
+}
+
 
 zsh_run unsetopt GLOB
 
