@@ -261,6 +261,72 @@ function join_by {
 	printf %s "$f" "${@/#/$d}"
 }
 
+
+function _array_weight_compare (( ${1%% *} < ${2%% *} ))
+
+# function array_sort_weight {
+# 	declare -a Weights REPLY_ARRAY
+# 	eval 'Weights=("${'"$2"'[@]}")
+
+# 	'"$1"'=("${REPLY_ARRAY[@]}")'
+# }
+
+_array_compare_int()    (( $1 < $2 ))
+_array_compare_string() [[ $1 < $2 ]]
+
+# (C) CC BY-SA 4.0
+# modified from https://stackoverflow.com/a/30576368
+array_sort() {
+	if [[ "$1" = --help ]]; then
+		echo >&2  "sort positional arguments
+		First argument is a function name that takes two arguments and compares them
+		return value in REPLY_ARRAY
+		"
+		return 0
+	fi
+
+	(($#<=1)) && return 0
+
+	zsh_run setopt KSH_ARRAYS
+	local CompareFn=$1
+	shift
+	case "$CompareFn" in
+		string | strings )
+			CompareFn=_array_compare_string;;
+		int | ints | integer | integers )
+			CompareFn=_array_compare_int
+			for x in "$@"; do
+				if [[ "$x" = *[^[:digit:]]* ]]; then
+					error "Arguments include '$x' which is not an integer!"
+					sleep 3
+					return 9
+				fi
+			done
+			;;
+	esac
+
+	local stack=( 0 $(($#-1)) ) start end i pivot smaller larger
+	REPLY_ARRAY=("$@")
+	while ((${#stack[@]})); do
+		start=${stack[0]}
+	end=${stack[1]}
+	stack=( "${stack[@]:2}" )
+	smaller=() larger=()
+	pivot=${REPLY_ARRAY[start]}
+	# Note: iterative, NOT recursive! :)
+	for ((i=start+1;i<=end;++i)); do
+		if "$CompareFn" "${REPLY_ARRAY[i]}" "$pivot"; then
+			smaller+=( "${REPLY_ARRAY[i]}" )
+		else
+			larger+=( "${REPLY_ARRAY[i]}" )
+		fi
+	done
+	REPLY_ARRAY=( "${REPLY_ARRAY[@]:0:start}" "${smaller[@]}" "$pivot" "${larger[@]}" "${REPLY_ARRAY[@]:end+1}" )
+	if ((${#smaller[@]}>=2)); then stack+=( "$start" "$((start+${#smaller[@]}-1))" ); fi
+	if ((${#larger[@]}>=2)); then stack+=( "$((end-${#larger[@]}+1))" "$end" ); fi
+done
+}
+
 function array_map {
 	@func_info
 	Usage='ARRAY_NAME FILTER...'
