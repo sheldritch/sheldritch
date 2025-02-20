@@ -1068,6 +1068,7 @@ function _args_build_parser_usage {
 
 		if [[ "${_ARGS_FORMATS[$i]}" = \#* ]]; then
 			Builder+="error -p 1 'INTERNAL ERROR: chosen usage line $i is a comment!'; return 9 ;;"
+			continue
 		fi
 
 		local __Pos=1 Name=''
