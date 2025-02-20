@@ -393,8 +393,8 @@ function value {
 function ternary {
 	eval "$1" && echo "$2" || echo "$3"
 }
-#function ?: { ternary "$@"; }
-#zsh_run \?: { ternary "$@"; }
+function ?: { ternary "$@"; }
+zsh_run eval 'function \?: { ternary "$@"; }'
 
 function ifdef {
 	if [[ $# -gt 3 ]]; then
@@ -403,7 +403,7 @@ function ifdef {
 	fi
 	[[ -n "$1" ]] && echo "$2" || echo "$3"
 }
-#function :+ { ifdef "$@"; }
+function :+ { ifdef "$@"; }
 
 function safe_set {
 	if ! declare -p $1 >/dev/null; then

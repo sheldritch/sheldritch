@@ -14,7 +14,7 @@ if ! command -v jq >/dev/null; then
 fi
 
 # jq, but the first arg is JSON input
-# 
+#
 # Slightly shorter than echoing yourself
 function jqj {
 	# separated because ksh complains
@@ -158,16 +158,35 @@ function json2vars {
 	fi
 }
 
-function json_array_flat {
+function json_stream {
 	@func_info
-	Usage='JSON [ELEMENT_FILTER]'
-	args_parse
-	# the dual 'flatten | .[]' supports complex filtering scenarios and flexible array inputs
-	jqj "$Json" --slurp --compact-output "flatten | .[] | [${ElementFilter:-.}] | flatten"
+	Usage=(
+		"# If JSON is '-', read from standard input"
+		'JSON [ELEMENT_FILTER]'
+	)
+	if (($#)); then
+		args_parse
+	fi
+
+	{
+		[[ "$Json" = [^-]* ]] && jqj "$Json" . || cat
+	} |
+		jq -r --compact-output '
+			if (. | type == "array") then
+				# flatten any top level arrays
+				. | flatten | .[]
+			else
+				.
+			end
+			| ['"${ElementFilter:-.}"']
+			# allow any nested arrays within element filter to be flattened as well
+			| flatten | .[]
+			'
 }
 
-function json_stream {
-	json_array_flat "$@" | jq -r --compact-output .[]
+function json_array_flat {
+	@func_passthrough
+	json_stream "$@" | jq --slurp .
 }
 alias jstream=json_stream
 
@@ -342,8 +361,8 @@ function json_audit {
 			| select(.
 				'"${searchFields:+" | {} "}"'
 				'"$(for field in $SearchFields; do echo '|' .$Field = '$item'.$Field; done)"'
-				| '"del( $ExcludeFields)"' 
-				| "\(.)" 
+				| '"del( $ExcludeFields)"'
+				| "\(.)"
 				| test("'"$SearchTerm"'"; "i")
 			)
 		')" || return 1
@@ -374,7 +393,7 @@ function json_audit {
 		echo >&2
 		echo >&2
 		echo "$Item" | { yq -P . || jq .; } | sed -e 's/\\n/\n/g' -e 's/notes: /&\n/g' >&2
-		echo >&2 
+		echo >&2
 
 		local Option Comment CommentConfirm
 		while true; do
@@ -431,7 +450,7 @@ function json_audit {
 					continue
 					;;
 
-				*) 
+				*)
 					__audit_help
 					continue
 					;;
