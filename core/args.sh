@@ -1364,7 +1364,6 @@ function _args_enumerate_internal_optionals {
 	fi
 }
 
-
 zsh_run unsetopt GLOB
 
 # Shorthand structure for defining arguments
