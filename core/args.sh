@@ -42,6 +42,8 @@ alias @options_first='declare _SET=_OPTIONS_PARSE_FIRST && @set'
 alias @opts_first=@options_first
 alias @args_no_cache='declare _SET=_ARGS_NO_CACHE && @set'
 
+alias @opts_skip_unknown='declare _SET=_OPTS_SKIP_UNKNOWN && @set'
+
 # shellcheck disable=SC2142
 alias opts_parse='
 	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0##/[^[:alnum:]]/_}}}"
@@ -389,7 +391,7 @@ function _args_build_parser_opts {
 	while ((Opt < "${#Options[@]}")); do
 		if ! [[ "${Options[Opt]}" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
-			error -p 3 "Rest of array is as follows: $(args_quoted "$@")"
+			error -p 3 "Rest of array is as follows: $(args_quoted "${_ARGS[@]}")"
 			return 9
 		fi
 
@@ -434,7 +436,7 @@ function _args_build_parser_opts {
 
 		case "$Type" in
 			bool)
-				_ARGS_OPTS_BOOL+=($Name=)
+				_ARGS_OPTS_BOOL+=("$Name=")
 				Builder+='
 				if [[ -n "${__Val+x}" ]]; then
 					'$Name'="$__Val";
@@ -449,7 +451,7 @@ function _args_build_parser_opts {
 				fi'
 				;;
 			string)
-				_ARGS_OPTS+=($Name=)
+				_ARGS_OPTS+=("$Name=")
 				Builder+='
 				if [[ -n "${__Val+x}" ]]; then
 					'$Name'="$__Val";
@@ -488,7 +490,13 @@ function _args_build_parser_opts {
 		# if no options spec was defined, assume flags are parsed elsewhere
 		(( "${#Options[@]}" )) || return 0
 
-		error -p 1 "Flag \"$1\" not supported!"
+		if [[ -n $_OPTS_SKIP_UNKNOWN ]]; then
+			((++__Pos))
+			__PosArgs+=("${_ARGS[__Pos]}")
+			continue
+		fi
+
+		error -p 1 "Flag \"$__Flag\" not supported!"
 		return 1
 		;;
 
@@ -1084,7 +1092,7 @@ function _args_build_parser_usage {
 					Builder+="
 					$Name"'="${_ARGS[__Pos]}"
 					((++__Pos))'"
-					[[ -n \${_ARGS_BREAK:-} && \$$Name = -* ]] && _args_dash_error $Name \$$Name && return 1"$'\n'
+					[[ -z \${_ARGS_BREAK:-} && \$$Name = -* ]] && _args_dash_error $Name \$$Name && return 1"$'\n'
 					;;
 			esac
 		done
