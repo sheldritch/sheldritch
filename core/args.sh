@@ -50,7 +50,7 @@ alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'
 # shellcheck disable=SC2142
 alias opts_parse='
 	ksh_run typeset KSH_FUNCTION="${.sh.fun}"
-	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0//[^[:alnum:]]/_}}}"
+	declare _ArgsSet= __Source="${FUNCNAME:-${funcstack:-${0//[^[:alnum:]]/_}}}" _ARGS_USAGE_NUM=
 	# NOTE: _ARGS contains "$@"
 	declare -a ${KSH_VERSION:+-g} _ARGS=("$@") _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
 		_ARGS_VARS=() _ARGS_ARRAYS=() _ARGS_OPTS=() _ARGS_OPTS_BOOL=() \
@@ -202,7 +202,7 @@ function _args_build_parser_opts {
 	zsh_run setopt SH_WORD_SPLIT KSH_ARRAYS
 
 	if ! var_is_declared _ARGS_OPTS; then
-		error -p "INTERNAL ERR: internal vars not found -- did you include '@func_info'?"
+		error -p "FUNCTION BUG: internal vars not found -- did you include '@func_info'?"
 		ecode 9
 		safe_quit
 	fi
@@ -439,7 +439,7 @@ function _args_build_validation {
 					Default="${Default:1: ${#Default} - 2}"
 
 				elif [[ "$Default" = *\ * ]]; then
-					error -p 1 "INTERNAL ERROR: $Tag: default containing spaces must be surrounded in quotes."
+					error -p 1 "FUNCTION BUG: $Tag: default containing spaces must be surrounded in quotes."
 					return 9
 
 				elif [[ "$Default" = *[[:upper:]]* && "$Default" != *[^[:upper:][:digit:]_]* ]]; then
@@ -450,7 +450,7 @@ function _args_build_validation {
 				fi
 
 				if [[ -n "$Type" ]] && ! is_type "$Type"; then
-					error -p 1 "INTERNAL ERROR: ${Tag:-$Name}: default must match option type '$Type'."
+					error -p 1 "FUNCTION BUG: ${Tag:-$Name}: default must match option type '$Type'."
 					return 9
 				fi
 
@@ -563,7 +563,6 @@ function _args_parse_builder {
 	#_args_usage_select_format
 
 	# TODO: make generic
-	local BestMatch=''
 	declare -a __Bounds=()
 	if ! _args_parse_dynamic; then
 		#TODO: apply manual priority heuristics
@@ -573,13 +572,13 @@ function _args_parse_builder {
 		return 1
 	fi
 
-	case "$BestMatch" in
+	case "$_ARGS_USAGE_NUM" in
 	'
 	local i
 	for ((i=0; i < ${#Usage[@]}; i++)); do
 		Builder+="$i) "
 		if [[ "${Parsers[$i]}" = \#* ]]; then
-			Builder+="error -p 1 'INTERNAL ERROR: chosen usage line $i is a comment!'; return 9 ;;"
+			Builder+="error 'INTERNAL ERROR: chosen usage line $i is a comment!'; return 9 ;;"
 			continue
 		fi
 
@@ -610,7 +609,7 @@ function _args_build_usage_parsers {
 	local ArityMin=0 ArityMax=0 Priority=0 SubPriority=0 FirstLiteral='' LiteralArity=''
 	# TODO: priority should consider the gap between min and max arity
 
-	# Flags for the token talker to telepath with
+	# Flags for the token talker to telepath to
 	local Match Regex Optional Variadic
 
 	local LineBuilder='' RunMin=0 RunMax=0 TokenPos=0
@@ -663,8 +662,7 @@ function _args_build_usage_parsers {
 					__Pos="${__Bounds['$TokenPos']}"
 					_trace "${__Bounds['$TokenPos' + 1]:-${#_ARGS[@]}} - $__Pos"
 					'$Name'=("${_ARGS[@]: __Pos : ${__Bounds['$TokenPos' + 1]:-${#_ARGS[@]}} - __Pos }")
-					#((++__Pos))'"
-					_args_check_dash $Name \$$Name || return 1"$'\n'
+					_args_check_dash '"$Name \$$Name"$' || return 1\n'
 				else
 					# argument is split into separate vars
 
@@ -674,17 +672,13 @@ function _args_build_usage_parsers {
 					_ARGS_ARRAYS+=(${Name// /List= }List=)
 				fi
 
-			elif [[ -z $Literal ]]; the
+			elif [[ -z $Literal ]]; then
 				_ARGS_VARS+=(${Name//[^[:alnum:]]/ }'=')
 				#LineBuilder+="$Name"$'=("${_ARGS[@]: __Pos}")\n'
 
 				LineBuilder+="
 				$Name"'="${_ARGS[ ${__Bounds['$TokenPos']} ]}"
-				#((++__Pos))'"
-				_args_check_dash $Name \$$Name || return 1"$'\n'
-			else
-				error -p 1 'INTERNAL ERROR: got literal and do not know what to do about it.'
-
+				_args_check_dash '"$Name \$$Name"$' || return 1\n'
 			fi
 
 			# TODO: can we remove this?
@@ -837,6 +831,8 @@ function _args_token_talker {
 			# TODO: Don't forget to use _OPTS_BOOL to determine if it has an argument!
 			# (false might always be an argument, but thankfully that's literal so easy to
 			# handle)
+			# TODO: also, usage strings might check for a specific value `--flag=exact-match`, or
+			# just that they're set (--flag=FLAG)
 			Flag=1
 			Literal=1 # maybe remove?
 			return
@@ -987,7 +983,7 @@ function _args_parse_dynamic {
 			then
 				__Bounds=("${Bounds[@]}")
 				BestLinePriorities=("${Priorities[@]}")
-				BestMatch=$LinePos
+				_ARGS_USAGE_NUM=$LinePos
 			fi
 		fi
 	done
@@ -1004,7 +1000,8 @@ function _args_parse_usage_token {
 
 	while ((TokenPos < ${#Tokens[@]})); do
 
-		if ((${#BestMatch[@]} && ${BestMatch[TokenPos]} < ArgPos)); then
+		# quit early if existing bounds is already better than this possibility
+		if ((${#__Bounds[@]} && ${__Bounds[TokenPos]} < ArgPos)); then
 			return 1
 		fi
 
@@ -1270,6 +1267,22 @@ function _args_build_parser_legend {
 		fi
 		"
 	done
+}
+
+function usage_has {
+	local Token
+	for Token; do
+		contains "$Token" ${Usage[_ARGS_USAGE_NUM]} || return 1
+	done
+	return 0
+}
+
+function usage_has_glob {
+	local Token
+	for Token; do
+		contains_glob "$Token" ${Usage[_ARGS_USAGE_NUM]} || return 1
+	done
+	return 0
 }
 
 alias arg_group_read='declare __ArgGroup __ArgGroupI; _arg_group_read'
