@@ -214,7 +214,6 @@ function _args_build_parser_opts {
 	zsh_run setopt KSH_ARRAYS
 	declare __Flag='' __Val='' __Pos=0 __Temp=0
 	declare -a __PosArgs=()
-	unset __Val
 
 	while ((__Pos < "${#_ARGS[@]}")); do
 
@@ -228,6 +227,7 @@ function _args_build_parser_opts {
 		continue
 	fi
 
+	unset __Val
 	__Flag="${_ARGS[__Pos]}"
 	if [[ "$__Flag" = --no-* ]]; then
 		__Flag="--${__Flag#--no-}=false"
@@ -242,7 +242,7 @@ function _args_build_parser_opts {
 	local Validation='' # used to build validation for each arg
 
 	# --Name=Tag
-	local Type='' Name='' Tag='' Opt=0
+	local Type='' Name='' Tag='' Opt=0 IsArray
 	while ((Opt < "${#Options[@]}")); do
 		if ! [[ "${Options[Opt]}" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
@@ -254,13 +254,15 @@ function _args_build_parser_opts {
 			Builder+=" ${Options[Opt]} |"
 			((++Opt))
 		done
-		Name="${Options[Opt]}"
+		Name="${Options[Opt]}" IsArray=''
 
 		if [[ "$Name" = *=* ]]; then
 			Type=string
 			# TODO: Implement array flags. will need some opinionated designing.
 			# probably, all bash arguments until the next /^-/ are part of the array,
 			# but this is escapable with '\-'
+			#
+			# Also need separate way to allow flag to be used multiple times
 			if [[ "$Name" = *... ]]; then
 				error -p 1 "'$Name' elipsis format currently unsupported :("
 				return 9
@@ -293,48 +295,44 @@ function _args_build_parser_opts {
 
 
 		# build validation early to extract type info
-		_args_build_validation "${Options[Opt]}"
+		_args_build_validation "${Options[Opt + 1]}"
 
 		case "$Type" in
 			bool)
 				_ARGS_OPTS_BOOL+=("$Name=")
-				Builder+='
-				if [[ -n "${__Val+x}" ]]; then
-					'$Name'="$__Val";
-					unset __Val
-				else
-					'$Name'="true"
-				fi
+				# Using __Val here makes it easier to have validation tests follow a standard
+				# structure
+				Builder+='__Val="${__Val-true}"
+				'
 
-				if ! [[ "$'$Name'" = true || "$'$Name'" == false ]]; then
-					error -p 1 "Flag '\''$__Flag'\'' is boolean"
-					return 1
-				fi'
 				;;
 			*)
 				_ARGS_OPTS+=("$Name=")
 				Builder+='
-				if [[ -n "${__Val+x}" ]]; then
-					'$Name'="$__Val";
-					unset __Val
-					((++__Pos)); continue;
+				if [[ -z "${__Val+x}" ]]; then
+					__Val="${_ARGS[__Pos + 1]}"
+					((++__Pos))
 				fi
-				'$Name'="${_ARGS[__Pos + 1]}"
-				((++__Pos))
 				'
+
 				;;
 		esac
-		((++Opt))
 
-		Builder+="$Validation"
-
-		Builder+="
-		((++__Pos));;
+		Builder+="$Validation
+		((++__Pos))
 		"
 
-		((++Opt))
-	done
+		if [[ -n "$IsArray" ]]; then
+			Builder+="$Name+=(\"$__Val\");;
+			"
+		else
+			Builder+="$Name=\"$__Val\";;
+			"
+		fi
 
+		# clear last flag and description
+		((Opt += 2))
+	done
 
 	Builder+='
 	-h | --help )
@@ -382,37 +380,48 @@ function _args_build_validation {
 		case "$Predicate" in
 
 			# Type declarations & checks
-			bool | boolean )
-				Type=bool
-				;;
 			[Ii]nt | [Ii]nteger )
 				Type=integer
-				# --or-null is on because this also handles usage args in parse_legend
-				Test="is_type --or-null integer \$$Name"
-				Error="$Tag"' must be an integer, got ${__Flag:+$__Flag }'"'\$$Name'"' instead.'
+				# --or-null is on because this also handles usage args in parse_legend.
+				# Also, it allows us to 'unset' values if necessary. To do a final check that a
+				# value must be set, either use the 'Required' predicate or specify it in each Usage
+				Test='is_type --or-null integer "$__Val"'
+				Error="$Tag"' must be an integer, got ${__Flag:+$__Flag }\"$__Val\" instead.'
 				;;
 			[Dd]ecimal )
 				Type=decimal
-				Test="is_type --or-null decimal \$$Name"
-				Error="$Tag"' must be a decimal, got ${__Flag:+$__Flag }'"'\$$Name'"' instead.'
+				Test='is_type --or-null decimal "$__Val"'
+				Error="$Tag"' must be a decimal, got ${__Flag:+$__Flag }\"$__Val\" instead.'
+				;;
+			[Bb]ool | [Bb]oolean )
+				Type=bool
+				Test='[[ $__Val =~ ^(true|false|)$ ]]'
+				Error='${__Flag:-$Tag} must be boolean.'
+				;;
+			[Aa]"llowed multiple times" | [Mm]"ultiple allowed" | [Cc]"an have multiple" )
+				IsArray=1
 				;;
 
 			[Nn]"ew file" )
 				Type=file
-				Test="[[ -e \$(dirname \"\$$Name\") ]]"
-				Error="Parent directory of file '\$$Name' does not exist."
+				Test='[[ -e \$(dirname "$__Val") ]]'
+				Error='Parent directory of file \"$__Val\" does not exist.'
 				;;
-
 			[Ee]"xisting path" )
 				Type=file
-				Test="[[ -e \$$Name ]]"
-				Error="Path '\$$Name' does not exist."
+				Test='[[ -e $__Val ]]'
+				Error='Path '$__Val' does not exist.'
 				;;
-
 			[Ff]ile | [Ee]"xisting file" )
 				Type=file
-				Test="[[ -f \$$Name ]]"
-				Error="File '\$$Name' does not exist."
+				Test='[[ -f $__Val ]]'
+				Error='File '$__Val' does not exist.'
+				;;
+
+
+			[Nn]o\ repeats )
+				Test='! contains "$__Val" "${'"$Name[@]}\""
+				Error="$Tag"' must have no duplicates, but got ${__Flag:+$__Flag }\"$__Val\" twice.'
 				;;
 
 			[Mm]atches\ /*/ | /*/ )
@@ -429,6 +438,12 @@ function _args_build_validation {
 				}"
 				_ARGS_CHECKS+=("$Tag" "$Test"
 					"Failed test: $Tag $Predicate"
+				)
+				;;
+
+			[Rr]equired )
+				_ARGS_CHECKS+=("${Tag:-Name}" '[[ -n "$__Val" ]]'
+					'${__Flag:-$Tag} must be set to a value.'
 				)
 				;;
 
@@ -1259,12 +1274,14 @@ function _args_build_parser_legend {
 		Builder+="$Validation"
 	done
 
-	for ((i = 0; i < "${#_ARGS_CHECKS[@]}"; i += 3)); do
-		Builder+="
-		if ! ${_ARGS_CHECKS[i + 1]}; then
-			error -p 1 'Failed check for ${_ARGS_CHECK[i]}: ${_ARGS_CHECK[i + 2]}'
-			return 1
-		fi
+	for ((i = 0; i < "${#_ARGS_CHECKS[@]}"; i += 4)); do
+		Builder+='
+		for __Val in "${'"${_ARGS_CHECKS[i + 1]}"'[@]}"; do
+			if ! '"${_ARGS_CHECKS[i + 2]}"'; then
+				error -p 1 "Failed check for '"${_ARGS_CHECK[i]}: ${_ARGS_CHECK[i + 3]}'\"
+				return 1
+			fi
+		done
 		"
 	done
 }
