@@ -41,9 +41,9 @@ function _args_set {
 function args_edict {
 	alias "@$1=declare $2 && _args_set $2"
 }
-args_edict options_before_args _OPTIONS_PARSE_FIRST
-alias @opts_first=@options_before_args
+args_edict opts_before_args _OPTS_PARSE_FIRST
 args_edict args_no_cache _ARGS_NO_CACHE
+args_edict opts_skip_unknown _OPTS_SKIP_UNKNOWN
 
 alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'
 
@@ -246,7 +246,7 @@ function _args_build_parser_opts {
 	while ((Opt < "${#Options[@]}")); do
 		if ! [[ "${Options[Opt]}" = -* ]]; then
 			error -p 3 "argument flag format is messed up!"
-			error -p 3 "Rest of array is as follows: $(args_quoted "$@")"
+			error -p 3 "Rest of array is as follows: $(args_quoted "${_ARGS[@]}")"
 			return 9
 		fi
 
@@ -297,7 +297,7 @@ function _args_build_parser_opts {
 
 		case "$Type" in
 			bool)
-				_ARGS_OPTS_BOOL+=($Name=)
+				_ARGS_OPTS_BOOL+=("$Name=")
 				Builder+='
 				if [[ -n "${__Val+x}" ]]; then
 					'$Name'="$__Val";
@@ -312,7 +312,7 @@ function _args_build_parser_opts {
 				fi'
 				;;
 			*)
-				_ARGS_OPTS+=($Name=)
+				_ARGS_OPTS+=("$Name=")
 				Builder+='
 				if [[ -n "${__Val+x}" ]]; then
 					'$Name'="$__Val";
@@ -351,7 +351,13 @@ function _args_build_parser_opts {
 		# if no options spec was defined, assume flags are parsed elsewhere
 		(( "${#Options[@]}" )) || return 0
 
-		error -p 1 "Flag \"$1\" not supported!"
+		if [[ -n $_OPTS_SKIP_UNKNOWN ]]; then
+			((++__Pos))
+			__PosArgs+=("${_ARGS[__Pos]}")
+			continue
+		fi
+
+		error -p 1 "Flag \"$__Flag\" not supported!"
 		return 1
 		;;
 
@@ -899,8 +905,8 @@ function _args_regex_parser {
 }
 
 function _args_check_dash {
-	if [[ -n ${_ARGS_BREAK:-} && $2 = -* ]]; then 
-		error -p 1 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
+	if [[ -z ${_ARGS_BREAK:-}${_OPTS_SKIP_UNKNOWN:-} && $2 = -* ]]; then 
+		error -p 2 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
 		return 1
 	fi
 }
@@ -1188,6 +1194,7 @@ function _args_build_parser_usage {
 
 		if [[ "${_ARGS_FORMATS[$i]}" = \#* ]]; then
 			Builder+="error -p 1 'INTERNAL ERROR: chosen usage line $i is a comment!'; return 9 ;;"
+			continue
 		fi
 
 		local __Pos=1 Name=''

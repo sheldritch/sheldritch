@@ -11,6 +11,7 @@ function table_date_comp {
 	@func_info
 	About='prints all rows from stdin'
 	Usage='OPERATOR DATE'
+	@opts_skip_unknown
 	Options=(
 		-f --field=FIELD "integer. the column position containing the time, starting from one"
 	)
@@ -21,7 +22,7 @@ function table_date_comp {
 	case "$Operator" in
 		lt ) Operator='<';;
 		gt ) Operator='>';;
-		* )
+		'' )
 			error 'Did not receive any arguments! did you accidentally do file direction instead of greater/less than?'
 			return 9
 	esac

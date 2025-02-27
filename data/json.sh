@@ -227,9 +227,13 @@ alias jq_extract_match=json_extract_match
 # Does not set or modify dynamic variables if no attribute is found, unless -f is set. outputVar is always set.
 function json_pop {
 
-	local force
+	local force NoClobber
 	@ARGS
 		-h | help | --help ) local HELP="true"
+			shift
+			;;
+		# keep existing values
+		-n | --no-clobber ) NoClobber="true"
 			shift
 			;;
 		# Don't error if a field isn't found
@@ -301,14 +305,14 @@ function json_pop {
 			return 9
 		fi
 
-		result="$(echo "$JSON" | jq -r ".[$match]")"
-		if [ "$result" == null ] && [ "$force" != true ]; then
+		result="$(jqj "$JSON" -r ".[$match]")" ||
+		if ! anyTrue $force $NoClobber; then
 			echo >&2 "json_pop: $var not found"
 			returnCode=2
 			continue
-		fi
-
-		if [ "$result" = null ]; then
+		elif isTrue $NoClobber; then
+			continue
+		else
 			unset result
 		fi
 

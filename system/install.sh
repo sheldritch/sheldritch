@@ -138,35 +138,45 @@ function install_first_with {
 
 
 function install_basic {
+	zsh_run setopt SH_WORD_SPLIT
+	declare -a Installers=(
+		# in order of goodness (objectively and empirically, of course)
+		apt
+		winget
+		brew
+		yarn
+		npm
+		snap
+	)
 
-	function usage {
-		print_usage "[options] POSSIBLE_PACKAGE_NAMES..."
-	}
+	@func_info
+	About='attempt to install a package using a variety of package managers'
+	Usage='POSSIBLE_PACKAGE_NAMES'
+	Options=(
+		-c --command=NAME "a command the package will install. If it already exists, installation will cancel"
+		# TODO: re-implement
+		#-e --exclude=PACKAGES... "exclude the given installer from being used"
 
-	local command
-	declare -A exclude=()
+	)
+	for Installer in "${Installers[@]}"; do
+		Options+=(
+			--${Installer}=PACKAGE "specify an exact package for $Installer"
+		)
+	done
 
-	@ARGS
-		# a command the package will install. If it already exists, installation will cancel.
-		-c | --command ) command="$2"
-			shift
-			shift
-			;;
-		# exclude the given installer from being used
-		-e | --exclude ) exclude[$2]=1
-			shift
-			shift
-	@ENDARGS
+	opts_parse
 
-	for installer in apt winget brew yarn npm snap; do
+
+	for Installer in "${Installers[@]}"; do
 		# in the loop to exit if previous installer worked
-		[ "$command" ] && command -v "$command" >/dev/null && return
+		[ "$Command" ] && command -v "$Command" >/dev/null && return
 
-		[ "${exclude[$installer]}" ] && continue
-		if command -v "$installer" >/dev/null; then
-			install_first_with $installer "$@" && return
+		[ "${Exclude[$Installer]}" ] && continue
+		if command -v "$Installer" >/dev/null; then
+			install_first_with $Installer $(deref $Installer) "$@" && return
 		fi
 	done
 	echo >&2 "Error: install_basic: could not install one of '$@'"
+	return 1
 
 }
