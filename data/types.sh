@@ -321,7 +321,7 @@ array_sort() {
 			larger+=( "${REPLY_ARRAY[i]}" )
 		fi
 	done
-	REPLY_ARRAY=( "${REPLY_ARRAY[@]:0:start}" "${smaller[@]}" "$pivot" "${larger[@]}" "${REPLY_ARRAY[@]:end+1}" )
+	REPLY_ARRAY=( "${REPLY_ARRAY[@]: 0: start}" "${smaller[@]}" "$pivot" "${larger[@]}" "${REPLY_ARRAY[@]: end + 1}" )
 	if ((${#smaller[@]}>=2)); then stack+=( "$start" "$((start+${#smaller[@]}-1))" ); fi
 	if ((${#larger[@]}>=2)); then stack+=( "$((end-${#larger[@]}+1))" "$end" ); fi
 done

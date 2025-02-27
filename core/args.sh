@@ -224,7 +224,7 @@ function _args_build_parser_opts {
 		while [[ "${_ARGS[__Pos]}" != -* ]] && ((__Pos < "${#_ARGS[@]}")); do
 			((++__Pos))
 		done
-		__PosArgs+=("${_ARGS[@]:__Temp:__Pos - __Temp}")
+		__PosArgs+=("${_ARGS[@]: __Temp: __Pos - __Temp}")
 		continue
 	fi
 
@@ -364,7 +364,7 @@ function _args_build_parser_opts {
 	esac
 	done
 
-	_ARGS=("${__PosArgs[@]}" "${_ARGS[@]:__Pos: ${#_ARGS[@]} - __Pos}")
+	_ARGS=("${__PosArgs[@]}" "${_ARGS[@]: __Pos: ${#_ARGS[@]} - __Pos}")
 	__Flag=''
 	'
 }
@@ -674,9 +674,9 @@ function _args_build_usage_parsers {
 					_ARGS_ARRAYS+=(${Name// /List= }List=)
 				fi
 
-			elif [[ -z $Literal ]]; then
+			elif [[ -z $Literal ]]; the
 				_ARGS_VARS+=(${Name//[^[:alnum:]]/ }'=')
-				#LineBuilder+="$Name"$'=("${_ARGS[@]:$__Pos}")\n'
+				#LineBuilder+="$Name"$'=("${_ARGS[@]: __Pos}")\n'
 
 				LineBuilder+="
 				$Name"'="${_ARGS[ ${__Bounds['$TokenPos']} ]}"
@@ -1204,7 +1204,7 @@ function _args_build_parser_usage {
 			case "$Token" in
 				*...)
 					# TODO: If token is ARG..., check the next value to see what you might need to stop at
-					Builder+="$Name"$'=("${_ARGS[@]:$__Pos}")\n'
+					Builder+="$Name"$'=("${_ARGS[@]: __Pos}")\n'
 					;;
 				* )
 					Builder+="
