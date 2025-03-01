@@ -721,7 +721,7 @@ function _args_build_usage_parsers {
 			fi
 		done
 
-		_ARGS_FORMAT_INFO+=(ArityMin ArityMax)
+		_ARGS_FORMAT_INFO+=($ArityMin $ArityMax)
 		Parsers[$LinePos]="$LineBuilder"
 	done
 	_args_check_usage_conflicts
@@ -1003,7 +1003,6 @@ function _args_parse_dynamic {
 
 
 			read ArityMin ArityMax OtherInfo <<<"${_ARGS_FORMAT_INFO[LinePos]}"
-			echo >&2 "$ArityMin $ArityMax"
 
 			if [[
 				# prioritise exact argument matches
