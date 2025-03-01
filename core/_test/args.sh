@@ -15,11 +15,12 @@ function eq {
 	local STACKTRACE=1
 	while [[ $# -gt 0 ]]; do
 		if [[ "$1" != "$2" ]]; then
-			error "arguments do not match -- '$1' and '$2' ($*)
+			error "arguments do not match -- '$1' and '$2' ($(args_quoted "$@"))
 			$(for v in "${_ARGS_VARS[@]//=/}"; do
 				eval "printf \"$v: \$$v, \""
 			done)
 			USAGE: $(args_quoted "${Usage[@]}")
+			Matched: ${Usage[_ARGS_USAGE_NUM]}
 			ARGS_FORMAT_INFO: $(args_quoted "${_ARGS_FORMAT_INFO[@]}")
 			"
 			return 1
@@ -180,7 +181,6 @@ function check {
 	parse_args
 	eq "$A" '' "$B" '' "$C" '' "$O" ''
 	eq "$D" d "$E" e "$F" f "$G" g
-	set +x 
 
 	set -- h
 	parse_args

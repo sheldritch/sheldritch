@@ -625,7 +625,7 @@ function _args_build_usage_parsers {
 	local ArityMin=0 ArityMax=0
 
 	# Flags for the token talker to telepath to
-	local Match Regex Optional Variadic
+	local Match Regex Optional Variadic Literal
 
 	local LineBuilder='' TokenPos=0
 
@@ -644,7 +644,7 @@ function _args_build_usage_parsers {
 		for (( TokenPos = 0; TokenPos < ${#Tokens[@]}; TokenPos++ )); do
 			Token="${Tokens[TokenPos]}"
 
-			Match='' Regex='' Optional='' Variadic=''
+			Match='' Regex='' Optional='' Variadic='' Literal=''
 			if ! _args_token_talker "$Token"; then
 				return 9
 			fi
@@ -706,9 +706,6 @@ function _args_build_usage_parsers {
 				$Name"'="${_ARGS[ ${__Bounds['$TokenPos']} ]}"
 				_args_check_dash '"$Name \$$Name"$' || return 1\n'
 			fi
-
-			# TODO: can we remove this?
-			_args_name_to_variable "$Token"
 		done
 		_args_usage_record_run
 
@@ -1187,6 +1184,7 @@ function _args_parse_usage_token {
 					return 1
 				fi
 
+				Literal=1
 				Priorities[$TokenPos]=100
 				((++TokenPos))
 				((++ArgPos))
