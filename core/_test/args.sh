@@ -116,9 +116,8 @@ echo 'passed basic array'
 
 Usage=(
 	'A B C'
-	'D E'
 	'F'
-	'G H I J'
+	'D E'
 )
 set -- d e
 parse_args
@@ -167,7 +166,6 @@ function check {
 	array_eq Array 1 2 3 4
 }
 test_usage
-exit
 
 # an exact number of matches will be selected over an array
 # R4 > R3 O1
@@ -213,15 +211,7 @@ function check {
 	parse_args
 	eq "$D" 'd'
 }
-# TODO: not yet implemented
-# if test_usage; then
-# 	false
-# fi
-
-# two variadic not supported
-FORMAT="R3 R+"
-FORMAT="R+"
-# TODO: write and implement
+test_usage
 
 # Unless literal or other distinguishing feature
 # Literals also distinguish variadics (allowed together)

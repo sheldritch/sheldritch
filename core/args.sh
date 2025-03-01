@@ -620,24 +620,24 @@ function _args_build_usage_parsers {
 	# a Run is a consecutive series of arguments that share the same required pattern
 	# a run may only contain a single variadic argument, however it can contain any number
 	# of optional or required arguments.
-	local RunMin='' RunMax='' RunPattern=''
+	local RunMin RunMax RunPattern
 	# Format info values, used to identify which Usage string should be used to parse args
-	local ArityMin=0 ArityMax=0 Priority=0 SubPriority=0 FirstLiteral='' LiteralArity=''
-	# TODO: priority should consider the gap between min and max arity
+	local ArityMin=0 ArityMax=0
 
 	# Flags for the token talker to telepath to
 	local Match Regex Optional Variadic
 
-	local LineBuilder='' RunMin=0 RunMax=0 TokenPos=0
+	local LineBuilder='' TokenPos=0
 
 	for ((LinePos = 0; LinePos < ${#Usage[@]}; LinePos++)); do
-		LineBuilder=''
 		Line="${Usage[LinePos]}"
 		if [[ "$Line" = \#* ]]; then
 			_ARGS_FORMATS+=('#')
 			_ARGS_FORMAT_INFO+=('#')
 			continue
 		fi
+
+		LineBuilder='' Format='' ArityMin=0 ArityMax=0 RunPattern=''
 
 		# Parse the given line
 		declare -a Tokens=($Line)
@@ -647,6 +647,16 @@ function _args_build_usage_parsers {
 			Match='' Regex='' Optional='' Variadic=''
 			if ! _args_token_talker "$Token"; then
 				return 9
+			fi
+
+			# a new regex or match means a new run pattern
+			if [[ "$RunPattern" != "$Regex$Match" ]]; then
+				if [[ -n "$RunPattern" ]]; then
+					_args_usage_record_run
+				fi
+				RunMin=0
+				RunMax=0
+				RunPattern="${Regex:-$Match}"
 			fi
 			
 			# TODO: handle the case when parsing requires lookahead
@@ -699,33 +709,26 @@ function _args_build_usage_parsers {
 
 			# TODO: can we remove this?
 			_args_name_to_variable "$Token"
-
-			if [[ "$Match" != "$RunType" ]]; then
-				((++RunCount))
-			else
-
-				# TODO: ensure this info is present in the function above, then remove this block
-				if [[ "$RunCount" = + ]] || ((RunCount)); then
-					Format+=" ${RunType}$RunCount"
-
-					if [[ "$RunCount" = + ]]; then
-						ArityMax=+
-					elif [[ "$RunType" = *R* ]]; then
-						(( ArityMin += RunCount ))
-					else
-						(( ArityMax += RunCount ))
-					fi
-				fi
-				RunType="$1"
-				RunCount=1
-			fi
 		done
+		_args_usage_record_run
 
-		_ARGS_FORMAT_INFO+=($ArityMin $ArityMax)
+		_ARGS_FORMATS+=("${Format% }")
+		_ARGS_FORMAT_INFO+=("$ArityMin $ArityMax")
 		Parsers[$LinePos]="$LineBuilder"
 	done
 	_args_check_usage_conflicts
 	[[ $GlobEnabled = 1 ]] && set +o noglob
+}
+
+function _args_usage_record_run {
+	((ArityMin += RunMin))
+	if [[ $RunMax = + ]]; then
+		ArityMax=$RunMax
+	else
+		((RunMax += RunMin))
+		[[ $ArityMax = + ]] && ArityMax=$RunMax || ((ArityMax += RunMax))
+	fi
+	Format+="$RunPattern $RunMin $RunMax "
 }
 
 ### Uhhhhh
@@ -929,17 +932,8 @@ function _args_check_usage_conflicts {
 	local i j
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
 		[[ "${_ARGS_FORMATS[$i]}" = \#* ]] && continue
-		read ArityMinI ArityMaxI InfoI <<<"${_ARGS_FORMAT_INFO[$i]}"
 		for ((j=i + 1; j < ${#_ARGS_FORMATS[@]}; j++)); do
-			read ArityMinJ ArityMaxJ InfoJ <<<"${_ARGS_FORMAT_INFO[$j]}"
-			if [[
-				# TODO: literals and symbol arguments will need more complex logic here
-				( $InfoI = $InfoJ && (
-					   ($ArityMinI -ge $ArityMinJ && $ArityMinI -le $ArityMaxJ)
-					|| ($ArityMaxI -ge $ArityMinJ && $ArityMaxI -le $ArityMaxJ)
-				))
-				|| ("${_ARGS_FORMATS[$i]}" = "${_ARGS_FORMATS[$j]}")
-			]]; then
+			if [[ "${_ARGS_FORMATS[$i]}" = "${_ARGS_FORMATS[$j]}" ]]; then
 				error -p 1 "$(deindent "FUNCTION BUG: The following usage lines are ambiguous!
 				${Usage[$i]}
 				${Usage[$j]}
@@ -990,29 +984,30 @@ function _args_parse_dynamic {
 
 			for ((i = 0; i < ${#Bounds[@]} && i < ${#__Bounds[@]}; i++)); do
 
-				if (( ${Bounds[i]} < ${__Bounds[i]} )); then
+				if (( ${Bounds[i]} > ${__Bounds[i]} )); then
+					continue 2
+				elif (( ${Bounds[i]} < ${__Bounds[i]} )); then
 					__Bounds=()
+					break
+				elif (( ${Priorities[i]} < ${BestLinePriorities[i]} )); then
+					continue 2
 				elif (( ${Priorities[i]} > ${BestLinePriorities[i]} )); then
 					__Bounds=()
-
-				else
-					continue
+					break
 				fi
-				break
 			done
 
-
 			read ArityMin ArityMax OtherInfo <<<"${_ARGS_FORMAT_INFO[LinePos]}"
-
 			if [[
 				# prioritise exact argument matches
-				( -z "$ExactMatch" && ((ArityMin = ArityMax)) )
+				( -z "$ExactMatch" && "$ArityMin" = "$ArityMax" )
 				# prioritise existing bounds
 				|| ((${#__Bounds[@]} == 0))
 			]]; then
 				__Bounds=("${Bounds[@]}")
 				BestLinePriorities=("${Priorities[@]}")
 				_ARGS_USAGE_NUM=$LinePos
+				[[ "$ArityMin" = "$ArityMax" ]] && ExactMatch=1
 			fi
 		fi
 	done

@@ -175,6 +175,16 @@ yesNoToBool() {
 }
 
 #
+# Numbers
+#
+
+function range_intersects {
+	local MinA="$1" MaxA="$2" MinB="$3" MaxB="$4"
+	(( ($MinB <= $MinA && $MinA <= $MaxB)
+	|| ($MinB <= $MaxA && $MaxA <= $MaxB) ))
+}
+
+#
 # Lists/Arrays(/Vectors, I guess)
 #
 
