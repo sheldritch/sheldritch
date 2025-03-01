@@ -68,7 +68,7 @@ function test_usage {
 }
 function run {
 	declare -a Usage=("$@") Options=()
-	echo "Testing permutation 
+	_trace "Testing permutation 
 	USAGE: $(args_quoted "${Usage[@]}")
 	"
 	unset _Args_check _Opts_check
@@ -125,8 +125,6 @@ parse_args
 eq "$D" d "$E" e
 
 echo 'passed initial tests.'
-set +e
-exit
 
 # Strict Arity: find the exact match
 
@@ -169,6 +167,7 @@ function check {
 	array_eq Array 1 2 3 4
 }
 test_usage
+exit
 
 # an exact number of matches will be selected over an array
 # R4 > R3 O1

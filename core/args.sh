@@ -44,6 +44,7 @@ function args_edict {
 args_edict opts_before_args _OPTS_PARSE_FIRST
 args_edict args_no_cache _ARGS_NO_CACHE
 args_edict opts_skip_unknown _OPTS_SKIP_UNKNOWN
+args_edict usage_match_first _USAGE_MATCH_FIRST
 
 alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'
 
@@ -323,11 +324,11 @@ function _args_build_parser_opts {
 		"
 
 		if [[ -n "$IsArray" ]]; then
-			Builder+="$Name+=(\"$__Val\");;
-			"
+			Builder+="$Name"'+=("$__Val");;
+			'
 		else
-			Builder+="$Name=\"$__Val\";;
-			"
+			Builder+="$Name"'="$__Val";;
+			'
 		fi
 
 		# clear last flag and description
@@ -436,19 +437,19 @@ function _args_build_validation {
 				Test="[[ -z \$$Name ]] || {
 					is_type integer \$$Name && (( $Name $Predicate ))
 				}"
-				_ARGS_CHECKS+=("$Tag" "$Test"
+				_ARGS_CHECKS+=("$Tag" "$Name" "$Test"
 					"Failed test: $Tag $Predicate"
 				)
 				;;
 
 			[Rr]equired )
-				_ARGS_CHECKS+=("${Tag:-Name}" '[[ -n "$__Val" ]]'
+				_ARGS_CHECKS+=("${Tag:-Name}" "$Name" '[[ -n "$__Val" ]]'
 					'${__Flag:-$Tag} must be set to a value.'
 				)
 				;;
 
 			[Dd]"efaults to "* )
-				local Default="${Predicate#defaults to }"
+				local Default="${Predicate#[Dd]efaults to }"
 
 				if [[ "$Default" = [\"\']*[\'\"] ]]; then
 					Default="${Default:1: ${#Default} - 2}"
@@ -469,7 +470,7 @@ function _args_build_validation {
 					return 9
 				fi
 
-				_ARGS_CHECKS+=("${Tag:-Name}" "$Name=\${$Name:-$Default}"
+				_ARGS_CHECKS+=("${Tag:-Name}" "$Name" "$Name=\${$Name:-$Default}"
 					"$Predicate"
 				)
 				;;
@@ -720,6 +721,7 @@ function _args_build_usage_parsers {
 			fi
 		done
 
+		_ARGS_FORMAT_INFO+=(ArityMin ArityMax)
 		Parsers[$LinePos]="$LineBuilder"
 	done
 	_args_check_usage_conflicts
@@ -958,9 +960,11 @@ function _args_parse_dynamic {
 
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
-	local Name='' Line='' TokenPos='' GlobEnabled='' i=0
+	local Name='' Line='' TokenPos='' GlobEnabled='' i=0 ExactMatch=''
+	local ArityMin ArityMax OtherInfo
 
 	declare -a Bounds=() Priorities=() BestLinePriorities=()
+	__Bounds=()
 
 	# TODO: can probably move this to root level of @func_info
 	[[ -o noglob ]] || GlobEnabled=1
@@ -969,14 +973,16 @@ function _args_parse_dynamic {
 		Line="${Usage[LinePos]}"
 		Bounds=()
 		if [[ "$Line" = \#* ]]; then
-			_ARGS_FORMATS+=('#')
-			_ARGS_FORMAT_INFO+=('#')
 			continue
 		fi
 
 		# Parse the given line
 		declare -a Tokens=($Line)
 		if _args_parse_usage_token 0 0; then
+			if [[ "${_USAGE_MATCH_FIRST:-}" ]]; then
+				__Bounds="${Bounds[@]}"
+				break
+			fi
 
 			# check if the new match has better criteria than the previous best
 			# and thus should replace it
@@ -994,8 +1000,17 @@ function _args_parse_dynamic {
 				fi
 				break
 			done
-			if ((${#__Bounds[@]} == 0)) # prioritise existing bounds
-			then
+
+
+			read ArityMin ArityMax OtherInfo <<<"${_ARGS_FORMAT_INFO[LinePos]}"
+			echo >&2 "$ArityMin $ArityMax"
+
+			if [[
+				# prioritise exact argument matches
+				( -z "$ExactMatch" && ((ArityMin = ArityMax)) )
+				# prioritise existing bounds
+				|| ((${#__Bounds[@]} == 0))
+			]]; then
 				__Bounds=("${Bounds[@]}")
 				BestLinePriorities=("${Priorities[@]}")
 				_ARGS_USAGE_NUM=$LinePos
@@ -1016,7 +1031,7 @@ function _args_parse_usage_token {
 	while ((TokenPos < ${#Tokens[@]})); do
 
 		# quit early if existing bounds is already better than this possibility
-		if ((${#__Bounds[@]} && ${__Bounds[TokenPos]} < ArgPos)); then
+		if ((${#__Bounds[@]} && ${__Bounds[TokenPos]:-$ArgPos} < ArgPos)); then
 			return 1
 		fi
 

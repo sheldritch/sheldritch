@@ -262,7 +262,8 @@ function join_by {
 }
 
 
-function _array_weight_compare (( ${1%% *} < ${2%% *} ))
+function _array_weight_compare
+(( ${1%% *} < ${2%% *} ))
 
 # function array_sort_weight {
 # 	declare -a Weights REPLY_ARRAY
@@ -271,8 +272,10 @@ function _array_weight_compare (( ${1%% *} < ${2%% *} ))
 # 	'"$1"'=("${REPLY_ARRAY[@]}")'
 # }
 
-_array_compare_int()    (( $1 < $2 ))
-_array_compare_string() [[ $1 < $2 ]]
+function _array_compare_int
+(( $1 < $2 ))
+function _array_compare_string
+[[ $1 < $2 ]]
 
 # (C) CC BY-SA 4.0
 # modified from https://stackoverflow.com/a/30576368
@@ -285,7 +288,7 @@ array_sort() {
 		return 0
 	fi
 
-	(($#<=1)) && return 0
+	(($# <= 1)) && return 0
 
 	zsh_run setopt KSH_ARRAYS
 	local CompareFn=$1
@@ -330,7 +333,7 @@ done
 function array_map {
 	@func_info
 	Usage='ARRAY_NAME FILTER...'
-	@options_before_args
+	@opts_before_args
 	Options=(
 		--stdin "filter takes element via standard input instead of an argument"
 	)
@@ -358,7 +361,7 @@ function array_map {
 function array_for {
 	@func_info
 	Usage='ARRAY_NAME ACTION...'
-	@options_before_args
+	@opts_before_args
 	Options=(
 		--stdin "action takes element via standard input instead of an argument"
 	)
@@ -386,7 +389,7 @@ function array_for {
 function for_permutations {
 	@func_info
 	Usage='FUNCTION ARRAY...'
-	@options_before_args
+	@opts_before_args
 	Options=(
 		--fail-early "Fail as soon as FUNCTION returns a failure."
 	)
@@ -460,8 +463,12 @@ function value {
 function ternary {
 	eval "$1" && echo "$2" || echo "$3"
 }
-function ?: { ternary "$@"; }
-zsh_run eval 'function \?: { ternary "$@"; }'
+function iif { ternary "$@"; }
+if [[ -v ZSH_VERSION ]]; then
+	function \?: { ternary "$@"; }
+else
+	function ?: { ternary "$@"; }
+fi
 
 function ifdef {
 	if [[ $# -gt 3 ]]; then

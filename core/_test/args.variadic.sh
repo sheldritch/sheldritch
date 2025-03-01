@@ -13,7 +13,7 @@ STACKTRACE=1
 
 function pass {
 	declare _ARGS=("$@")
-	if ! _args_parse_usage "$@"; then
+	if ! _args_parse_dynamic "$@"; then
 		error "unexpected failure for args
 		Usage: $(args_quoted ${Usage[@]})
 		Args:  $(args_quoted "$@")
@@ -24,7 +24,7 @@ function pass {
 
 function fail {
 	declare _ARGS=("$@")
-	if _args_parse_usage "$@"; then
+	if _args_parse_dynamic "$@"; then
 		error "expected invalid args, got valid
 		Usage: $(args_quoted ${Usage[@]})
 		Args:  $(args_quoted "$@")
