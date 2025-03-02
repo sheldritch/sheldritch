@@ -1136,7 +1136,7 @@ function _args_parse_usage_token {
 }
 
 # parse arg tokens with symbol separators
-# e.g. KEY=VALUE X,Y[,WIDTH,HEIGHT]
+# e.g. KEY=VALUE or X,Y[,Z][,WIDTH,HEIGHT[,DEPTH]]
 function _args_parse_compound {
 	zsh_run setopt KSH_ARRAYS
 
