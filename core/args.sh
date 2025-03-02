@@ -1208,9 +1208,7 @@ function _args_parse_compound {
 				((SkipOptional)) && continue
 
 				# Try and match argument
-				# If last token was a var, require some variable beforehand
-				[[ "$Done$Current" = *[[:digit:]] ]] && Temp='?' || Temp=''
-				Temp="${Arg#*$Temp"$Separator"}"
+				Temp="${Arg#*"$Separator"}"
 				if (( ${#Temp} == ${#Arg} )); then
 					# Separator not found, thus failed match
 					((Depth)) && SkipOptional=$Depth || { REPLY=''; return 1; }
@@ -1227,7 +1225,6 @@ function _args_parse_compound {
 		REPLY=''
 		return 9
 	fi
-	[[ -z "$Arg" ]] && Current="${Current%$VarNum}"
 	REPLY="$Done$Current"
 }
 

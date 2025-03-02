@@ -100,11 +100,6 @@ function _cp_file {
 In the future, we may change the way that some functionality works. The
 following are some likely candidates
 
-**Compound arguments allowing empty values**
-Currently, compound arguments (i.e. arguments with separators) require each
-variable to contain some value. For instance, The argument `KEY=VALUE` does not
-allow a value of `foo=`. You would need to use KEY=[VALUE] for that.
-
 **Greedy Optional and Variadic Arguments**
 I can envision cases were you would want a variadic argument to contain as many
 values as possible, and as few values as possible. What likely will happen is

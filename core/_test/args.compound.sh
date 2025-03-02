@@ -29,30 +29,28 @@ function try {
 	fi
 }
 
-# set -xe
-
 try A   a    1
 try =A  =a  =1
 try A=  a=  1=
-# variables are required to have some length to be valid.
+# I thought about variable values needing to have some length to be valid
+# But if you have A[=B], and the user enters a=, you don't want the value of A to be a=.
+# It should just be `a`.
 # If not required, they must be isolated with an optional group.
-try =A = = # TODO: this might be a bad idea to leave in the =. Depends how parsing will go
+try =A = =1
+try A= = 1=
 try =A a
-try A= =
 try A= a  
 try =A= =a  
 try =A= a=  
 try =A= =a= =1=
-exit
 
-try '=[A]'  =   =1
-try '=[A]'   a  
-try '[A]='   =  1=
-try '[A]='  a  
+try '=[A]' = =1
+try '=[A]' a
+try '[A]=' '=' '1='
+try '[A]=' a
 try '=[A]=' =a  
 try '=[A]=' =a= =1=
-
-try '=[A]'  =   =1
+try 'A[+B]=C' '=C' '1=3'
 
 try 'A=B'   a=b 1=2
 try 'A=B'   a+b ''
