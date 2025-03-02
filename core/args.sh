@@ -1138,18 +1138,24 @@ function _args_parse_usage_token {
 function _args_parse_compound {
 	zsh_run setopt KSH_ARRAYS
 
-	local Queue="${1:-LEFT[+PLUS]=RIGHT[-MINUS[*TIMES]]}" \
-		Arg="${2:-LEFT=RIGHT-MINUS*TIMES}" \
-		VarNum=${3:-0}
+	local Queue="$1" Arg="$2" VarNum=${3:-0} TopLevel=''
 
+	local VarsFound='' Best='' BestCount='' Temp='' SkipOptional=0 Separator=''
+	if [[ -n "$3" ]]; then
+		local Done="$Done" Current="$Current"
+		local Depth="$Depth" VarNum="$VarNum"
+	else
+		local TopLevel=1 Depth=0 VarNum=0 Done='' Current=''
 
-	local Done='' Current='' Temp='' SkipOptional=0 Separator=''
-	local Depth=0 Start=0 VarNum=0
+		# so we can return the result with the most variables
+		local _VarsFound=0
 
-	# keep track of which levels are fully separated
-	# If there's no separator, and we hit a variable, that's two variables in a row
-	# That's illegal!!
-	declare -a HasSeparator=()
+		# keep track of which levels are fully separated
+		# If there's no separator, and we hit a variable, that's two variables in a row
+		# That's illegal!!
+		declare -a HasSeparator=()
+	fi
+
 
 	while ((${#Queue})); do
 
@@ -1157,24 +1163,38 @@ function _args_parse_compound {
 			'['* )
 				Queue="${Queue:1}"
 
-				if [[ -z "${HasSeparator[Depth]}" && "$Queue" = [[:upper]_]* ]]; then
-					error -p 1 "FUNCTION BUG: Usage token '$1' is ambiguous and thus illegal.
-					It's possible that two variables would have no separator between them, making it impossible to distinguish the correct value.
-					The latter conflicting variable starts here: '$Queue'
-					"
-					return 9
+				if [[ -n "$TopLevel" ]]; then
+					if [[ -z "${HasSeparator[Depth]}" && "$Queue" = [[:upper]_]* ]]; then
+						error -p 1 "FUNCTION BUG: Usage token '$1' is ambiguous and thus illegal.
+						It's possible that two variables would have no separator between them, making it impossible to distinguish the correct value.
+						The latter conflicting variable starts here: '$Queue'
+						"
+						return 9
+					fi
+
+					HasSeparator[$((Depth + 1))]="${HasSeparator[Depth]}"
 				fi
 
 				((++Depth)) || return 9
 
-				[[ "$Done$Current" = *[[:digit:]] ]] && Temp='?' || Temp=''
-				HasSeparator[Depth]="${HasSeparator[Depth - 1]}"
-
+				# TODO: I think we can yeet Current as a var
 				if ((Depth == 1)); then
 					Done+="$Current"
 					Current=""
+				elif ((SkipOptional)); then continue; fi
+
+				# test with this optional group
+				if _args_parse_compound "$Queue" "$Arg" "$VarNum"; then
+					((_VarsFound += VarsFound))
+					if ((_VarsFound > BestCount)); then
+						BestCount="$_VarsFound"
+						Best="$REPLY"
+					fi
 				fi
+				# and test without it
+				SkipOptional="$Depth"
 				;;
+
 			']'* )
 				Queue="${Queue:1}"
 				((Depth--)) || return 9
@@ -1192,10 +1212,11 @@ function _args_parse_compound {
 				# Trim var name from queue
 				Temp="${Queue%%[^[:upper:][:digit:]_]*}"
 				Queue="${Queue#"$Temp"}"
-				HasSeparator[Depth]=''
+				[[ -n "$TopLevel" ]] && HasSeparator[Depth]=''
 
 				((SkipOptional)) && continue
 				Current+="$VarNum"
+				((++VarsFound))
 				;;
 
 			* )
@@ -1203,29 +1224,36 @@ function _args_parse_compound {
 				# trim queue
 				Separator="${Queue%%[][:upper:]_[]*}"
 				Queue="${Queue#"$Separator"}"
-				HasSeparator[Depth]=1
+				[[ -n "$TopLevel" ]] && HasSeparator[Depth]=1
 
 				((SkipOptional)) && continue
 
 				# Try and match argument
-				Temp="${Arg#*"$Separator"}"
+
+				# match preceding variable if it exists
+				[[ "$Done$Current" = *[[:digit:]] ]] && Temp='*' || Temp=''
+				Temp="${Arg#$Temp"$Separator"}"
+
 				if (( ${#Temp} == ${#Arg} )); then
+					_trace "Cound not find '$Separator' in '$Arg': '$Temp'"
 					# Separator not found, thus failed match
-					((Depth)) && SkipOptional=$Depth || { REPLY=''; return 1; }
-					continue
+					REPLY="$Best"
+					[[ -n "$Best" ]]
+					return $?
 				fi
 				Arg="$Temp"
 				Current+="$Separator"
+				((++VarsFound))
 
 		esac
 	done
-	if [[ "$Done" = *[[:digit:]]  && "$Current" = [[:digit:]]* ]]; then
-		error -p 1 "INTERNAL ERROR: Argument Token of the form '$1' is illegal!
-		However, this should have been caught earlier by argument parsing."
-		REPLY=''
-		return 9
-	fi
+
 	REPLY="$Done$Current"
+	if ((BestCount > VarsFound)); then
+		REPLY="$Best"
+	else
+		_VarsFound="$VarsFound"
+	fi
 }
 
 function _args_build_parser_legend {

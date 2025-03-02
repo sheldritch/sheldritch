@@ -168,6 +168,7 @@ function stacktrace {
 
 function _genfunc_log {
 	eval "$1"'() {
+		zsh_run setopt SH_WORD_SPLIT
 		typeset Trace="${STACKTRACE:-$DEBUG}" Set Line Func File Last="$_"
 		Set="${-//[^x]/}"
 		${Set:+ set +$Set }

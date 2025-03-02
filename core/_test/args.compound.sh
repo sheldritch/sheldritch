@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 # shellcheck disable=SC2317,SC2199,SC2154,SC2086,SC1091
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
@@ -29,27 +29,31 @@ function try {
 	fi
 }
 
+set -e
+
 try A   a    1
-try =A  =a  =1
+try '=A'  '=a'  '=1'
 try A=  a=  1=
 # I thought about variable values needing to have some length to be valid
 # But if you have A[=B], and the user enters a=, you don't want the value of A to be a=.
 # It should just be `a`.
 # If not required, they must be isolated with an optional group.
-try =A = =1
+try '=A' = '=1'
 try A= = 1=
-try =A a
+try '=A' a
 try A= a  
-try =A= =a  
-try =A= a=  
-try =A= =a= =1=
+try '=A=' '=a'  
+try '=A=' a=  
+try '=A=' '=a=' '=1='
 
-try '=[A]' = =1
+try '=[A]' '=a' '=1'
+try '=[A]' = '=1'
 try '=[A]' a
+try '[A]=' 'a=' '1='
 try '[A]=' '=' '1='
 try '[A]=' a
-try '=[A]=' =a  
-try '=[A]=' =a= =1=
+try '=[A]=' '=a'  
+try '=[A]=' '=a=' '=1='
 try 'A[+B]=C' '=C' '1=3'
 
 try 'A=B'   a=b 1=2
@@ -57,10 +61,19 @@ try 'A=B'   a+b ''
 try 'A[=B]' a=b 1=2
 try 'A[=B]' a   1
 
-try '[=]A[=]' =a= =1=
+try '[=]A[=]' '=a=' '=1='
 try '[=]A[=]' a 1
-try '[=]A[=]' =a =1
+try '[=]A[=]' '=a' '=1'
 try '[=]A[=]' a= 1=
+
+# basic test of nested groups
+try 'A[=B][+C]' a=b+c 1=2+3
+try 'A[=B][+C]' a=b   1=2
+try 'A[=B][+C]' a+c   1+3
+try 'A[=B[+C]]' a=b+c 1=2+3
+try 'A[=B[+C]]' a+c   1
+
+try 'A[+B][=C[+D]]' a=c+d 1=3+4
 
 # These are all illegal formats
 # TODO: We should check them early so an error is always thrown no matter the function input
@@ -91,12 +104,5 @@ try '[=]A[=]' a= 1=
 # A[=A[=[ # safe
 # A[=A[=[A=] # safe
 # A[=A[=[A=]] # unsafe, back on level 1, which is unsafe.
-
-# basic test of nested groups
-try 'A[=B][+C]' a=b+c 1=2+3
-try 'A[=B][+C]' a=b   1=2
-try 'A[=B][+C]' a+c   1+3
-try 'A[=B[+C]]' a=b+c 1=2+3
-try 'A[=B[+C]]' a+c   1
 
 # the first match is always used
