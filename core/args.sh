@@ -1135,22 +1135,30 @@ function _args_parse_usage_token {
 	((ArgPos == ${#_ARGS[@]}))
 }
 
+# parse arg tokens with symbol separators
+# e.g. KEY=VALUE X,Y[,WIDTH,HEIGHT]
 function _args_parse_compound {
 	zsh_run setopt KSH_ARRAYS
 
-	local Queue="$1" Arg="$2" VarNum=${3:-0} TopLevel=''
+	# vars for tracking our position in the token
+	local Queue="$1" Arg="$2" VarNum=${3:-0} Depth="${4:-0}"
 
-	local VarsFound='' Best='' BestCount='' Temp='' SkipOptional=0 Separator=''
+	# Used to track how many tokens were found
+	# We want to return the match with the most number of tokens
+	local VarsFound='' Best='' BestCount=''
+
+	# extra vars for control flow and logistics
+	local TopLevel='' SkipOptional=0 Temp='' Separator=''
+
 	if [[ -n "$3" ]]; then
-		local Done="$Done" Current="$Current"
-		local Depth="$Depth" VarNum="$VarNum"
+		local Result="$Result"
 	else
-		local TopLevel=1 Depth=0 VarNum=0 Done='' Current=''
+		local TopLevel=1 Result=''
 
-		# so we can return the result with the most variables
+		# used to pass the VarsFound variable to the parent function
 		local _VarsFound=0
 
-		# keep track of which levels are fully separated
+		# keep track of which levels of optional groups are missing separators
 		# If there's no separator, and we hit a variable, that's two variables in a row
 		# That's illegal!!
 		declare -a HasSeparator=()
@@ -1171,27 +1179,22 @@ function _args_parse_compound {
 						"
 						return 9
 					fi
-
 					HasSeparator[$((Depth + 1))]="${HasSeparator[Depth]}"
 				fi
 
-				((++Depth)) || return 9
+				((++Depth))
+				((SkipOptional)) && continue
 
-				# TODO: I think we can yeet Current as a var
-				if ((Depth == 1)); then
-					Done+="$Current"
-					Current=""
-				elif ((SkipOptional)); then continue; fi
-
+				# Branching paths:
 				# test with this optional group
-				if _args_parse_compound "$Queue" "$Arg" "$VarNum"; then
+				if _args_parse_compound "$Queue" "$Arg" "$VarNum" "$Depth"; then
 					((_VarsFound += VarsFound))
 					if ((_VarsFound > BestCount)); then
 						BestCount="$_VarsFound"
 						Best="$REPLY"
 					fi
 				fi
-				# and test without it
+				# and test without it (in the current branch)
 				SkipOptional="$Depth"
 				;;
 
@@ -1199,29 +1202,26 @@ function _args_parse_compound {
 				Queue="${Queue:1}"
 				((Depth--)) || return 9
 				if ((Depth < SkipOptional)); then
+					# We've left the optional group being skipped, so clear value
 					SkipOptional=0
-					Current=
-				fi
-				if ((Depth == 0)); then
-					Done+="$Current"
-					Current=''
 				fi
 				;;
-			[[:upper:]_]* )
+
+			[[:upper:]_]* ) # found variable name
 				((++VarNum))
-				# Trim var name from queue
+				# Trim name from queue
 				Temp="${Queue%%[^[:upper:][:digit:]_]*}"
 				Queue="${Queue#"$Temp"}"
 				[[ -n "$TopLevel" ]] && HasSeparator[Depth]=''
 
 				((SkipOptional)) && continue
-				Current+="$VarNum"
+				Result+="$VarNum"
 				((++VarsFound))
 				;;
 
-			* )
+			* ) # found separator
 				# TODO: handle \ escapes
-				# trim queue
+				# trim from queue
 				Separator="${Queue%%[][:upper:]_[]*}"
 				Queue="${Queue#"$Separator"}"
 				[[ -n "$TopLevel" ]] && HasSeparator[Depth]=1
@@ -1230,28 +1230,27 @@ function _args_parse_compound {
 
 				# Try and match argument
 
-				# match preceding variable if it exists
-				[[ "$Done$Current" = *[[:digit:]] ]] && Temp='*' || Temp=''
+				# include preceding variable if one exists
+				[[ "$Result" = *[[:digit:]] ]] && Temp='*' || Temp=''
 				Temp="${Arg#$Temp"$Separator"}"
 
 				if (( ${#Temp} == ${#Arg} )); then
-					_trace "Cound not find '$Separator' in '$Arg': '$Temp'"
-					# Separator not found, thus failed match
+					# Separator not found. Fallback to best match or fail
 					REPLY="$Best"
 					[[ -n "$Best" ]]
 					return $?
 				fi
 				Arg="$Temp"
-				Current+="$Separator"
+				Result+="$Separator"
 				((++VarsFound))
 
 		esac
 	done
 
-	REPLY="$Done$Current"
 	if ((BestCount > VarsFound)); then
 		REPLY="$Best"
 	else
+		REPLY="$Result"
 		_VarsFound="$VarsFound"
 	fi
 }
