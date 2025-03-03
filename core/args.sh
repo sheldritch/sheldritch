@@ -42,8 +42,9 @@ function args_edict {
 	alias "@$1=declare $2 && _args_set $2"
 }
 args_edict opts_before_args _OPTS_PARSE_FIRST
-args_edict args_no_cache _ARGS_NO_CACHE
+args_edict opts_keep_break _OPTS_KEEP_BREAK
 args_edict opts_skip_unknown _OPTS_SKIP_UNKNOWN
+args_edict args_no_cache _ARGS_NO_CACHE
 args_edict usage_match_first _USAGE_MATCH_FIRST
 
 alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'
@@ -343,7 +344,9 @@ function _args_build_parser_opts {
 		;;
 	-- )
 		_ARGS_BREAK=1
-		((++__Pos))
+		if [[ "$_OPTS_KEEP_BREAK" != true ]]; then
+			((++__Pos))
+		fi
 		break
 		;;
 	* )
