@@ -174,7 +174,11 @@ function source_once {
 		_trace "sources currently:"
 		_trace "$(typeset -p SHELDRITCH_SOURCES)"
 
-		source "$1" || Exit=1
+		if ! source "$1"; then
+			typeset STACKTRACE=1
+			error "failed to source file."
+			Exit=1
+		fi
 	done
 	return $Exit
 }
