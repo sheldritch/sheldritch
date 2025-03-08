@@ -29,6 +29,24 @@ function eq {
 	done
 }
 
+function vars_eq {
+	while (($#)); do
+		Vars+=("$1")
+		Values+=("$2")
+		shift 2 || error 'TESTING ERROR: bad number args'
+	done
+
+	for ((i = 0; i < ${#Vars[@]}; i++)); do
+		deref "${Vars[i]}" >/dev/null
+		if [[ "$REPLY" != "${Values[i]}" ]]; then
+			error "Argument did not match expected value:
+			\"$REPLY\" != \"${Values[i]}\"
+			"
+			return 1
+		fi
+	done
+}
+
 function array_eq {
 	local STACKTRACE=1
 	local actual expected
@@ -79,6 +97,21 @@ function run {
 		return 1
 	fi
 }
+
+function test_token {
+	local Token="$1" Arg="$2"
+	shift 2
+
+	declare -a Checks=("$@")
+
+	Usage="$Token"
+	set -- "$Arg"
+	args_parse
+
+	vars_eq "${Checks[@]}"
+
+}
+
 
 
 @func_info
@@ -213,11 +246,29 @@ function check {
 }
 test_usage
 
-# Unless literal or other distinguishing feature
-# Literals also distinguish variadics (allowed together)
-FORMAT="R+ literal R+"
-FORMAT="R+"
-FORMAT="--flag R+"
+# compound tokens
+test_token 'A[=B]'     a=b   A a B b
+test_token 'A[=B][+C]' a=b+c A a B b C c
+test_token 'A[=B[+C]]' a=b+c A a B b C c
+
+#
+# Optional Runs work
+Usage=(
+	'A [B C] D'
+)
+function check {
+	set -- a b c d
+	parse_args
+	vars_eq A a B b C c D d
+
+	set -- a d
+	parse_args
+	vars_eq A a D d
+}
+test_usage
+
 # TODO: write and implement
+FORMAT="R+ literal R+"
+FORMAT="--flag R+"
 
 ecode "${Fail:-0}" || safe_quit

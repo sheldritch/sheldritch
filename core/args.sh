@@ -98,26 +98,25 @@ function _args_name_to_variable {
 	# PERF: I've tested this with a per-character array and a pure "${//}" approach.
 	# regex works best for a dozen individual options
 
-	while [[ "$In" =~ ([^[:alnum:]])+([[:lower:]]) ]]; do
+	while [[ "$In" =~ ([^[:alnum:]]+)([[:lower:]]|$) ]]; do
 		recapture 1 >/dev/null
 		Separator="$REPLY"
 		recapture 2 >/dev/null
 		Match="$REPLY"
 		UpperMatch="$Match"
 
+		if [[ -z $Match ]]; then
+			In="${In%"$Separator"}"
+			break
 		# This has a nice side effect of being able to escape - and _ in usage strings
-		if [[ "$Separator" = [_-] ]]; then
+		elif [[ "$Separator" = [_-] ]]; then
 			In="${In//$Separator$Match/$UpperMatch}"
 		else
 			In="${In//$Separator$Match/ $UpperMatch}"
 		fi
 	done
 	First="${In:0:1}"
-	# TODO: may need to clean up left over weird values?
 	Name="${First/ /}${In:1}"
-	if [[ "$Name" != *[[:alnum:]_]* ]]; then
-		error -p 1 "INTERNAL ERROR: variable '$Token' ends with a bad -- '$Name'"
-	fi
 }
 
 function _args_build_parser {
@@ -565,7 +564,7 @@ function _args_build_usage_parsers {
 	local ArityMin=0 ArityMax=0
 
 	# Flags for the token talker to telepath to
-	local Match Regex Optional Variadic Literal
+	local Match Optional Variadic Literal Compound Depth
 
 	local LineBuilder='' TokenPos=0
 
@@ -579,27 +578,30 @@ function _args_build_usage_parsers {
 
 		LineBuilder='' Format='' ArityMin=0 ArityMax=0 RunPattern=''
 
+		LineBuilder+='
+		local __Compound="" __Sep="" __Arg=""'
+
 		# Parse the given line
 		declare -a Tokens=($Line)
 		for (( TokenPos = 0; TokenPos < ${#Tokens[@]}; TokenPos++ )); do
 			Token="${Tokens[TokenPos]}"
 
-			Match='' Regex='' Optional='' Variadic='' Literal=''
+			Match='' Optional='' Variadic='' Literal='' Compound='' Depth=0
 			# TODO: make generic
 			if ! _args_token_talker "$Token"; then
 				return 9
 			fi
 
 			# a new regex or match means a new run pattern
-			if [[ "$RunPattern" != "$Regex$Match" ]]; then
+			if [[ "$RunPattern" != "$Match" ]]; then
 				if [[ -n "$RunPattern" ]]; then
 					_args_usage_record_run
 				fi
 				RunMin=0
 				RunMax=0
-				RunPattern="${Regex:-$Match}"
+				RunPattern="$Match"
 			fi
-			
+
 			# TODO: handle the case when parsing requires lookahead
 
 			if [[ -z $Optional ]]; then
@@ -607,41 +609,79 @@ function _args_build_usage_parsers {
 			elif [[ "$RunMax" != + ]]; then
 				((++RunMax))
 			fi
+			if [[ -z $Literal ]]; then
+				_ARGS_VARS+=(${Name// /= }=)
+			fi
 
-			#if [[ -n $Regex ]]; then
-			#	# TODO: determine which capture groups to extract to build out our variables
-			#	#LineBuilder+='[[ $__Arg =~ $Regex ]]'
-			#fi
-
-			if [[ $Variadic ]]; then
-				if [[ "$RunMax" = + ]]; then
-					error -p 1 'FUNCTION BUG: cannot have two VARIADIC... arguments in
+			if [[ $Variadic && "$RunMax" = + ]]; then
+				error -p 1 '
+					FUNCTION BUG: cannot have two VARIADIC... arguments in
 					a series of tokens with the same pattern. You need to have a literal
 					or argument containing a symbol in between.'
-					return 9
-				fi
+				return 9
+			fi
 
-				RunMax=+
-				if [[ "$Name" != *\ * ]]; then
-					_ARGS_ARRAYS+=($Name)
+			if [[ $Compound ]]; then
+				local x CompoundPos=1
+				LineBuilder+='
+				__Arg="${_ARGS[ ${_ARGS_BOUNDS['$TokenPos']} ]}"
+				# See this func for how compound arg parsing works
+				# This code just interprets its output
+				_args_parse_compound "'"$Token"'" "$__Arg"
+				__Compound="$REPLY"
+				# fetch the 1st arg index from the format string
+				__Pos="${__Compound%%[^[:digit:]]*}"
+				__Compound="${__Compound#$__Pos}"
+				'
+				for x in $Name; do
+					LineBuilder+='
+
+					if (( $__Pos == '$CompoundPos' )); then
+						# fetch the separator from the format string
+						__Sep="${__Compound%%[[:digit:]]*}"
+						__Compound="${__Compound#"$__Sep"}"
+
+						# fetch the value from the arg and strip the separator
+					'
+					if [[ $Variadic ]]; then
+						error 'Have not yet implemented variadic compound args'
+						return 9
+					else
+						LineBuilder+=$x'="${__Arg%%"$__Sep"${__Sep:+*}}"'
+					fi
 
 					LineBuilder+='
-					__Pos="${_ARGS_BOUNDS['$TokenPos']}"
-					_trace "${_ARGS_BOUNDS['$TokenPos' + 1]:-${#_ARGS[@]}} - $__Pos"
-					'$Name'=("${_ARGS[@]: __Pos : ${_ARGS_BOUNDS['$TokenPos' + 1]:-${#_ARGS[@]}} - __Pos }")
-					_args_check_dash '"$Name \$$Name"$' || return 1\n'
-				else
-					# argument is split into separate vars
+						__Arg="${__Arg#*"$__Sep"}"
 
-					# create empty vars for each portion of argument
-					_ARGS_VARS+=(${Name// /= }=)
+						# fetch the next arg index from the format string
+						__Pos="${__Compound%%[^[:digit:]]*}"
+						__Compound="${__Compound#$__Pos}"
+					fi
+					'
+					((++CompoundPos))
+				done
+
+				if [[ $Variadic ]]; then
+					# scalar variable names are left empty
 					# and sparse *List arrays for each individual portion
 					_ARGS_ARRAYS+=(${Name// /List= }List=)
 				fi
 
+			elif [[ "$Name" = *\ * ]]; then
+				error "INTERNAL ERROR: Name has spaces ($Name), but was not treated as compound. Maybe it's an edge case we have not covered"
+				return 9
+			elif [[ $Variadic ]]; then
+				RunMax=+
+				_ARGS_ARRAYS+=($Name)
+
+				LineBuilder+='
+				__Pos="${_ARGS_BOUNDS['$TokenPos']}"
+				_trace "${_ARGS_BOUNDS['$TokenPos' + 1]:-${#_ARGS[@]}} - $__Pos"
+				'$Name'=("${_ARGS[@]: __Pos : ${_ARGS_BOUNDS['$TokenPos' + 1]:-${#_ARGS[@]}} - __Pos }")
+				_args_check_dash '"$Name \$$Name"$' || return 1\n'
+
 			elif [[ -z $Literal ]]; then
-				_ARGS_VARS+=(${Name//[^[:alnum:]]/ }'=')
-				#LineBuilder+="$Name"$'=("${_ARGS[@]: __Pos}")\n'
+				_ARGS_VARS+=(${Name//[^[[:upper:][:digit:]_]]/ }'=')
 
 				LineBuilder+="
 				$Name"'="${_ARGS[ ${_ARGS_BOUNDS['$TokenPos']} ]}"
@@ -698,17 +738,6 @@ function _args_token_talker {
 			return 9
 			;;
 
-		\[*\]  )
-			Optional=1
-			if [[ "$Token" = *...\] ]]; then
-				Variadic=1
-				_args_token_talker "${Token:1:${#Token} - 5}"
-			else
-				_args_token_talker "${Token:1:${#Token} - 2}"
-			fi
-			return
-			;;
-
 		*... )
 			Variadic=1
 			if [[ "$Token" = \[*\] ]]; then
@@ -720,30 +749,41 @@ function _args_token_talker {
 			return
 			;;
 
-		# after full bounding `[]` check, so we can be looser here
 		*\[* | *\]* )
 
 			# Collect all arguments into a single token
-			local Left=0 Right=0 Next="${Token}"
-			while ((TokenPos < "${Tokens[@]}")); do
+			# TODO store depth outside of this function
+			local Next="${Token}" InitialDepth="$Depth"
+			while ((TokenPos < "${#Tokens[@]}")); do
 				for ((s = 0; s < ${#Next}; s++)); do
 					case ${Next:s:1} in
-						\[ ) ((++Left));;
-						\] ) ((++Right));;
+						\[ ) ((++Depth));;
+						\] )
+							if ((--Depth < 0)); then
+								error -p 1 "FUNCTION BUG: There are too many ']' in Token '$Token'!"
+								return 9
+							fi
+							;;
 					esac
 				done
 
-				if ((Left < Right)); then
-					error -p 1 "FUNCTION BUG: There are too many ']' in Token '$Token'!"
-					sleep 3
-					return 9
-				fi
+				# TODO: This
 
-				if ((Left == Right)); then
-					if [[ "$Token" == "$Next" ]]; then
+				if ((Depth == 0)); then
+					if ((InitialDepth == 0)); then
 						# Nice, a single token with exactly the number of brackets we need :relieved:
-						_args_token2regex
-						Regex="$REPLY"
+						if [[ $Token = \[*\] ]]; then
+							Optional=1
+							if [[ "$Token" = *...\] ]]; then
+								Variadic=1
+								_args_token_talker "${Token:1:${#Token} - 5}"
+							else
+								_args_token_talker "${Token:1:${#Token} - 2}"
+							fi
+							return
+						fi
+
+						Compound=1
 						_args_name_to_variable "$Token"
 						return
 					fi
@@ -753,10 +793,6 @@ function _args_token_talker {
 
 				if ((Left > Right)); then
 					Optional=1
-					# TODO: This only happens if two or more tokens are grouped, making it a fairly
-					# complex situation. I haven't started considering how to manage these yet.
-					# I guess I'll know once I get around to handling grouped args
-					#
 					# The tricky thing with grouped args is that Min and Max break down. Given args
 					# A [B C] you can have 1 argument or 3, but not two.
 					error -p 1 'No logic for grouping optional args yet.'
@@ -819,10 +855,10 @@ function _args_token2regex {
 	fi
 	# TODO: handle escaping \[ and \]
 	# TODO: fix replace escaping
-	replace "$Token" '([$.()|*+?{\^])' '\\1'
+	replace "$Token" '([$.()|*+?{\^])' '\\1' >/dev/null
 	Token="${REPLY//\[/(}"
 	Token="${Token//\]/)?}"
-	replace "^$Token\$" '[[:upper:][:digit:]_]+' '(.+)'
+	replace "^$Token\$" '[[:upper:][:digit:]_]+' '(.+)' >/dev/null
 }
 
 function _args_regex_parser {
@@ -957,7 +993,7 @@ function _args_parse_dynamic {
 # and branching out when multiple matching formats are possible
 function _args_parse_usage_token {
 	zsh_run setopt KSH_ARRAYS
-	local TokenPos="$1" ArgPos="$2" Arg='' Token="$3"
+	local TokenPos="$1" ArgPos="$2" Arg='' Token="$3" Exit=''
 	Token="${Token:-${Tokens[TokenPos]}}"
 
 	while ((TokenPos < ${#Tokens[@]})); do
@@ -983,42 +1019,6 @@ function _args_parse_usage_token {
 			'{' | \"* | \'* )
 				error -p 1 "FUNCTION BUG: Token '$Token' in usage not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
 				return 9
-				;;
-
-			\[*\]  )
-				# SPLIT -- execute test for both both with and without the optional arg
-				#
-				# TODO: write out a heap of examples and really stress test the boundaries of
-				# optionals
-				#
-				# Current considerations:
-				#
-				# ARRAY... contains ELEMENTS...
-				# This is definitely not okay, `contains contains contains contains contains`
-				#
-				# ARRAY... [not] contains ELEMENT
-				# ARRAY might contain `not`, there is a chance of a function bug here
-				# But devs can check themselves for `not`, explicitly disallow it, etc
-				# Should probably throw an error that needs to be quashed by an 'allow ambiguous'
-				# annotation
-				# 
-				# OBJECT is [not] PROPERTIES...
-				# This one is a little more clear, it's pretty obvious that the first `not` will be
-				# taken by the functiongg
-				#
-				#
-				# A [B] literal ARRAY...
-				#
-				# Fine:
-				# A [B] literal KEY=VALUE...
-
-				Priorities[$TokenPos]=-10 # likely overridden
-
-				# test *with* optional token
-				_args_parse_usage_token $TokenPos $ArgPos "${Token:1:${#Token} - 2}" && return
-				# and test without
-				_args_parse_usage_token $((TokenPos + 1)) $ArgPos
-				return $?
 				;;
 
 			*... )
@@ -1049,68 +1049,99 @@ function _args_parse_usage_token {
 				return 1
 				;;
 
-			\[*[^]\ ] | [^]\ ]*\] )
-				# 
-				return 9
-
-				;;
-
 			\[*[^]] | [^]]*\] )
 
 				# Collect all arguments into a single token
-				local Left=0 Right=0 Next="$Token" OptionalStart=$ArgPos
-				# TODO: this might be the wrong approach. e.g. given [A B], both A and B are
-				# separate tokens, just grouped.
-				# I guess I'll know once I get around to handling grouped args
-				while ((ArgPos < "${#_ARGS[@]}")); do
-					# TODO: copy this logic into usage variable parsing, to catch bad brackets early
+				local Next="$Token" OptionalEnd=$ArgPos Depth=0
+				while true; do
+					# TODO: cache depth in a DepthDelta array in token_talker, since slicing is expensive
 					for ((s = 0; s < ${#Next}; s++)); do
 						case ${Next:s:1} in
-							\[ ) ((++Left));;
-							\] ) ((++Right));;
+							\[ ) ((++Depth));;
+							\] ) ((Depth--));;
 						esac
 					done
 
-					if ((Left < Right)); then
-						error -p 1 "FUNCTION BUG: There are too many ']' in Token '$Token'!"
-						sleep 3
-						return 9
-					fi
-
-					if ((Left > Right)); then
+					if ((Depth)); then
 						((++ArgPos))
+						if ((ArgPos >= "${#_ARGS[@]}")); then
+							error "FUNCTION BUG: Never matched a ] for [ starting at '$Token'"
+							sleep 3
+							return 9
+						fi
 						Next="${_ARGS[ArgPos]}"
-						Token+="$Next"
 						continue
 					fi
-					# Left == Right
 
-					if ((ArgPos == OptionalStart)); then
-						# Nice, a single token with exactly the number of brackets we need :relieved:
-						echo hi
-						# TODO: convert token into regex match with capture groups
-						# We can hopefully then determine which capture groups to extract to build
-						# out our variables
+					if ((TokenPos == OptionalEnd)); then
+						# Nice, a single token with exactly the number of
+						# brackets we need :relieved:
+						if [[ $Token != \[*\] ]]; then
+							# ( will continue into variable matching below due to fallthrough)
+							break
+						fi
 					fi
 
+					# TODO check ending ] is at the end of the ending argument
+					# VAR]BOO is not allowed (to make handling a tad easier)
+					# We'll also need extra logic to handle [A B]... :blobsweat:
 
-					break
+					# SPLIT -- execute test for both both with and without the optional arg
+					#
+					# TODO: write out a heap of examples and really stress test the boundaries of
+					# optionals
+					#
+					# Current considerations:
+					#
+					# ARRAY... contains ELEMENTS...
+					# This is definitely not okay, `contains contains contains contains contains`
+					#
+					# ARRAY... [not] contains ELEMENT
+					# ARRAY might contain `not`, there is a chance of a function bug here
+					# But devs can check themselves for `not`, explicitly disallow it, etc
+					# Should probably throw an error that needs to be quashed by an 'allow ambiguous'
+					# annotation
+					#
+					# OBJECT is [not] PROPERTIES...
+					# This one is a little more clear, it's pretty obvious that the first `not` will be
+					# taken by the functiongg
+					#
+					#
+					# A [B] literal ARRAY...
+					#
+					# Fine:
+					# A [B] literal KEY=VALUE...
+
+					Priorities[$TokenPos]=-10 # likely overridden
+
+					# test *with* optional token
+					Tokens[TokenPos]="${Token#[}"
+					Tokens[OptionalEnd]="${Tokens[OptionalEnd]%]}"
+					_args_parse_usage_token $TokenPos $ArgPos "${Token:1:${#Token} - 2}" && return
+					Exit=$?
+					Tokens[TokenPos]="[$Token"
+					Tokens[OptionalEnd]="${Tokens[OptionalEnd]}]"
+					[[ $Exit = 0 ]] && return 0
+
+					# and test without
+					_args_parse_usage_token $((OptionalEnd + 1)) $ArgPos
+					return $?
+
 				done
 
-				error -p 1 "FUNCTION BUG: Runs of optional arguments not currently supported. Please split into two usage lines"
-				return 9
-				;;
+				# Note the continue into variable matching here.
+				;&
 
 			*[[:upper:]_]* )
-				replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
-				Match="$REPLY"
-				if [[ "$Arg" != $Match ]]; then
-					return 1
+				if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
+					# has separators
+					Priorities[$TokenPos]=50
+					_args_token2regex "$Token"
+					[[ "$Arg" =~ $REPLY ]] || return 1
+				else
+					Match='*'
 				fi
 
-				if [[ "$Match" != '*' ]]; then
-					Priorities[$TokenPos]=50 # has separators
-				fi
 				((++TokenPos))
 				((++ArgPos))
 				Token="${Tokens[TokenPos]}"
