@@ -41,6 +41,8 @@ function vars_eq {
 		if [[ "$REPLY" != "${Values[i]}" ]]; then
 			error "Argument did not match expected value:
 			\"$REPLY\" != \"${Values[i]}\"
+			USAGE: $(args_quoted "${Usage[@]}")
+			Matched: ${Usage[_ARGS_USAGE_NUM]}
 			"
 			return 1
 		fi
@@ -87,7 +89,7 @@ function test_usage {
 }
 function run {
 	declare -a Usage=("$@") Options=()
-	_trace "Testing permutation 
+	_trace "Testing permutation
 	USAGE: $(args_quoted "${Usage[@]}")
 	"
 	unset _Args_check _Opts_check
@@ -263,7 +265,7 @@ function check {
 
 	set -- a d
 	parse_args
-	vars_eq A a D d
+	vars_eq A a B '' C '' D d
 }
 test_usage
 
