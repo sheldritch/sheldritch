@@ -30,6 +30,7 @@ function eq {
 }
 
 function vars_eq {
+	declare -a Vars Values
 	while (($#)); do
 		Vars+=("$1")
 		Values+=("$2")
@@ -40,7 +41,7 @@ function vars_eq {
 		deref "${Vars[i]}" >/dev/null
 		if [[ "$REPLY" != "${Values[i]}" ]]; then
 			error "Argument did not match expected value:
-			\"$REPLY\" != \"${Values[i]}\"
+			expected \"${Values[i]}\", got \"$REPLY\"
 			USAGE: $(args_quoted "${Usage[@]}")
 			Matched: ${Usage[_ARGS_USAGE_NUM]}
 			"

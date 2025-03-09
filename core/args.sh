@@ -683,8 +683,7 @@ function _args_build_usage_parsers {
 			elif [[ -z $Literal ]]; then
 				LineBuilder+='
 				__Pos="${_ARGS_BOUNDS['$TokenPos']}"
-				_trace "${_ARGS_BOUNDS['$TokenPos' + 1]:-${#_ARGS[@]}} - $__Pos"
-				'$Name${Variadic:++}'=("${_ARGS[@]: __Pos : ${_ARGS_BOUNDS['$TokenPos' + 1]:-${#_ARGS[@]}} - __Pos }")
+				'$Name${Variadic:++}'=("${_ARGS[@]: __Pos : ${_ARGS_BOUNDS['$TokenPos' + 1]} - __Pos }")
 				_args_check_dash '"$Name \"\$$Name\""$' || return 1\n'
 
 				if [[ $Variadic ]]; then
@@ -758,9 +757,7 @@ function _args_token_talker {
 
 		*\[* | *\]* )
 
-			# Collect all arguments into a single token
-			# TODO store depth outside of this function
-			local Next="${Token}" InitialDepth="$Depth" Delta=''
+			local Next="${Token}" InitialDepth="$Depth" Delta='' s=0
 			while ((TokenPos < "${#Tokens[@]}")); do
 				for ((s = 0; s < ${#Next}; s++)); do
 					case ${Next:s:1} in
@@ -774,6 +771,7 @@ function _args_token_talker {
 									error -p 1 "FUNCTION BUG: Found ']' ending an optional run, but ] was not at the end of Token '$Token'!:
 									${#Next} - ($Depth - $InitialDepth) != $s
 									${Token:0: s} >>${Token:s:1}<< ${Token: s + 1}
+									Usage line: ${Tokens[@]}
 									"
 									return 9
 								fi
@@ -790,6 +788,7 @@ function _args_token_talker {
 						error -p 1 "FUNCTION BUG: There are too many '[' in Token '$Token'!
 							If you meant to start an optional run (e.g. [A B]), make sure that
 							$Delta of the ['s in your token are at the start.
+							Usage line: ${Tokens[@]}
 						"
 						return 9
 					fi
@@ -808,9 +807,12 @@ function _args_token_talker {
 					fi
 					return
 
-				else
+				elif [[ $Token = *[* ]]; then
 					Compound=1
 					_args_name_to_variable "$Token"
+					return
+				else
+					_args_token_talker "${Token}"
 					return
 				fi
 
@@ -821,8 +823,11 @@ function _args_token_talker {
 			;;
 
 		*[[:upper:]_]* )
-			replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
-			Match="$REPLY"
+			if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
+				Compound=1
+			else
+				Match='*'
+			fi
 			_args_name_to_variable "$Token"
 			return
 			;;
