@@ -5,43 +5,34 @@ check_is_sourced
 summon sheldritch/core/args.sh
 
 function confirm {
-	function usage {
-		echo "confirm: prompt user for yes/no and return the response as an exit code."
-		print_usage "[args...]"
-		echo
-		echo "If input is a pipe, will print input to user before asking."
-		echo "If output is also a pipe, will pass on input iff confirm is true."
-	}
-	local question default echo
-	@ARGS
-		-q | --question | --query | --inquiry | --quiz \
-			| -p | --prompt \
-		) question="$2"
-			shift
-			shift
-			;;
-		-d | --default ) default="$2"
-			shift
-			shift
-			;;
-		# print true/false based on response
-		-e | --echo | -v | --verbose ) echo=true
-			shift
-	@ARGS_END
+	@func_info
+	About='prompt user for yes/no and return the response as an exit code.
 
-	local input
+		If input is a pipe, will print input to user before asking.
+		If output is also a pipe, will pass on input iff confirm is true.'
+
+	Options=(
+		-q --question --query --inquiry --quiz
+			-p --prompt=QUESTION "the question to print to the user to get a yes/no response for"
+
+		-d --default=DEFAULT "yes or no. the default value to return."
+		-e --echo -v --verbose "print true/false based on response"
+	)
+	args_parse
+
+	local Input
 	if ! [ -t 0 ]; then
-		debug 'confirm: piped input'
-		input="$(cat)"
-		echo "$input" >/dev/tty
+		debug 'piped input'
+		Input="$(cat)"
+		echo "$Input" >/dev/tty
 	fi
 
 	while true; do
 
-		if [ "$default" ]; then
-			default="$(yesNoToBool "$default")"
+		if [[ "$Default" ]]; then
+			Default="$(yesNoToBool "$Default")"
 
-			if [ "$default" = null ]; then
+			if [[ "$Default" = null ]]; then
 				echo >&2 "Error: invalid default passed to 'confirm'"
 				echo >&2 "Complain to whoever wrote the tool your using to fix it."
 				echo >&2 "This applies doubly so if it was you."
@@ -49,30 +40,30 @@ function confirm {
 			fi
 		fi
 
-		local promptOpts
-		if [ -z "$default" ]; then
-			promptOpts=y/n
-		elif isTrue "$default"; then
-			promptOpts=Y/n
+		local PromptOpts
+		if [[ -z "$Default" ]]; then
+			PromptOpts=y/n
+		elif isTrue "$Default"; then
+			PromptOpts=Y/n
 		else
-			promptOpts=y/N
+			PromptOpts=y/N
 		fi
 
 		local confirm
-		read -rp "${question:+$question [$promptOpts]: }" confirm < /dev/tty
+		read -rp "${Question:+$Question [$PromptOpts]: }" Confirm < /dev/tty
 
-		local response
-		if response="$(yesNoToBool "${confirm:-$default}")"; then
+		local Response
+		if Response="$(yesNoToBool "${Confirm:-$Default}")"; then
 
-			if ! [ -t 0 -o -t 1 ]; then
-				if isTrue "$response"; then
-					echo "$input"
+			if ! [[ -t 0 || -t 1 ]]; then
+				if isTrue "$Response"; then
+					echo "$Input"
 				fi
-			elif isTrue $echo; then
-				echo "$response"
+			elif isTrue $Verbose; then
+				echo "$Response"
 			fi
 
-			isTrue "$response"
+			isTrue "$Response"
 			return $?
 		fi
 
