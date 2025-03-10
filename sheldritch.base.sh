@@ -104,8 +104,20 @@ fi
 # Logging helpers
 #
 
+if ! is_function deindent 2>/dev/null; then
+	# placeholder before the real deindent func is defined
+	function deindent {
+		typeset Space="${*#*\n}"; Space="${Space%%[^[:space:]]*}"
+		REPLY="${*//$'\n'"$Space"/$'\n'}"
+		printf '%s\n' "$REPLY"
+	}
+fi
+
+# shellcheck disable=SC2154,SC2142
+alias @help='[[ "$#" -eq 1 && "$1" = --help ]] && deindent'
+
 # Dependency for logging
-# shellcheck disable=SC2154
+# shellcheck disable=SC2154,SC2142
 alias @func_use_parent='
 	typeset Parent ParentLevel=0
 	while [[ -n "$1" ]]; do
@@ -175,10 +187,7 @@ function _genfunc_log {
 
 		@func_use_parent
 		Line='"$2"'": ${Parent:+$Parent: }$*"
-
-		if is_function deindent 2>/dev/null; then
-			Line="$(deindent "$Line")"
-		fi
+		Line="$(deindent "$Line")"
 
 		echo "$Line" >&2
 
@@ -198,7 +207,7 @@ _genfunc_log _debug Debug
 function debug {
 	typeset x
 	for x in "$DEBUG" "$TRACE"; do
-		quiet lowercase "$x"
+		lowercase "$x" >/dev/null 2>&1
 		if [[ -n "$x" && "$REPLY" =~ ^(1|true)$ ]]; then
 			STACKTRACE=false _debug -p 1 "$@"
 		fi
