@@ -221,7 +221,7 @@ function _args_build_parser_opts {
 
 	if [[ "${_ARGS[__Pos]}" != -* ]]; then
 		__Temp=$__Pos
-		[[ "${_OPTIONS_PARSE_FIRST:-}" = 1 ]] && break
+		[[ "${_OPTS_PARSE_FIRST:-}" = true ]] && break
 		while [[ "${_ARGS[__Pos]}" != -* ]] && ((__Pos < "${#_ARGS[@]}")); do
 			((++__Pos))
 		done
@@ -353,7 +353,7 @@ function _args_build_parser_opts {
 		# if no options spec was defined, assume flags are parsed elsewhere
 		(( "${#Options[@]}" )) || return 0
 
-		if [[ -n $_OPTS_SKIP_UNKNOWN ]]; then
+		if [[ $_OPTS_SKIP_UNKNOWN = true ]]; then
 			((++__Pos))
 			__PosArgs+=("${_ARGS[__Pos]}")
 			continue
@@ -859,7 +859,7 @@ function _args_regex_parser {
 }
 
 function _args_check_dash {
-	if [[ -z ${_ARGS_BREAK:-}${_OPTS_SKIP_UNKNOWN:-} && $2 = -* ]]; then 
+	if [[ -z ${_ARGS_BREAK:-} && ${_OPTS_SKIP_UNKNOWN:-} != true && $2 = -* ]]; then
 		error -p 2 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
 		return 1
 	fi
