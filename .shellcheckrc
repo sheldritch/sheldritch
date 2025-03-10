@@ -4,6 +4,6 @@ source-path=$SHELDRITCH
 source-path=SCRIPTDIR
 
 disable=SC1090 # sourcing variable file
-disable=SC2034 # unused variables
+#disable=SC2034 # unused variables
 disable=SC2142 # positional params in aliases
-disable=SC2154 # unassigned variable
+#disable=SC2154 # unassigned variable
