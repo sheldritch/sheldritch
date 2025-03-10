@@ -55,12 +55,28 @@ alias jfield=json_field
 alias jf=json_field
 
 function jbool {
-	if [[ "$1" = --help ]]; then
-		echo "jbool: compute the truthiness of the given expression on the given JSON"
-		echo "Usage: jbool JSON FILTER"
-	fi
+	@help "jbool: compute the truthiness of the given expression on the given JSON
+		   Usage: jbool JSON FILTER
+	" && return
 	isTrue "$(jqj "$1" "(${2:-.}) == true")"
 }
+
+function json_check {
+	@help 'json_check: throw error if FILTER is not truthy
+		   Usage: jbool JSON FILTER' && return
+	@func_passthrough
+	@func_passthrough # return errors on behalf of the parent function
+	[[ "$#" -eq 1 ]] && set -- "$(cat)" "$@"
+	[[ -z "$1" ]] && return 2
+
+	if ! jbool "$@"; then
+		error "failed check '$2':
+			$1
+		"
+		return 1
+	fi
+}
+alias jcheck=json_check
 
 function jtype {
 	if [[ $# -eq 2 ]]; then
@@ -76,13 +92,12 @@ function jtype {
 #    	...
 function json_keys {
 	local json length
-	if [[ "$1" = --help ]]; then
-		echo >&2 "Iterate over given JSON values"
-		echo >&2 "For example:"
-		echo >&2 'for i in $(json_it "$json"); do'
-		echo >&2 '    	elem="$(jqj "$json" .[$i])"'
-		echo >&2 "    	..."
-	fi
+	@help 'Iterate over given JSON values
+		For example:
+		for i in $(json_it "$json"); do
+			elem="$(jqj "$json" .[$i])"
+			...
+	' && return
 
 	json="$(args_or_stdin "$@")"
 
