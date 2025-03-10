@@ -5,7 +5,9 @@
 check_is_sourced
 
 function step_through {
+	local Fail=0
 	set -x
-	"$@"
+	"$@" || Fail=$?
 	set +x
+	return $Fail
 }

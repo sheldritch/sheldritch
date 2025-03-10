@@ -1,4 +1,4 @@
-#j!/bin/bash
+#!/bin/bash
 #
 # Base script utilities
 #
@@ -6,9 +6,14 @@
 # base.sh is frequently re-run, so enforcing performance is important
 # shellcheck enable=require-double-brackets
 
-if [[ -n "${SHELDRITCH_SUBSHELL:-}" && -z "${SHELDRITCH_CLEAN:-}" && "$1" != "--force" ]]
-then
-	return
+if [[ -n "${SHELDRITCH_SUBSHELL:-}" ]]; then
+	# NOTE: This doesn't work for ksh because there's no file stack
+	# There is an alias version in check_is_sourced in lib.sh that ksh
+	# can fall back on, though
+	source_cache_update
+	if [[ -z "${SHELDRITCH_CLEAN:-}" && "$1" != "--force" ]]; then
+		return
+	fi
 fi
 
 #
@@ -27,7 +32,7 @@ fi
 alias zsh_run='true ||'
 alias bash_run='true ||'
 alias ksh_run='true ||'
-alias _trace='[[ -n "${TRACE+ }" || \$- = *x* ]] && echo >&2 '
+alias _trace='[[ -n "${TRACE+ }" || $- = *x* ]] && echo >&2 '
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
 	zmodload zsh/parameter
@@ -44,7 +49,20 @@ else
 fi
 
 function self_file {
-	typeset Level="$((${1:-0} + 1))"
+	if [[ -v KSH_VERSION ]]; then
+		if [[ "${2:-0}" = 0 ]]; then
+			REPLY="$1"
+			echo "$1"
+			return
+		fi
+		return 1
+	fi
+
+	if [[ "$Level" = -* ]]; then
+		typeset Level="$1"
+	else
+		typeset Level="$((${1:-0} + 1))"
+	fi
 
 	if [[ -v BASH_VERSION ]]; then
 		REPLY="${BASH_SOURCE[$Level]}"
@@ -55,9 +73,20 @@ function self_file {
 }
 
 function self_dir {
-	self_file 1 >/dev/null
+	if [[ -v KSH_VERSION ]]; then
+		if [[ "${2:-0}" = 0 ]]; then
+			dirname "$1"
+			return
+		fi
+		return 1
+	fi
+	>/dev/null self_file 1 
 	dirname "$REPLY"
 }
+if [[ -v KSH_VERSION ]]; then
+	alias self_file='self_file "${.sh.file}"'
+	alias self_dir='self_dir "${.sh.file}"'
+fi
 
 if ! [[ $SHELDRITCH == /* && -f "$SHELDRITCH/sheldritch.base.sh" ]]; then
 	export SHELDRITCH
@@ -100,28 +129,62 @@ alias @func_use_parent='
 	fi
 '
 
+function stacktrace {
+	@func_use_parent
+	typeset Set="${-//[^x]/}"
+	${Set:+set +$_ArgsSet}
+
+	typeset I=$((ParentLevel - 1)) Caller Line Func File 
+
+	if Caller="$(caller $I)" 2>/dev/null; then
+
+		read Line Func File < <(caller $I)
+		printf "%s:%s: %s:" "$File" "$Line" "$Func"
+		sed -n "${Line}s/^/\\t/p" "$File"
+
+		while Caller="$(caller $I)"; do
+			printf '\t%s\n' "$Caller"
+			((++I))
+		done
+
+	elif ((${#funcstack[@]})); then
+		while ((I < ${#funcstack[@]})); do
+			printf '\t%s\n' "${funcstack[I]}"
+			((++I))
+		done
+
+	elif ((${#FUNCNAME[@]})); then
+		for I in "${FUNCNAME[@]}"; do
+			printf >&2 '\t%s\n' "${FUNCNAME[I]}"
+		done
+
+	elif [[ -v KSH_VERSION ]]; then
+		printf >&2 '\t%s\n' "${.sh.fun}"
+	fi
+
+	printf \\n
+	${Set:+ set -$Set }
+}
+
 function _genfunc_log {
 	eval "$1"'() {
-		typeset Trace="${STACKTRACE:-$DEBUG}" Set
-		if [[ $- = *x* ]]; then
-			set +x
-			Set=x
-		fi
+		zsh_run setopt SH_WORD_SPLIT
+		typeset Trace="${STACKTRACE:-$DEBUG}" Set Line Func File Last="$_"
+		Set="${-//[^x]/}"
+		${Set:+ set +$Set }
+
 		@func_use_parent
-		echo '"$2"'": ${Parent:+$Parent: }$*" >&2
+		Line='"$2"'": ${Parent:+$Parent: }$*"
+
+		if is_function deindent 2>/dev/null; then
+			Line="$(deindent "$Line")"
+		fi
+
+		echo "$Line" >&2
 
 		if [[ "$(lowercase "$Trace")" = true || "$Trace" = 1 || -n "$Set" ]]; then
-
-			if [[ -v BASH_VERSION ]]; then
-				typeset I=$((ParentLevel - 1)) Caller
-				read Line Fu File < <(caller $I)
-				sed -n "${Line}s/^/\\t/p" "$File"
-				while Caller="$(caller $I)"; do printf "\\t%s\\n" "$Caller"; ((++I)); done
-				printf \\n
-			elif [[ -v ZSH_VERSION ]]; then
-				args_quoted "${funcstack[@]}" >&2
-			fi
-			set -$Set
+			printf "%s\n" "$Last"
+			stacktrace -p "$ParentLevel" >&2
 		fi >&2
 	}
 	'

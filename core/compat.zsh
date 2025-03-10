@@ -8,7 +8,7 @@ check_is_sourced
 self_file >/dev/null
 # directly source
 # If added to SHELDRITCH_SOURCES, re-syncing may clobber bash overrides
-source "${REPLY%.bash}".sh
+source "${REPLY%.zsh}".sh
 
 alias extglob='setopt KSH_GLOB'
 

@@ -96,8 +96,14 @@ function tgrep {
 # so excuse the weird structure
 function replace {
 
-	local in="$1"
+
+	local in="$1" Set=''
 	shift
+
+	if [[ $- = *x* ]]; then
+		Set=1
+		set +x
+	fi
 
 	# Okay, I know I just said 'very optimised', but like, it does not scale in the slightest.
 	# For long strings, just use sed...
@@ -144,6 +150,7 @@ function replace {
 	done
 	printf '%s\n' "$in"
 	REPLY="$in"
+	[[ -n "$Set" ]] && set -x
 }
 function s { @func_passthrough; replace "$@"; }
 

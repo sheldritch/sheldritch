@@ -55,7 +55,11 @@ alias jfield=json_field
 alias jf=json_field
 
 function jbool {
-	isTrue "$(jqj "$1" "($2) == true")"
+	if [[ "$1" = --help ]]; then
+		echo "jbool: compute the truthiness of the given expression on the given JSON"
+		echo "Usage: jbool JSON FILTER"
+	fi
+	isTrue "$(jqj "$1" "(${2:-.}) == true")"
 }
 
 function jtype {
@@ -70,15 +74,15 @@ function jtype {
 # eg for i in $(json_it "$json"); do
 #    	elem="$(jqj "$json" .[$i])"'
 #    	...
-function json_it {
+function json_keys {
 	local json length
-	function usage {
+	if [[ "$1" = --help ]]; then
 		echo >&2 "Iterate over given JSON values"
 		echo >&2 "For example:"
-		echo >&2 "for i in $(json_it "$json"); do"
-		echo >&2 "    	elem="$(jqj "$json" .[$i])"'"
+		echo >&2 'for i in $(json_it "$json"); do'
+		echo >&2 '    	elem="$(jqj "$json" .[$i])"'
 		echo >&2 "    	..."
-	}
+	fi
 
 	json="$(args_or_stdin "$@")"
 
@@ -94,8 +98,8 @@ function json_it {
 			;;
 
 		* )
-			echo >&2 "Error: json_it: unhandled type for '$json'."
-			echo >&2 "If you think you have sensible behaviour for this type, please add it to this function."
+			error "json_keys: unhandled type for '$json'.
+			If you think you have sensible behaviour for this type, please add it to this function."
 			return 1
 	esac
 }
@@ -211,6 +215,7 @@ function json_extract_match {
 	jq "map((.$SourceField | sub(\".*(?<m>$Regex).*\"; .m)) as \$match | if (\$match | test(\"$Regex\")) then .$DestinationField=\$match else . end )"
 }
 alias jq_extract_match=json_extract_match
+
 
 # Pops an attribute/index from JSON and create a matching variable.
 #

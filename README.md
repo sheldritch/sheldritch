@@ -92,3 +92,17 @@ function _cp_file {
 	command cp "$1" "$2"
 }
 ```
+
+## Future Development
+
+### Possible breaking changes
+
+In the future, we may change the way that some functionality works. The
+following are some likely candidates
+
+**Greedy Optional and Variadic Arguments**
+I can envision cases were you would want a variadic argument to contain as many
+values as possible, and as few values as possible. What likely will happen is
+that a token may be compared to its neighbours, and the one with the more
+complex pattern will have priority of greediness. But maybe that's too
+complicated to intuit its use.
