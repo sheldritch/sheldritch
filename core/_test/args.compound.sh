@@ -3,6 +3,7 @@
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/core/args
+summon sheldritch/util/test
 summon sheldritch/data/types
 trap 'STACKTRACE=1; error FAILED; Fail=1' ERR
 
@@ -21,11 +22,11 @@ function try {
 	declare -a SplitCompound=() __Compound=() __SplitCompound=()
 	_args_compound_split "$Token"
 	__Compound=("${SplitCompound[@]}")
-	_args_parse_compound "$Token" "$Arg" || :
+	_args_parse_compound "$Arg" || return 1
 
 	# TODO: change the raw array to be var comparisons, to reduce extra work
 	for ((i = 0; i < ${#Expected[@]}; i++)); do
-		Val="${__SplitCompound[i]}"
+		Val="${__CompoundVars[i]}"
 		Expected="${Expected[i]}"
 		if [[ "$Val" != "$Expected" ]]; then
 			error "Expected '$Expected', got '$Val'.
@@ -54,48 +55,48 @@ _args_compound_split A[=B]
 split A [ = B ]
 
 try A a a
-try '=A' '=a' '=1'
-try A= a= 1=
+try '=A' '=a' a
+try A= a= a
 # I thought about variable values needing to have some length to be valid
 # But if you have A[=B], and the user enters a=, you don't want the value of A to be a=.
 # It should just be `a`.
 # If not required, they must be isolated with an optional group.
-try '=A' = '=1'
-try A= = 1=
-try '=A' a
-try A= a
-try '=A=' '=a'
-try '=A=' a=
-try '=A=' '=a=' '=1='
+try '=A' = ''
+try A= = ''
+expect_fail try '=A' a ''
+expect_fail try A= a
+expect_fail try '=A=' '=a'
+expect_fail try '=A=' a=
+try '=A=' '=a=' a
 
-try '=[A]' '=a' '=1'
-try '=[A]' = '=1'
-try '=[A]' a
-try '[A]=' 'a=' '1='
-try '[A]=' '=' '1='
-try '[A]=' a
-try '=[A]=' '=a'
-try '=[A]=' '=a=' '=1='
-try 'A[+B]=C' '=C' '1=3'
+try '=[A]' '=a' a
+try '=[A]' = ''
+expect_fail try '=[A]' a
+try '[A]=' 'a=' a
+try '[A]=' '=' ''
+expect_fail try '[A]=' a
+expect_fail try '=[A]=' '=a'
+try '=[A]=' '=a=' a
+try 'A[+B]=C' '=c' '' '' c
 
-try 'A=B'   a=b 1=2
-try 'A=B'   a+b ''
-try 'A[=B]' a=b 1=2
-try 'A[=B]' a   1
+try 'A=B'   a=b a b
+expect_fail try 'A=B' a+b ''
+try 'A[=B]' a=b a b
+try 'A[=B]' a   a ''
 
-try '[=]A[=]' '=a=' '=1='
-try '[=]A[=]' a 1
-try '[=]A[=]' '=a' '=1'
-try '[=]A[=]' a= 1=
+try '[=]A[=]' '=a=' a
+try '[=]A[=]' a a
+try '[=]A[=]' '=a' a
+try '[=]A[=]' a= a
 
 # basic test of nested groups
-try 'A[=B][+C]' a=b+c 1=2+3
-try 'A[=B][+C]' a=b   1=2
-try 'A[=B][+C]' a+c   1+3
-try 'A[=B[+C]]' a=b+c 1=2+3
-try 'A[=B[+C]]' a+c   1
+try 'A[=B][+C]' a=b+c a b c
+try 'A[=B][+C]' a=b   a b ''
+try 'A[=B][+C]' a+c   a '' c
+try 'A[=B[+C]]' a=b+c a b c
+try 'A[=B[+C]]' a+c   a+c '' ''
 
-try 'A[+B][=C[+D]]' a=c+d 1=3+4
+try 'A[+B][=C[+D]]' a=c+d a '' c d
 
 # These are all illegal formats
 # TODO: We should check them early so an error is always thrown no matter the function input

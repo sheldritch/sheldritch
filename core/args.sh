@@ -717,12 +717,10 @@ function _args_usage_record_run {
 }
 
 function _args_compound_split {
+	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
 	local Arg="$1" Token='' Atom=''
 	SplitCompound=()
-	while [[ $Arg ]]; do
-		if [[ "$Arg" = ']' ]]; then
-			echo >&2 "yes, arg is ]"
-		fi
+	while [[ -n "$Arg" ]]; do
 		case "$Arg" in
 
 			'['* )
@@ -1240,16 +1238,18 @@ function _args_parse_usage_token {
 function _args_parse_compound {
 	zsh_run setopt KSH_ARRAYS
 
-	__CompoundVars=()
-
 	# vars for tracking our position in the token
-	local Arg="$1" Pos="${2:-0}" Depth="${3:-0}" VarPos="$4" LastVar="$5"
+	local Arg="$1" Pos="${2:-0}"
+	local Depth="$Depth" VarPos="$VarPos" LastVar="$LastVar" VarsFound="$VarsFound"
 
 	# extra vars for control flow and logistics
 	local TopLevel='' SkipOptional=0 Temp='' Separator=''
 
 	if ((Pos == 0)); then
 		TopLevel=1
+		__CompoundVars=()
+
+		local Depth=0 VarPos=0 LastVar=''
 
 		# Used to track how many tokens were found
 		# We want to return the match with the most number of tokens
@@ -1263,14 +1263,13 @@ function _args_parse_compound {
 	fi
 
 
-	while ((Pos < ${#__Compound[@]})); do
+	for (( ; Pos < ${#__Compound[@]}; ++Pos)); do
 
-		case "${#__Compound[Pos]}" in
+		case "${__Compound[Pos]}" in
 			'[' )
-				((++Pos))
 
 				if [[ -n "$TopLevel" ]]; then
-					if [[ -z "${HasSeparator[Depth]}" && "${__Compound[Pos]}" = [[:upper]_]* ]]; then
+					if [[ -z "${HasSeparator[Depth]}" && "${__Compound[Pos + 1]}" = [[:upper]_]* ]]; then
 						error -p 1 "FUNCTION BUG: Usage token '$1' is ambiguous and thus illegal.
 						It's possible that two variables would have no separator between them, making it impossible to distinguish the correct value.
 						The latter conflicting variable starts here: '$Queue'
@@ -1285,14 +1284,13 @@ function _args_parse_compound {
 
 				# Branching paths:
 				# test with this optional group
-				_args_parse_compound "$Arg" "$Pos" "$Depth" "$VarPos" "$LastVar" || :
+				_args_parse_compound "$Arg" "$((Pos + 1))"
 
 				# and test without it (in the current branch)
 				SkipOptional="$Depth"
 				;;
 
 			']' )
-				((++Pos))
 				((Depth--)) || return 9
 				if ((Depth < SkipOptional)); then
 					# We've left the optional group being skipped, so clear value
@@ -1301,7 +1299,6 @@ function _args_parse_compound {
 				;;
 
 			[[:digit:]]* | *[^[:upper:]_]* ) # found separator
-				((++Pos))
 
 				[[ -n "$TopLevel" ]] && HasSeparator[Depth]=1
 
@@ -1317,12 +1314,13 @@ function _args_parse_compound {
 				Separator="${Separator//'\'/}"
 				Separator="${Separator//\a/\\}"
 
-				Temp="${Arg#"$Separator"}"
+				Temp="${Arg#${LastVar:+*}"$Separator"}"
 				[[ $LastVar ]] && Values[LastVar]="${Arg%%"$Separator"*}"
 
 				if (( ${#Temp} == ${#Arg} )); then
 					# Separator not found. Fallback to best match or fail
-					return $((TopLevel && ${#__SplitCompound}))
+					((TopLevel && ${#__CompoundVars[@]}))
+					return $?
 				fi
 
 				LastVar=''
@@ -1331,23 +1329,29 @@ function _args_parse_compound {
 				;;
 
 			* ) # found variable name
-				Values[++VarPos]=''
+				Values[VarPos]=''
 
 				[[ -n "$TopLevel" ]] && HasSeparator[Depth]=''
-				((SkipOptional)) && continue
 
-				Result+="$VarNum"
-				((++VarsFound))
+				if ! ((SkipOptional)); then
+					LastVar=$VarPos
+					((++VarsFound))
+				fi
+				((++VarPos))
 				;;
 
 		esac
 	done
 
+	if [[ $LastVar ]]; then
+		Values[LastVar]="$Arg"
+	fi
+
 	if ((VarsFound > BestCount)); then
 		BestCount="$VarsFound"
-		__SplitCompound=("${Values[@]}")
+		__CompoundVars=("${Values[@]}")
 	fi
-	(( ${#__SplitCompound[@]} ))
+	(( ${#__CompoundVars[@]} ))
 }
 
 function _args_build_parser_legend {
