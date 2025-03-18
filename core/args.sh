@@ -585,10 +585,11 @@ function _args_build_usage_parsers {
 		LineBuilder='' Format='' ArityMin=0 ArityMax=0 RunPattern='' Depth=0
 
 		LineBuilder+='
-		local __Compound="" __Sep="" __Arg=""'
+		local -a __CompoundVars=() __Compound=()
+		local __Sep="" __Arg=""'
 
 		# Parse the given line
-		declare -a Tokens=($Line)
+		declare -a Tokens=($Line) SplitCompound=()
 		for (( TokenPos = 0; TokenPos < ${#Tokens[@]}; TokenPos++ )); do
 			Token="${Tokens[TokenPos]}"
 
@@ -628,48 +629,17 @@ function _args_build_usage_parsers {
 			fi
 
 			if [[ $Compound ]]; then
-				local x CompoundPos=1
 				declare -a Vars=($Name)
+				_args_compound_split "$Token"
+				args_quoted "${SplitCompound[@]}" >/dev/null
 				LineBuilder+='
+				__Compound=('"$REPLY"')
 				__Arg="${_ARGS[ ${_ARGS_BOUNDS['$TokenPos']} ]}"
-				# See this func for how compound arg parsing works
-				# This code just interprets its output
-				_args_parse_compound "'"$Token"'" "$__Arg"
-				__Compound="$REPLY"
-				# fetch the 1st arg index from the format string
-				__Pos="${__Compound%%[^[:digit:]]*}"
-				__Compound="${__Compound#$__Pos}"
+				_args_parse_compound "$__Arg"
 				'
-				for x in $Name; do
-					LineBuilder+='
-
-					if (( $__Pos == '$CompoundPos' )); then
-						# fetch the separator from the format string
-						__Sep="${__Compound%%[[:digit:]]*}"
-						__Compound="${__Compound#"$__Sep"}"
-
-						# fetch the value from the arg and strip the separator
-					'
-					if [[ $Variadic ]]; then
-						# TODO: variadics need to be appended, in case values are added elsewhere
-						# will rewrite _args_parse_compound to return a sparse array of set values
-						# and append each value to each variadic (including unset ones)
-						error 'Have not yet implemented variadic compound args'
-						return 9
-					else
-						LineBuilder+=$x'="${__Arg%%"$__Sep"${__Sep:+*}}"'
-						#LineBuilder+=$x'="${__Compound[i]:-$x}"
-					fi
-
-					LineBuilder+='
-						__Arg="${__Arg#*"$__Sep"}"
-
-						# fetch the next arg index from the format string
-						__Pos="${__Compound%%[^[:digit:]]*}"
-						__Compound="${__Compound#$__Pos}"
-					fi
-					'
-					((++CompoundPos))
+				for ((i = 0; i < "${#Vars[@]}"; i++)); do
+					LineBuilder+="
+					${Vars[i]}${Variadic:++}=("'"${__CompoundVars['$i']}")'
 				done
 
 				if [[ $Variadic ]]; then
@@ -956,6 +926,9 @@ function _args_check_dash {
 }
 
 function _args_check_usage_conflicts {
+	if [[ "${_USAGE_MATCH_FIRST:-}" = true ]]; then
+		return
+	fi
 	# Compare the computed formats to check that no usage line conflicts with another
 	local i j
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do

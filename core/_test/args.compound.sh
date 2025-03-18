@@ -38,7 +38,7 @@ function try {
 
 }
 
-set -ex
+set -e
 
 function split {
 	local i=0
