@@ -146,7 +146,7 @@ function stacktrace {
 	typeset Set="${-//[^x]/}"
 	${Set:+set +$_ArgsSet}
 
-	typeset I=$((ParentLevel - 1)) Caller Line Func File 
+	typeset I=$((ParentLevel - 1)) Caller Line Func File
 
 	if Caller="$(caller $I)" 2>/dev/null; then
 
@@ -166,8 +166,9 @@ function stacktrace {
 		done
 
 	elif ((${#FUNCNAME[@]})); then
-		for I in "${FUNCNAME[@]}"; do
+		while ((I < ${#FUNCNAME[@]})); do
 			printf >&2 '\t%s\n' "${FUNCNAME[I]}"
+			((++I))
 		done
 
 	elif [[ -v KSH_VERSION ]]; then
@@ -180,8 +181,8 @@ function stacktrace {
 
 function _genfunc_log {
 	eval "$1"'() {
+		typeset Trace="${STACKTRACE:-$DEBUG}" Set Line Func File Last="$_" REPLY
 		zsh_run setopt SH_WORD_SPLIT
-		typeset Trace="${STACKTRACE:-$DEBUG}" Set Line Func File Last="$_"
 		Set="${-//[^x]/}"
 		${Set:+ set +$Set }
 

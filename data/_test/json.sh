@@ -1,3 +1,4 @@
+#!/bin/bash
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/data/json.sh
@@ -31,10 +32,23 @@ expect_error '^$' json_field "$JSON" Z
 
 expect_error "expected JSON as first argument" jbool potatoe
 jbool true
-expect_error '^$' jbool false
-expect_error '^$' jbool null
+expect_fail jbool false
+expect_fail jbool null
 jbool false '. | not'
-expect_error '^$' jbool true '. | not'
+jbool '"string"'
+jbool '""'
+jbool 0
+jbool '{}'
+jbool '[]'
+expect_fail jbool true '. | not'
+
+json_check "$JSON" '.a == "b"'
+json_check "$JSON" '.a'
+for x in c d h; do
+	expect_error "failed check '.$x'" json_check "$JSON" .$x
+done
+expect_error "failed check '.c == true'" json_check "$JSON" '.c == true'
+json_check "$JSON" '.c | not'
 
 jtype true boolean
 jtype false boolean

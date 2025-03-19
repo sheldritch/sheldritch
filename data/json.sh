@@ -24,7 +24,7 @@ function jqj {
 		return 9
 	fi
 
-	jq "${@:2}" <<<"$1"
+	stdin "$1" jq "${@:2}"
 }
 
 function json_obj {
@@ -58,7 +58,7 @@ function jbool {
 	@help "jbool: compute the truthiness of the given expression on the given JSON
 		   Usage: jbool JSON FILTER
 	" && return
-	isTrue "$(jqj "$1" "(${2:-.}) == true")"
+	isTrue "$(jqj "$1" "(${2:-.}) and true")"
 }
 
 function json_check {
@@ -71,7 +71,8 @@ function json_check {
 
 	if ! jbool "$@"; then
 		error "failed check '$2':
-			$1
+			$(echo "$1" | head -n 10)
+			...
 		"
 		return 1
 	fi
@@ -87,14 +88,14 @@ function jtype {
 }
 
 # Iterate over given JSON values
-# eg for i in $(json_it "$json"); do
+# eg for i in $(json_keys "$json"); do
 #    	elem="$(jqj "$json" .[$i])"'
 #    	...
 function json_keys {
 	local json length
 	@help 'Iterate over given JSON values
 		For example:
-		for i in $(json_it "$json"); do
+		for i in $(json_keys "$json"); do
 			elem="$(jqj "$json" .[$i])"
 			...
 	' && return
@@ -120,6 +121,8 @@ function json_keys {
 }
 
 function json2vars {
+	zsh_run setopt KSH_ARRAYS
+
 	@func_info
 	About='Extract values from the given JSON object into the specified versions.
 
@@ -161,16 +164,21 @@ function json2vars {
 		error "variables must be declared beforehand"
 		error "please call 'local $*' above this function call."
 		return 9
+	elif [[ -n "$__Directive" ]]; then
+		$__Directive "${@//=*/}"
 	fi
 
-	local __Var __Exit=0
+	local __Var __Field __Exit=0 REPLY MATCHES
 	__Json="$(jqj "$__Json" "${Filter:-.}")" || return 1
+
 	for __Var in "$@"; do
-		if [[ "$__Var" =~ ([^=]+)=(.+) ]]; then
-			eval "$__Directive $(recapture 1)="'"$(json_field "$__Json" $(recapture 2))"' || __Exit=$?
+		if regex "$__Var" '([^=]+)=(.+)'; then
+			__Var="${MATCHES[1]}"
+			__Field="${MATCHES[2]}"
 		else
-			eval "$__Directive $__Var="'"$(json_field "$__Json" $__Var)"' || __Exit=$?
+			__Field="$__Var"
 		fi
+		read $__Var < <(json_field "$__Json" $__Field) || __Exit=$?
 	done
 	if isTrue $Check; then
 		return $__Exit
@@ -242,128 +250,113 @@ alias jq_extract_match=json_extract_match
 # Does not set or modify dynamic variables if no attribute is found, unless -f is set. outputVar is always set.
 function json_pop {
 
-	local force NoClobber
-	@ARGS
-		-h | help | --help ) local HELP="true"
-			shift
-			;;
-		# keep existing values
-		-n | --no-clobber ) NoClobber="true"
-			shift
-			;;
-		# Don't error if a field isn't found
-		-f | --force ) force="true"
-			shift
-			;;
-		# The input JSON structure to pop content from
-		-j | --json ) local json="$2"
-			shift
-			shift
-			;;
-		# The variable to contain the input JSON with the popped attributes removed.
-		# Defaults to $JSON.
-		# Must not be a local variable in the scope json_pop is called from.
-		-o | --output | --output-var ) local outputVar="$2"
-			shift
-			shift
-	@ENDARGS
-
-	if [ "$HELP" = true ]; then
-		echo >&2 "Usage: json_pop -j json [-o outputJson] attributes..."
-		print_args
-		return
-	fi
-
-	if [ -z "$json" ]; then
-		echo >&2 "Error: 'json_pop $*': No JSON provided."
-		echo >&2 "	   Please specify with the -j flag"
-		return 1
-	fi
+	@func_info
+	Usage='-j json keys...'
+	Options=(
+		-j --json "Required. The input JSON structure to pop content from"
+		-o --output --output-var "The variable to contain the input JSON with the popped attributes removed.
+			Defaults to $JSON.
+			Must not be a local variable in the scope json_pop is called from."
+		-n --no-clobber "keep existing values"
+		-f --force "Don't error if a field isn't found"
+	)
+	opts_parse
 
 	# Keep JSON internal if another var is specified
-	if [ -n "$outputVar" ]; then
+	if [ -n "$OutputVar" ]; then
 		local JSON
 	fi
 
-	JSON="$json"
+	JSON="$Json"
 
-	returnCode=0
-	for var in "$@"; do
+	local ReturnCode=0 Var
+	for Var in "$@"; do
 
-		if [ "$var" = 0 ]; then
-			echo >&2 "Deprecated: do not use json_pop for general array iteration."
-			echo >&2 "please replace usage in $(funcname -p 1) with 'json_it':"
-			echo >&2
-			echo >&2 'for i in $(json_it "$json"); do'
-			echo >&2 '	elem="$(jqj "$json" .[$i])"'
-			echo >&2 '	..."'
+		if [ "$Var" = 0 ]; then
+			warn '
+			Deprecated: do not use json_pop for general array iteration."
+			please replace usage in $(funcname -p 1) with one of the following constructs:"
+
+			while json_read fieldA fieldB fieldC=another_name; do
+				...
+			done < <(json_stream "$Json")
+
+			for i in $(json_keys "$Json"); do
+				Elem="$(jqj "$Json" .[$i])"
+				...
+			done
+			'
 		fi
 
-		local match="$var"
+		local Match="$Var"
 
-		if echo "$var" | grep -q =; then
-			match="$(value "$var")"
-			var="$(key "$var")"
+		if [[ "$Var" == *=* ]]; then
+			Match="$(value "$Var")"
+			Var="$(key "$Var")"
 		fi
 
-		if grep -q '[^0-9]' <<<"$match"; then
-			match="\"$match\""
+		if [[ "$Match" == *[^0-9]* ]]; then
+			Match="\"$Match\""
 		fi
 
-		if grep -q '^[0-9]' <<<"$var"; then
-			var=arr$var
+		if [[ "$Var" == *[^0-9]* ]]; then
+			Var=arr$Var
 		fi
 
-		if ! var_is_declared "$var"; then
+		if ! var_is_declared "$Var"; then
 			error "variables must be declared beforehand"
 			error "please call 'local $*' above this function call."
 			return 9
 		fi
 
-		result="$(jqj "$JSON" -r ".[$match]")" ||
-		if ! anyTrue $force $NoClobber; then
-			echo >&2 "json_pop: $var not found"
-			returnCode=2
+		Result="$(jqj "$JSON" -r ".[$Match]")" ||
+		if ! anyTrue $Force $NoClobber; then
+			error "$Var not found"
+			ReturnCode=2
 			continue
 		elif isTrue $NoClobber; then
 			continue
 		else
-			unset result
+			unset Result
 		fi
 
-		eval $var='"$result"'
-		debug "var '$var' set to '${!var}'"
+		stdin "$Result" read $Var
+		debug "var '$Var' set to '${!Var}'"
 
-		JSON="$(echo "$JSON" | jq "del(.[$match])")"
+		JSON="$(echo "$JSON" | jq "del(.[$Match])")"
 	done
 
-	if [ -n "$outputVar" ]; then
-		eval $outputVar='"$JSON"'
+	if [ -n "$OutputVar" ]; then
+		stdin "$JSON" read $OutputVar
 
-		if [ "$JSON" != "${!outputVar}" ]; then
-			echo >&2 "ERROR: json_pop: \$$outputVar is set as a local variable in the scope above it."
-			echo >&2 "		   This means that json_pop cannot modify the value of this variable."
+		if [ "$JSON" != "${!OutputVar}" ]; then
+			error "\$$OutputVar is set as a local variable in the scope above it.
+			This means that json_pop cannot modify the value of this variable."
 			return 9
 		fi
 	fi
 
-	return $returnCode
+	return $ReturnCode
 }
 
 function json_audit {
 	local ExcludeFields SearchCreds SearchFields
-	@ARGS
+	while [ $# -ne 0 ]; do
+		case "$1" in
+			-f | --fields | --search-fields ) SearchFields+=" $2"
+				shift
+				shift
+				;;
 
-		-f | --fields | --search-fields ) SearchFields+=" $2"
-			shift
-			shift
-			;;
+			-e | --exclude-fields ) ExcludeFields+=" $2"
+				shift
+				shift
+				;;
 
-		-e | --exclude-fields ) ExcludeFields+=" $2"
-			shift
-			shift
-
-	@ENDARGS
+			* ) break
+				;;
+		esac
+	done
 
 	local Input="$(cat)"
 	local SearchTerm="$(echo "$*" | sed 's/\\/\\\\/g')"
