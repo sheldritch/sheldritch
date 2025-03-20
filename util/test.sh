@@ -25,3 +25,16 @@ function expect_error {
 	fi
 }
 
+function expect_return {
+	local STACKTRACE=1 exit match
+	match="$1"
+	shift
+
+	"$@" && :
+	exit=$?
+
+	if [[ $exit -ne "$match" ]]; then
+		error "Expected exit code $match, but got $exit instead -- $(args_quoted "$@")"
+		return 2
+	fi
+}

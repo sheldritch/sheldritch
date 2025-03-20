@@ -17,11 +17,19 @@ JSON='{
 }
 '
 
+declare a b c d
+expect_return 8 json2vars --check "$JSON" a b c d
+expect_return 24 json2vars --check "$JSON" a b c d d
+[[ $a = b ]]
+[[ $b = 2 ]]
+[[ $c = false ]]
+[[ $d = "" ]]
+
 [[ "$(jqj "$JSON" -r .b)" == 2 ]]
 expect_error "expected JSON as first argument" jqj pinata .a
 
-json_obj a 1 b 2 c 3
-json_obj a b
+json_obj a 1 b 2 c 3 >/dev/null
+json_obj a b >/dev/null
 expect_error "odd number of arguments" json_obj a 1 b
 [[ "$(jqj "$(json_obj a 1 b 2 c 3)" .a)" = 1 ]]
 

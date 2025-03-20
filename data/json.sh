@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # Utils for transforming JSON
+# shellcheck disable=SC2016
 
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
@@ -17,6 +18,11 @@ fi
 #
 # Slightly shorter than echoing yourself
 function jqj {
+	if [[ "$1" = - ]]; then
+		jq "${@:2}"
+		return
+	fi
+
 	# separated because ksh complains
 	local Regex='(^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$)'
 	if [[ ! "$1" =~ $Regex ]]; then
@@ -48,7 +54,13 @@ function json_obj {
 }
 
 function json_field {
-	local query="$(replace "$2"  \" '\"'  '(([^.]|\\.)+)' '["\1"]'  '\\\.' .)"
+	@help 'json_field: return the value for the given JSON object and key.
+		   Usage: json_field JSON FIELD' && return
+
+	[[ "$#" -eq 1 ]] && set -- "-" "$@"
+	[[ -z "$1" ]] && return 2
+
+	local query="$(replace "$2"   \" '\"'   '(([^.]|\\.)+)' '["\1"]'   '\\\.' .  )"
 	jqj "$1" -re ".$query // empty"
 }
 alias jfield=json_field
@@ -66,7 +78,7 @@ function json_check {
 		   Usage: jbool JSON FILTER' && return
 	@func_passthrough
 	@func_passthrough # return errors on behalf of the parent function
-	[[ "$#" -eq 1 ]] && set -- "$(cat)" "$@"
+	[[ "$#" -eq 1 ]] && set -- "-" "$@"
 	[[ -z "$1" ]] && return 2
 
 	if ! jbool "$@"; then
@@ -129,6 +141,7 @@ function json2vars {
 	Arguments of form A=B will access the value of JSON key B and assign it to A.
 	Arguments of form A will use A both as the JSON key name and the assigned variable name.
 	'
+	@args_double_underscore
 	Usage='JSON [VAR_NAME=]JSON_KEY...'
 	Options=(
 		-A --dict=DICT       "Save variables into an associative array"
@@ -147,18 +160,13 @@ function json2vars {
 		return 1
 	fi
 
-	if [[ -n "$Dict" ]]; then
+	if [[ -n "$__Dict" ]]; then
 		error 'associative array support not currently implemented. Sorry!'
 		return 9
 	fi
 
-	local __Directive='' x
-	for x in Export; do
-		if isTrue ${!x}; then
-			__Directive=$x
-			break
-		fi
-	done
+	local __Directive=''
+	isTrue $__Export && __Directive="export"
 
 	if [[ -z "$__Directive" ]] && ! var_is_declared "${@//=*/}"; then
 		error "variables must be declared beforehand"
@@ -168,8 +176,21 @@ function json2vars {
 		$__Directive "${@//=*/}"
 	fi
 
-	local __Var __Field __Exit=0 REPLY MATCHES
-	__Json="$(jqj "$__Json" "${Filter:-.}")" || return 1
+	local __Var __Field REPLY MATCHES __Values __I=1 __Exit
+	# shellcheck disable=SC2016
+	__Filter="${__Filter:-.}"' | if . then . else
+		("Failed filter '"'${__Filter}'"'\n"
+		| halt_error(-1) ) end
+			| {in: ., out: [], errors: 0 }
+			|'
+
+	for __Var in "${@//=*/}"; do
+		__Var=".$(replace "$__Var"   \" '\"'   '(([^.]|\\.)+)' '["\1"]'   '\\\.' .  )"
+		__Filter+=$'\nif .in'"$__Var"' == null then .errors += '"$__I"' | .out += [""] else .out += [.in'"$__Var"'] end |'
+		((__I *= 2))
+	done
+	isTrue "$__Check" && __Filter+=$'\n.out[], .errors as $errors | "" | halt_error($errors)'
+	__Filter="${__Filter%|}"
 
 	for __Var in "$@"; do
 		if regex "$__Var" '([^=]+)=(.+)'; then
@@ -178,14 +199,15 @@ function json2vars {
 		else
 			__Field="$__Var"
 		fi
-		read $__Var < <(json_field "$__Json" $__Field) || __Exit=$?
-	done
-	if isTrue $Check; then
-		return $__Exit
-	fi
+		read -r -d $'\0' "$__Var"
+	done < <(jqj "$__Json" --raw-output0 "$__Filter")
+
+	# return the error code of jq process substitution
+	wait $!
 }
 
 function json_stream {
+	local Json
 	@func_info
 	Usage=(
 		"# If JSON is '-', read from standard input"
@@ -195,20 +217,17 @@ function json_stream {
 		args_parse
 	fi
 
-	{
-		[[ "$Json" = [^-]* ]] && jqj "$Json" . || cat
-	} |
-		jq -r --compact-output '
-			if (. | type == "array") then
-				# flatten any top level arrays
-				. | flatten | .[]
-			else
-				.
-			end
-			| ['"${ElementFilter:-.}"']
-			# allow any nested arrays within element filter to be flattened as well
-			| flatten | .[]
-			'
+	jqj "${Json--}" -r --compact-output '
+		if (. | type == "array") then
+			# flatten any top level arrays
+			. | flatten | .[]
+		else
+			.
+		end
+		| ['"${ElementFilter:-.}"']
+		# allow any nested arrays within element filter to be flattened as well
+		| flatten | .[]
+		'
 }
 
 function json_array_flat {
@@ -217,10 +236,22 @@ function json_array_flat {
 }
 alias jstream=json_stream
 
+# TODO: with the new json2vars format, we might be able to combine all jq calls
+# into a single one, and simply read NUL separated values. This would greatly improve performance
 function json_read {
 	local __item
 	read -r __item
-	__item="$(jqj "$__item" -re .)" || return 1
+
+	if [[ "$__item" != \{* ]]; then
+		if [[ $# -gt 1 ]]; then
+			error -p 1 "json_read: Expected object because of multiple keys, but instead got $__item"
+			return 9
+		fi
+		__item="$(jqj "$__item" -re .)" || return 1
+		stdin "$__item" read -r -d '' "$1" || true
+		return 0
+	fi
+
 	json2vars "$__item" "$@"
 }
 alias jread=json_read
@@ -273,9 +304,10 @@ function json_pop {
 	for Var in "$@"; do
 
 		if [ "$Var" = 0 ]; then
+			# shellcheck disable=SC2016
 			warn '
-			Deprecated: do not use json_pop for general array iteration."
-			please replace usage in $(funcname -p 1) with one of the following constructs:"
+			Deprecated: do not use json_pop for general array iteration.
+			please replace usage in '"$(funcname -p 1)"' with one of the following constructs:
 
 			while json_read fieldA fieldB fieldC=another_name; do
 				...
@@ -320,14 +352,14 @@ function json_pop {
 			unset Result
 		fi
 
-		stdin "$Result" read $Var
+		stdin "$Result" read  -d '' -r $Var || true
 		debug "var '$Var' set to '${!Var}'"
 
 		JSON="$(echo "$JSON" | jq "del(.[$Match])")"
 	done
 
 	if [ -n "$OutputVar" ]; then
-		stdin "$JSON" read $OutputVar
+		stdin "$JSON" read -d '' -r $OutputVar || true
 
 		if [ "$JSON" != "${!OutputVar}" ]; then
 			error "\$$OutputVar is set as a local variable in the scope above it.
@@ -415,7 +447,7 @@ function json_audit {
 		local Option Comment CommentConfirm
 		while true; do
 
-			read -N 1 -p "Add to audit list? [y/n/c/u/q/?]: " Choice </dev/tty
+			read -r -N 1 -p "Add to audit list? [y/n/c/u/q/?]: " Choice </dev/tty
 			echo >&2
 			Option="$Choice"
 
@@ -433,7 +465,7 @@ function json_audit {
 					;;
 
 				c)
-					read -p "Comment: " Comment </dev/tty
+					read -r -p "Comment: " Comment </dev/tty
 					if [[ "$Comment" = "" ]]; then
 						Item="$(jqj "$Item" -c 'del(._comment)')"
 					else
