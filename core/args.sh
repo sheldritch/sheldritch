@@ -35,8 +35,7 @@ declare -a Usage=() Options=() Legend=()
 alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
 
 function _args_set {
-	read "$1" <<<"${2:-true}"
-	#eval "$1"='"${2:-true}"'
+	stdin "${2:-true}" read -d '' -r "$1" || true
 }
 function args_edict {
 	alias "@$1=declare $2 && _args_set $2"
@@ -45,6 +44,7 @@ args_edict opts_before_args _OPTS_PARSE_FIRST
 args_edict opts_keep_break _OPTS_KEEP_BREAK
 args_edict opts_skip_unknown _OPTS_SKIP_UNKNOWN
 args_edict args_no_cache _ARGS_NO_CACHE
+args_edict args_double_underscore _ARGS_DOUBLE_UNDERSCORE
 args_edict usage_match_first _USAGE_MATCH_FIRST
 
 alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'
@@ -117,6 +117,9 @@ function _args_name_to_variable {
 	done
 	First="${In:0:1}"
 	Name="${First/ /}${In:1}"
+	if [[ "${_ARGS_DOUBLE_UNDERSCORE:-}" = true ]]; then
+		Name="__$Name"
+	fi
 }
 
 function _args_build_parser {
