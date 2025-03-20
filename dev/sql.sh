@@ -9,7 +9,9 @@ summon sheldritch/core/args.sh
 
 function sql_query {
 	local select table where order limit
-	@ARGS
+	while [ $# -ne 0 ]; do
+		case "$1" in
+
 		-s | --select)
 			if [ -z "$select" ]; then
 				select="$2"
@@ -43,8 +45,17 @@ function sql_query {
 		-l | --limit) limit="$2"
 			shift
 			shift
+			;;
 
-	@ENDARGS
+		-- )
+			shift
+			break
+			;;
+		* ) break
+			;;
+		esac
+	done
+
 
 	select="${select:-*}"
 
@@ -64,25 +75,21 @@ function sql_query {
 function sqlq { sql_query "$@"; }
 
 function sql_in {
-	function usage {
-		print_usage "COLUMN_NAME [POSSIBLE_VALUES...]"
-	}
+	@func_info
+	About='Check if COLUMN_NAME is one of the given values.
+		Possible values maybe of a given type provided via --type.
+	'
+	Usage="COLUMN_NAME [POSSIBLE_VALUES...]"
+	Options=(-t --type "Defaults to string. The type of the possible values. If 'column', references
+		the value of the column instead.")
+	opts_parse
 
-	local type
-	@ARGS
-		--type) type="$2"
-			shift
-			shift
-	@ARGS_END
-
-	type="${type:-string}"
-
-	column="$1"
+	Column="$1"
 	shift
-	printf "\"$column\" IN ("
+	printf "\"$Column\" IN ("
 
 	while [[ $# -gt 0 ]]; do
-		case "$type" in
+		case "$Type" in
 			string) printf "'$1'";;
 			column) printf "\"$1\"";;
 			*) printf "$1";;
