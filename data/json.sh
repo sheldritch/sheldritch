@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # Utils for transforming JSON
+# shellcheck disable=SC2016
 
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
@@ -17,6 +18,11 @@ fi
 #
 # Slightly shorter than echoing yourself
 function jqj {
+	if [[ "$1" = - ]]; then
+		jq "${@:2}"
+		return
+	fi
+
 	# separated because ksh complains
 	local Regex='(^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$)'
 	if [[ ! "$1" =~ $Regex ]]; then
@@ -24,7 +30,7 @@ function jqj {
 		return 9
 	fi
 
-	jq "${@:2}" <<<"$1"
+	stdin "$1" jq "${@:2}"
 }
 
 function json_obj {
@@ -48,7 +54,13 @@ function json_obj {
 }
 
 function json_field {
-	local query="$(replace "$2"  \" '\"'  '(([^.]|\\.)+)' '["\1"]'  '\\\.' .)"
+	@help 'json_field: return the value for the given JSON object and key.
+		   Usage: json_field JSON FIELD' && return
+
+	[[ "$#" -eq 1 ]] && set -- "-" "$@"
+	[[ -z "$1" ]] && return 2
+
+	local query="$(replace "$2"   \" '\"'   '(([^.]|\\.)+)' '["\1"]'   '\\\.' .  )"
 	jqj "$1" -re ".$query // empty"
 }
 alias jfield=json_field
@@ -58,7 +70,7 @@ function jbool {
 	@help "jbool: compute the truthiness of the given expression on the given JSON
 		   Usage: jbool JSON FILTER
 	" && return
-	isTrue "$(jqj "$1" "(${2:-.}) == true")"
+	isTrue "$(jqj "$1" "(${2:-.}) and true")"
 }
 
 function json_check {
@@ -66,12 +78,13 @@ function json_check {
 		   Usage: jbool JSON FILTER' && return
 	@func_passthrough
 	@func_passthrough # return errors on behalf of the parent function
-	[[ "$#" -eq 1 ]] && set -- "$(cat)" "$@"
+	[[ "$#" -eq 1 ]] && set -- "-" "$@"
 	[[ -z "$1" ]] && return 2
 
 	if ! jbool "$@"; then
 		error "failed check '$2':
-			$1
+			$(echo "$1" | head -n 10)
+			...
 		"
 		return 1
 	fi
@@ -87,14 +100,14 @@ function jtype {
 }
 
 # Iterate over given JSON values
-# eg for i in $(json_it "$json"); do
+# eg for i in $(json_keys "$json"); do
 #    	elem="$(jqj "$json" .[$i])"'
 #    	...
 function json_keys {
 	local json length
 	@help 'Iterate over given JSON values
 		For example:
-		for i in $(json_it "$json"); do
+		for i in $(json_keys "$json"); do
 			elem="$(jqj "$json" .[$i])"
 			...
 	' && return
@@ -120,12 +133,15 @@ function json_keys {
 }
 
 function json2vars {
+	zsh_run setopt KSH_ARRAYS
+
 	@func_info
 	About='Extract values from the given JSON object into the specified versions.
 
 	Arguments of form A=B will access the value of JSON key B and assign it to A.
 	Arguments of form A will use A both as the JSON key name and the assigned variable name.
 	'
+	@args_double_underscore
 	Usage='JSON [VAR_NAME=]JSON_KEY...'
 	Options=(
 		-A --dict=DICT       "Save variables into an associative array"
@@ -144,40 +160,54 @@ function json2vars {
 		return 1
 	fi
 
-	if [[ -n "$Dict" ]]; then
+	if [[ -n "$__Dict" ]]; then
 		error 'associative array support not currently implemented. Sorry!'
 		return 9
 	fi
 
-	local __Directive='' x
-	for x in Export; do
-		if isTrue ${!x}; then
-			__Directive=$x
-			break
-		fi
-	done
+	local __Directive=''
+	isTrue $__Export && __Directive="export"
 
 	if [[ -z "$__Directive" ]] && ! var_is_declared "${@//=*/}"; then
 		error "variables must be declared beforehand"
 		error "please call 'local $*' above this function call."
 		return 9
+	elif [[ -n "$__Directive" ]]; then
+		$__Directive "${@//=*/}"
 	fi
 
-	local __Var __Exit=0
-	__Json="$(jqj "$__Json" "${Filter:-.}")" || return 1
-	for __Var in "$@"; do
-		if [[ "$__Var" =~ ([^=]+)=(.+) ]]; then
-			eval "$__Directive $(recapture 1)="'"$(json_field "$__Json" $(recapture 2))"' || __Exit=$?
-		else
-			eval "$__Directive $__Var="'"$(json_field "$__Json" $__Var)"' || __Exit=$?
-		fi
+	local __Var __Field REPLY MATCHES __Values __I=1 __Exit
+	# shellcheck disable=SC2016
+	__Filter="${__Filter:-.}"' | if . then . else
+		("Failed filter '"'${__Filter}'"'\n"
+		| halt_error(-1) ) end
+			| {in: ., out: [], errors: 0 }
+			|'
+
+	for __Var in "${@//=*/}"; do
+		__Var=".$(replace "$__Var"   \" '\"'   '(([^.]|\\.)+)' '["\1"]'   '\\\.' .  )"
+		__Filter+=$'\nif .in'"$__Var"' == null then .errors += '"$__I"' | .out += [""] else .out += [.in'"$__Var"'] end |'
+		((__I *= 2))
 	done
-	if isTrue $Check; then
-		return $__Exit
-	fi
+	isTrue "$__Check" && __Filter+=$'\n.out[], .errors as $errors | "" | halt_error($errors)'
+	__Filter="${__Filter%|}"
+
+	for __Var in "$@"; do
+		if regex "$__Var" '([^=]+)=(.+)'; then
+			__Var="${MATCHES[1]}"
+			__Field="${MATCHES[2]}"
+		else
+			__Field="$__Var"
+		fi
+		read -r -d $'\0' "$__Var"
+	done < <(jqj "$__Json" --raw-output0 "$__Filter")
+
+	# return the error code of jq process substitution
+	wait $!
 }
 
 function json_stream {
+	local Json
 	@func_info
 	Usage=(
 		"# If JSON is '-', read from standard input"
@@ -187,20 +217,17 @@ function json_stream {
 		args_parse
 	fi
 
-	{
-		[[ "$Json" = [^-]* ]] && jqj "$Json" . || cat
-	} |
-		jq -r --compact-output '
-			if (. | type == "array") then
-				# flatten any top level arrays
-				. | flatten | .[]
-			else
-				.
-			end
-			| ['"${ElementFilter:-.}"']
-			# allow any nested arrays within element filter to be flattened as well
-			| flatten | .[]
-			'
+	jqj "${Json--}" -r --compact-output '
+		if (. | type == "array") then
+			# flatten any top level arrays
+			. | flatten | .[]
+		else
+			.
+		end
+		| ['"${ElementFilter:-.}"']
+		# allow any nested arrays within element filter to be flattened as well
+		| flatten | .[]
+		'
 }
 
 function json_array_flat {
@@ -209,10 +236,24 @@ function json_array_flat {
 }
 alias jstream=json_stream
 
+# TODO: with the new json2vars format, we might be able to combine all jq calls
+# into a single one, and simply read NUL separated values. This would greatly improve performance
+#
+# Maybe could have a json_stream version which first prints each variable name, then a newline, and then each value, nul-separated.
 function json_read {
 	local __item
 	read -r __item
-	__item="$(jqj "$__item" -re .)" || return 1
+
+	if [[ "$__item" != \{* ]]; then
+		if [[ $# -gt 1 ]]; then
+			error -p 1 "json_read: Expected object because of multiple keys, but instead got $__item"
+			return 9
+		fi
+		__item="$(jqj "$__item" -re .)" || return 1
+		stdin "$__item" read -r -d '' "$1" || true
+		return 0
+	fi
+
 	json2vars "$__item" "$@"
 }
 alias jread=json_read
@@ -242,128 +283,114 @@ alias jq_extract_match=json_extract_match
 # Does not set or modify dynamic variables if no attribute is found, unless -f is set. outputVar is always set.
 function json_pop {
 
-	local force NoClobber
-	@ARGS
-		-h | help | --help ) local HELP="true"
-			shift
-			;;
-		# keep existing values
-		-n | --no-clobber ) NoClobber="true"
-			shift
-			;;
-		# Don't error if a field isn't found
-		-f | --force ) force="true"
-			shift
-			;;
-		# The input JSON structure to pop content from
-		-j | --json ) local json="$2"
-			shift
-			shift
-			;;
-		# The variable to contain the input JSON with the popped attributes removed.
-		# Defaults to $JSON.
-		# Must not be a local variable in the scope json_pop is called from.
-		-o | --output | --output-var ) local outputVar="$2"
-			shift
-			shift
-	@ENDARGS
-
-	if [ "$HELP" = true ]; then
-		echo >&2 "Usage: json_pop -j json [-o outputJson] attributes..."
-		print_args
-		return
-	fi
-
-	if [ -z "$json" ]; then
-		echo >&2 "Error: 'json_pop $*': No JSON provided."
-		echo >&2 "	   Please specify with the -j flag"
-		return 1
-	fi
+	@func_info
+	Usage='-j json keys...'
+	Options=(
+		-j --json "Required. The input JSON structure to pop content from"
+		-o --output --output-var "The variable to contain the input JSON with the popped attributes removed.
+			Defaults to $JSON.
+			Must not be a local variable in the scope json_pop is called from."
+		-n --no-clobber "keep existing values"
+		-f --force "Don't error if a field isn't found"
+	)
+	opts_parse
 
 	# Keep JSON internal if another var is specified
-	if [ -n "$outputVar" ]; then
+	if [ -n "$OutputVar" ]; then
 		local JSON
 	fi
 
-	JSON="$json"
+	JSON="$Json"
 
-	returnCode=0
-	for var in "$@"; do
+	local ReturnCode=0 Var
+	for Var in "$@"; do
 
-		if [ "$var" = 0 ]; then
-			echo >&2 "Deprecated: do not use json_pop for general array iteration."
-			echo >&2 "please replace usage in $(funcname -p 1) with 'json_it':"
-			echo >&2
-			echo >&2 'for i in $(json_it "$json"); do'
-			echo >&2 '	elem="$(jqj "$json" .[$i])"'
-			echo >&2 '	..."'
+		if [ "$Var" = 0 ]; then
+			# shellcheck disable=SC2016
+			warn '
+			Deprecated: do not use json_pop for general array iteration.
+			please replace usage in '"$(funcname -p 1)"' with one of the following constructs:
+
+			while json_read fieldA fieldB fieldC=another_name; do
+				...
+			done < <(json_stream "$Json")
+
+			for i in $(json_keys "$Json"); do
+				Elem="$(jqj "$Json" .[$i])"
+				...
+			done
+			'
 		fi
 
-		local match="$var"
+		local Match="$Var"
 
-		if echo "$var" | grep -q =; then
-			match="$(value "$var")"
-			var="$(key "$var")"
+		if [[ "$Var" == *=* ]]; then
+			Match="$(value "$Var")"
+			Var="$(key "$Var")"
 		fi
 
-		if grep -q '[^0-9]' <<<"$match"; then
-			match="\"$match\""
+		if [[ "$Match" == *[^0-9]* ]]; then
+			Match="\"$Match\""
 		fi
 
-		if grep -q '^[0-9]' <<<"$var"; then
-			var=arr$var
+		if [[ "$Var" == *[^0-9]* ]]; then
+			Var=arr$Var
 		fi
 
-		if ! var_is_declared "$var"; then
+		if ! var_is_declared "$Var"; then
 			error "variables must be declared beforehand"
 			error "please call 'local $*' above this function call."
 			return 9
 		fi
 
-		result="$(jqj "$JSON" -r ".[$match]")" ||
-		if ! anyTrue $force $NoClobber; then
-			echo >&2 "json_pop: $var not found"
-			returnCode=2
+		Result="$(jqj "$JSON" -r ".[$Match]")" ||
+		if ! anyTrue $Force $NoClobber; then
+			error "$Var not found"
+			ReturnCode=2
 			continue
 		elif isTrue $NoClobber; then
 			continue
 		else
-			unset result
+			unset Result
 		fi
 
-		eval $var='"$result"'
-		debug "var '$var' set to '${!var}'"
+		stdin "$Result" read  -d '' -r $Var || true
+		debug "var '$Var' set to '${!Var}'"
 
-		JSON="$(echo "$JSON" | jq "del(.[$match])")"
+		JSON="$(echo "$JSON" | jq "del(.[$Match])")"
 	done
 
-	if [ -n "$outputVar" ]; then
-		eval $outputVar='"$JSON"'
+	if [ -n "$OutputVar" ]; then
+		stdin "$JSON" read -d '' -r $OutputVar || true
 
-		if [ "$JSON" != "${!outputVar}" ]; then
-			echo >&2 "ERROR: json_pop: \$$outputVar is set as a local variable in the scope above it."
-			echo >&2 "		   This means that json_pop cannot modify the value of this variable."
+		if [ "$JSON" != "${!OutputVar}" ]; then
+			error "\$$OutputVar is set as a local variable in the scope above it.
+			This means that json_pop cannot modify the value of this variable."
 			return 9
 		fi
 	fi
 
-	return $returnCode
+	return $ReturnCode
 }
 
 function json_audit {
 	local ExcludeFields SearchCreds SearchFields
-	@ARGS
+	while [ $# -ne 0 ]; do
+		case "$1" in
+			-f | --fields | --search-fields ) SearchFields+=" $2"
+				shift
+				shift
+				;;
 
-		-f | --fields | --search-fields ) SearchFields+=" $2"
-			shift
-			shift
-			;;
+			-e | --exclude-fields ) ExcludeFields+=" $2"
+				shift
+				shift
+				;;
 
-		-e | --exclude-fields ) ExcludeFields+=" $2"
-			shift
-			shift
-
-	@ENDARGS
+			* ) break
+				;;
+		esac
+	done
 
 	local Input="$(cat)"
 	local SearchTerm="$(echo "$*" | sed 's/\\/\\\\/g')"
@@ -422,7 +449,7 @@ function json_audit {
 		local Option Comment CommentConfirm
 		while true; do
 
-			read -N 1 -p "Add to audit list? [y/n/c/u/q/?]: " Choice </dev/tty
+			read -r -N 1 -p "Add to audit list? [y/n/c/u/q/?]: " Choice </dev/tty
 			echo >&2
 			Option="$Choice"
 
@@ -440,7 +467,7 @@ function json_audit {
 					;;
 
 				c)
-					read -p "Comment: " Comment </dev/tty
+					read -r -p "Comment: " Comment </dev/tty
 					if [[ "$Comment" = "" ]]; then
 						Item="$(jqj "$Item" -c 'del(._comment)')"
 					else
