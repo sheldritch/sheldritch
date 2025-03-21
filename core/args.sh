@@ -221,10 +221,10 @@ function _args_build_parser_opts {
 
 	while ((__Pos < "${#_ARGS[@]}")); do
 
-	if [[ "${_ARGS[__Pos]}" != -* ]]; then
+	if [[ "${_ARGS[__Pos]}" != -?* ]]; then
 		__Temp=$__Pos
 		[[ "${_OPTS_PARSE_FIRST:-}" = true ]] && break
-		while [[ "${_ARGS[__Pos]}" != -* ]] && ((__Pos < "${#_ARGS[@]}")); do
+		while [[ "${_ARGS[__Pos]}" != -?* ]] && ((__Pos < "${#_ARGS[@]}")); do
 			((++__Pos))
 		done
 		__PosArgs+=("${_ARGS[@]: __Temp: __Pos - __Temp}")
@@ -356,8 +356,8 @@ function _args_build_parser_opts {
 		(( "${#Options[@]}" )) || return 0
 
 		if [[ $_OPTS_SKIP_UNKNOWN = true ]]; then
-			((++__Pos))
 			__PosArgs+=("${_ARGS[__Pos]}")
+			((++__Pos))
 			continue
 		fi
 

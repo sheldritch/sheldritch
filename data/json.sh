@@ -238,6 +238,8 @@ alias jstream=json_stream
 
 # TODO: with the new json2vars format, we might be able to combine all jq calls
 # into a single one, and simply read NUL separated values. This would greatly improve performance
+#
+# Maybe could have a json_stream version which first prints each variable name, then a newline, and then each value, nul-separated.
 function json_read {
 	local __item
 	read -r __item
