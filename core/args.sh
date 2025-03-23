@@ -756,6 +756,9 @@ function _args_token_talker {
 			;;
 
 		'{' | \"* | \'* )
+			# NOTE: quotes are used to treat containing characters literally, usually as
+			# compound token separators
+			# eg '|' or "'QUOTED_ARG'"
 			error -p 1 "FUNCTION BUG: Token '$Token' in usage not currently supported. Please use 'opts_parse' instead of 'args_parse' and parse arguments yourself."
 			return 9
 			;;
@@ -1381,6 +1384,7 @@ function usage_has_glob {
 	return 0
 }
 
+# TODO: consider renaming to args_compound_read
 alias arg_group_read='declare __ArgGroup __ArgGroupI; _arg_group_read'
 function _arg_group_read {
 	if [[ -z "$1" ]]; then
@@ -1395,9 +1399,19 @@ function _arg_group_read {
 		__ArgGroupI="0"
 		if ! _has_func "$Func"; then
 			Builder+='
+			@help '\''
+			example:
+			while arg_group_read Key Value; do
+			  if [[ "$Value" ]]; then
+				echo "$Key: $Value" >> "$ConfigFile"
+			  fi
+			done
+			'\'' && return
 			if [[ "$__ArgGroup" != "$*" ]]; then
-				error -p 2 "Cannot parse multiple argument groups at once!
-				Tried to parse \"$*\" but \"$__ArgGroup\" already set!"
+				error -p 2 "
+				Tried to parse Arg Group \"$*\" but \"$__ArgGroup\" already set!
+				Cannot parse multiple argument groups at once!
+				"
 				return 9
 			elif ((__ArgGroupI == 0)); then
 				if ! declare -p -a "${@/%/List}" >/dev/null; then

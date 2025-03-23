@@ -1,5 +1,62 @@
-# TODO: update to match current formatting
+## Tokens
+
+Single variable tokens -- eg VARIABLE_NAME
+
+- Variable tags may only contain uppercase alphabetic characters and _ - (underscore).
+
+Optional Tokens
+
+- Optional tokens may or may not exist
+- Any other kind of token may be wrapped in [ ] to be treated as an optional
+  token.
+
+Variadic Tokens -- eg SOURCE_FILES... [EXTRA_ARGS...] [CHILD_NODES]...
+
+- A Variadic argument may be put anywhere in the usage string, however two
+  variadic tokens may not be placed next to each other (excepting variadic
+  compound tokens, see below).
+
+Compound Tokens -- eg EMAIL_USER@EMAIL_DOMAIN KEY[=VALUE] !NEGATED_VAR
+
+- Compound tokens contain several variables, separated by some non-variable tag
+characters.
+- Arguments for Compound Tokens are automatically split into variables. For the
+  examples above: EmailUser EmailDomain Key Value and NegatedVar
+- Compound tokens may take any number of optional portions, but internal
+  portions may not be variadic nor quoted.
+- Compound select the available format containing the most number of variables
+  and separator strings.
+
+Variadic Compound Tokens -- e.g. EMAIL_USER@EMAIL_DOMAIN... KEY[=VALUE]... !NEGATED_VAR...
+
+- Arguments for Variadic Compound Tokens are split into variables suffixed with
+- `List`. For the examples above: EmailUserList EmailDomainList KeyList
+  ValueList and NegatedVarList
+- Regular variable names (without `List`) are still declared as local, so you
+  can write `for NegatedVar in "${NegatedVarList[@]}"` without manually
+  declaring `NegatedVar` first.
+- A Variadic Compound Token may be iterated over easily using `arg_group_read`:
+  ```bash
+  while arg_group_read Key Value; do
+    if [[ "$Value" ]]; then
+      echo "$Key: $Value" >> "$ConfigFile"
+    fi
+  done
+  ```
+
+Quoted Tokens [NOT YET IMPLEMENTED] -- eg '|' "'QUOTED_ARG'"
+
+- Quoted tokens treat control characters (|, [, ], {, }, ...) literally.
+- Quotes must surround the entire token. Internal quotes are merely treated as
+  separators. You can use backslash escapes (`\`) instead.
+
+## Usage String Priority
+- Usage strings with an exact number of arguments (i.e. without any optional or
+  variadic arguments) are prioritiesed
+
+# Extended argument parsing example.
 ```bash
+# TODO: update to match current formatting
 function sheldritch_args_example {
 
 	# initialise the func_info framework
