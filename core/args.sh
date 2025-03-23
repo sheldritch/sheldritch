@@ -620,7 +620,8 @@ function _args_build_usage_parsers {
 				((++RunMax))
 			fi
 			if [[ -z $Literal ]]; then
-				_ARGS_VARS+=(${Name// /= }=)
+				# TODO: remove = here, and add variable setting into arg parsing function?
+				_ARGS_VARS+=(${Name//[^[[:upper:][:digit:]_]]/= }'=')
 			fi
 
 			if [[ $Variadic && "$RunMax" = + ]]; then
@@ -637,18 +638,25 @@ function _args_build_usage_parsers {
 				args_quoted "${SplitCompound[@]}" >/dev/null
 				LineBuilder+='
 				__Compound=('"$REPLY"')
-				__Arg="${_ARGS[ ${_ARGS_BOUNDS['$TokenPos']} ]}"
+				for ((
+					__Pos = ${_ARGS_BOUNDS['$TokenPos']};
+					__Pos < ${_ARGS_BOUNDS['$TokenPos' + 1]};
+					++__Pos
+				)); do
+
+				__Arg="${_ARGS[__Pos]}"
 				_args_parse_compound "$__Arg"
 				'
 				for ((i = 0; i < "${#Vars[@]}"; i++)); do
 					LineBuilder+="
-					${Vars[i]}${Variadic:++}=("'"${__CompoundVars['$i']}")'
+					${Vars[i]}${Variadic:+List+}=("'"${__CompoundVars['$i']}")'
 				done
+				LineBuilder+=$'\ndone'
 
 				if [[ $Variadic ]]; then
 					# scalar variable names are left empty
 					# and sparse *List arrays for each individual portion
-					_ARGS_ARRAYS+=(${Name// /List= }List=)
+					_ARGS_ARRAYS+=(${Name// /List }List)
 				fi
 
 			elif [[ "$Name" = *\ * ]]; then
@@ -663,8 +671,6 @@ function _args_build_usage_parsers {
 				if [[ $Variadic ]]; then
 					RunMax=+
 					_ARGS_ARRAYS+=($Name)
-				else
-					_ARGS_VARS+=(${Name//[^[[:upper:][:digit:]_]]/ }'=')
 				fi
 			fi
 		done
@@ -691,7 +697,7 @@ function _args_usage_record_run {
 
 function _args_compound_split {
 	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
-	local Arg="$1" Token='' Atom=''
+	local Arg="${1%...}" Token='' Atom=''
 	SplitCompound=()
 	while [[ -n "$Arg" ]]; do
 		case "$Arg" in
@@ -871,6 +877,7 @@ function _args_token_talker {
 
 
 function _args_token2regex {
+	local Token="$1"
 	#Token="[ALPHA=BETA]=GAMMA[LAMMA]"
 
 	# A]A or A[A disallowed
@@ -891,7 +898,7 @@ function _args_token2regex {
 function _args_regex_parser {
 	local Token="$1" CaptureGroup=0 i=0 Arg=2
 	if [[ "$Token" != ^*$ ]]; then
-		_args_token2regex
+		_args_token2regex "$Token"
 		Token="$REPLY"
 	fi
 
@@ -978,7 +985,9 @@ function _args_parse_dynamic {
 		declare -a Tokens=($Line)
 		if _args_parse_usage_token 0 0; then
 			if [[ "${_USAGE_MATCH_FIRST:-}" ]]; then
-				_ARGS_BOUNDS="${Bounds[@]}"
+				_ARGS_BOUNDS=("${Bounds[@]}")
+				BestLinePriorities=("${Priorities[@]}")
+				_ARGS_USAGE_NUM=$LinePos
 				break
 			fi
 
@@ -1061,16 +1070,19 @@ function _args_parse_usage_token {
 				fi
 				((Min += ArgPos))
 
-				replace "$Token" '[[:upper:][:digit:]_]+' '*' >/dev/null
-				Match="$REPLY"
-				if [[ "$Match" = '*' ]]; then
-					Run="${#_ARGS[@]}"
-				else
+				if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
+					# has separators
 					Priorities[$TokenPos]=40
+					_args_token2regex "$Token"
+					Match="$REPLY"
+
+					while ((Run < "${#_ARGS[@]}")) && [[ "${_ARGS[Run]}" =~ $Match ]]; do
+						((++Run))
+					done
+				else
+					Run="${#_ARGS[@]}"
 				fi
-				while ((Run < "${#_ARGS[@]}")) && [[ "${_ARGS[Run]}" = $Match ]]; do
-					((++Run))
-				done
+
 				# From the longest match downward, test validity
 				while (( Run >= Min )); do
 					_args_parse_usage_token $((TokenPos + 1)) $((Run)) && return

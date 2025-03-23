@@ -421,7 +421,7 @@ function _for_permutations_next {
 	fi
 
 	local i=$1 temp=''
-	declare -a Copy 
+	declare -a Copy
 	Copy=("${Array[@]}")
 
 	for (( ; i < ${#Array[@]}; i++ )) ; do
@@ -437,6 +437,14 @@ function _for_permutations_next {
 #
 # Misc
 #
+
+function eq {
+	local i
+	for ((i = 2; i <= $#; i++)); do
+		[[ "$1" = "${@:i:1}" ]] || return 1
+	done
+	return 0
+}
 
 # Returns the key for a given key value pair
 function key {
