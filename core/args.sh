@@ -932,7 +932,7 @@ function _args_regex_parser {
 }
 
 function _args_check_dash {
-	if [[ -z ${_ARGS_BREAK:-} && ${_OPTS_SKIP_UNKNOWN:-} != true && $2 = -* ]]; then
+	if [[ -z ${_ARGS_BREAK:-} && ${_OPTS_SKIP_UNKNOWN:-} != true && $2 = -?* ]]; then
 		error -p 2 "Argument $1 starts with '-' ($2). Positional arguments may not do so without the '--' arg beforehand"
 		return 1
 	fi
