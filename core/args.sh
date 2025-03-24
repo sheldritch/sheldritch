@@ -1295,10 +1295,7 @@ function _args_parse_compound {
 
 				((SkipOptional)) && continue
 
-				# TODO: actually go through and think about how LastVar et al. should work
-				# How should we be setting values
-
-				# Try and match argument
+				# try and find separator (and argument value beforehand, if relevant)
 
 				# remove escapes (except escaped escapes)
 				Separator="${__Compound[Pos]//'\\'/\a}"

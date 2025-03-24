@@ -32,10 +32,14 @@ Variadic Compound Tokens -- e.g. EMAIL_USER@EMAIL_DOMAIN... KEY[=VALUE]... !NEGA
 - Arguments for Variadic Compound Tokens are split into variables suffixed with
 - `List`. For the examples above: EmailUserList EmailDomainList KeyList
   ValueList and NegatedVarList
+- *List variables are sparsely populated -- An element is created for *every*
+  variable, even if in an unused optional portion. eg if `KEY[=VALUE]` is `key`,
+  `ValueList` will contain an empty string ('') for that argument.
 - Regular variable names (without `List`) are still declared as local, so you
   can write `for NegatedVar in "${NegatedVarList[@]}"` without manually
   declaring `NegatedVar` first.
-- A Variadic Compound Token may be iterated over easily using `arg_group_read`:
+- Multiple variables in a Variadic Compound Token may be iterated over easily
+  using `arg_group_read`:
   ```bash
   while arg_group_read Key Value; do
     if [[ "$Value" ]]; then
