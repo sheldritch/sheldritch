@@ -5,10 +5,11 @@ trap "STACKTRACE=1; error FAILED" ERR
 '
 
 function expect_fail {
-	expect_error "^$" "$@"
+	expect_error ".*" "$@"
 }
 
 function expect_error {
+	@func_passthrough
 	local STACKTRACE=1 error match
 	match="$1"
 	shift
@@ -23,6 +24,7 @@ function expect_error {
 		"
 		return 3
 	fi
+	return 0
 }
 
 function expect_return {

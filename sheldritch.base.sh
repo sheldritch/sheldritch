@@ -107,8 +107,8 @@ fi
 if ! is_function deindent 2>/dev/null; then
 	# placeholder before the real deindent func is defined
 	function deindent {
-		typeset Space="${*#*\n}"; Space="${Space%%[^[:space:]]*}"
-		REPLY="${*//$'\n'"$Space"/$'\n'}"
+		typeset Space="${*#*\n}"; Space="${Space%%[^[:space:]]*}" NL=$'\n'
+		REPLY="${*//"$NL$Space"/$NL}"
 		printf '%s\n' "$REPLY"
 	}
 fi

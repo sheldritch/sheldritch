@@ -254,6 +254,36 @@ test_token 'A[=B]'     a=b   A a B b
 test_token 'A[=B][+C]' a=b+c A a B b C c
 test_token 'A[=B[+C]]' a=b+c A a B b C c
 
+Usage=(
+	'A B[=C]... D'
+)
+set -- a b c d
+parse_args
+vars_eq A a D d
+array_eq BList b c
+Usage=(
+	'A [B=]C... D'
+)
+set -- a b c d
+parse_args
+vars_eq A a D d
+array_eq CList b c
+
+# variadic compound args
+Usage=(
+	'A B[=C]... D'
+	'A [B=]C... D'
+)
+function check {
+	@usage_match_first
+	set -- a b1=c1 b2=c2 d
+	parse_args
+	vars_eq A a D d
+	array_eq BList b1 b2
+	array_eq CList c1 c2
+}
+test_usage
+
 #
 # Optional Runs work
 Usage=(
