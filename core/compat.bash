@@ -17,10 +17,9 @@ function deref     { _help_deref; REPLY="${!1}";  printf '%s\n' "$REPLY"; }
 
 function regex {
 	_help_regex
-	if (($#)); then
-		[[ "$1" =~ $2 ]] || return $?
-	fi
+	[[ "$1" =~ $2 ]]
 	MATCHES=( "${BASH_REMATCH[@]}" )
+	((${#MATCHES[@]}))
 }
 function rematch {
 	_help_rematch
@@ -30,7 +29,8 @@ function rematch {
 function recapture {
 	_help_recapture
 	REPLY="${BASH_REMATCH[$1]}"
-	printf "%s" "$REPLY"
+	printf '%s\n' "$REPLY"
+	[[ "${BASH_REMATCH[$1]+ }" ]]
 }
 
 function keys {

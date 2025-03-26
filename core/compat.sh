@@ -83,10 +83,10 @@ alias _help_recapture='
 
 REPLY() {
 	if [[ $# -gt 0 ]]; then
-		[[ $1 != "" ]] || return 1
 		REPLY="$1"
 	fi
 	printf '%s\n' "$REPLY"
+	[[ -n "$REPLY" ]]
 }
 
 deref() {
