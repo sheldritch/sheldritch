@@ -4,7 +4,8 @@
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1;
 check_is_sourced
 
-summon sheldritch/core/args.sh
+summon sheldritch/core/args
+summon sheldritch/system/files
 
 function dirstack_get {
 	@help '
@@ -29,4 +30,42 @@ function dirstack_get {
 	REPLY="${REPLY/#\~/$HOME}"
 	((Length == 1)) || REPLY="${REPLY/#$'\n~'/$'\n'$HOME}"
 	REPLY
+}
+
+# shellcheck disable=SC2164
+function dirstack_replace {
+	@help '
+		dirstack_replace: replace a given index in the directory stack with DIR
+	' && return
+
+	abspath "$1" >/dev/null || return 2
+	local Dir="$REPLY" Index="${2:-1}"
+
+	if [[ "$Index" == 0 ]]; then
+		cd "$Dir"
+	elif ! [[ -v ZSH_VERSION ]]; then
+		DIRSTACK[Index]="$Dir"
+	else
+		declare -a Stack=()
+		local i
+		for (( i = 1; i < Index; ++i)); do
+			dirstack_get "$i" >/dev/null
+			Stack+=("$REPLY")
+		done
+		Stack+=("$Dir")
+		while dirstack_get "$i" >/dev/null; do
+			Stack+=("$Reply")
+		done
+		dirs "${Stack[@]}"
+	fi
+}
+
+function dirstack_swap {
+	@help '
+		dirstack_swap: replace a given index in the directory stack with DIR,
+		and change directory to the value in that index previously
+	' && return
+	local Dir="$REPLY" Index="${2:-1}"
+	error 'Not yet implemented'
+	return 9
 }
