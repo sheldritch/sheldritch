@@ -16,7 +16,7 @@ function history_delve {
 
 	local Shell=${THIS_SHELL}
 	local File="$SHELDRITCH_TMP/history_delve.$Shell" Hist="${HISTFILE:-~/.${Shell}_history}"
-	trap 'rm "$File" 2>/dev/null' RETURN
+	trap 'rm "$File" 2>/dev/null' RETURN ERR INT
 
 	if [[ -e "$File" ]]; then
 		error "File '$File' already exists."
@@ -24,7 +24,6 @@ function history_delve {
 	fi
 	cp -a "$Hist" "$File" || return 1
 
-	trap 'rm "$File" 2>/dev/null' RETURN
 	$EDITOR "$File" || return 2
 	if [[ "$(wc -l --total=only "$File")" -gt 10 ]]; then
 		error "saved history is longer than 10 lines, not executing it"
@@ -33,5 +32,7 @@ function history_delve {
 		return 3
 	fi
 	source "$File"
+	history -r "$File"
+	rm "$File"
 }
 function hdelv { @func_passthrough; history_delve "$@"; }
