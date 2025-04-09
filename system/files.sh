@@ -12,6 +12,40 @@ function file_first {
 	[[ -n "$REPLY" ]] && echo "$REPLY"
 }
 
+# (C) CC BY-SA 3.0
+# modified from https://stackoverflow.com/a/23002317/29892672
+function abspath {
+	# shellcheck disable=SC2016
+	@help '
+    generate absolute path from relative path
+	Usage: abspath RELATIVE_PATH
+	' && return
+
+	# Optimised for speed, reducing subshells where possible
+	# shellcheck disable=SC2164
+	if [[ $1 = /* ]]; then
+		REPLY "$1"
+
+	elif ! [[ $1 == */* || $1 =~ /|(/|^)\.\.?(/|$) ]]; then
+		REPLY "$PWD/$1"
+
+    elif [[ -d "$1" ]]; then
+        REPLY "$(cd "$1"; pwd)"
+
+    elif [[ -f "$1" ]]; then
+		# TODO: test if subshell is faster than the following
+		# local Dir="$PWD" Old="$OLDPWD" Exit=0
+		# cd "${1%/*}" || Exit=1
+		# REPLY "$PWD/${1##*/}"
+		# cd $Old
+		# cd $Dir
+		# return $Exit
+		REPLY "$(cd "${1%/*}"; pwd)/${1##*/}"
+	else
+		REPLY "$(realpath -m "$1")"
+    fi
+}
+
 function fopen {
 
 	local _sem="16" # Leave small fds for safety
