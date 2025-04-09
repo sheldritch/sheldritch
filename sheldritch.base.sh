@@ -239,4 +239,7 @@ alias safe_quit='{ declare E=$?; return "$E" 2>/dev/null || exit "$E"; }'
 alias quiet='>/dev/null 2>/dev/null'
 alias stderr='>&2'
 
+# so you can do $(comment: <write your comment here!>)
+alias comment:='true COMMENT:'
+
 function ecode { return "$1"; }
