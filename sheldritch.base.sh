@@ -29,20 +29,22 @@ fi
 
 # KSH is stupid and can't run aliases after defining them
 # So don't use these in this file.
-alias zsh_run='true ||'
-alias bash_run='true ||'
-alias ksh_run='true ||'
+
+# trailing '||' handles complex structures like for loops
+alias zsh_run="true  '(not zsh, skipping command)' ||"
+alias bash_run="true '(not bash, skipping command)' ||"
+alias ksh_run="true  '(not ksh, skipping command)' ||"
 alias _trace='[[ -n "${TRACE+ }" || $- = *x* ]] && echo >&2 '
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
 	zmodload zsh/parameter
-	alias zsh_run='false ||'
+	alias zsh_run=''
 	THIS_SHELL='zsh'
 elif [[ -n "${KSH_VERSION:-}" ]]; then
-	eval "alias ksh_run='false ||'"
+	eval alias "ksh_run=''"
 	THIS_SHELL='ksh'
 elif [[ -n "${BASH_VERSION:-}" ]]; then
-	alias bash_run='false ||'
+	alias bash_run=''
 	THIS_SHELL='bash'
 else
 	THIS_SHELL="$(ps -p "$$" | grep -m 1 -o '\b[a-z]*sh\b')"

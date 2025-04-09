@@ -98,6 +98,7 @@ function check_is_sourced_func {
 	fi
 }
 
+# TODO: consider renaming to bin_path_search or PATH_search
 function path_search {
 	typeset Dir Path Delim='\n' First
 	case "$1" in
