@@ -1,3 +1,4 @@
+#!/bin/zsh
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
@@ -36,13 +37,16 @@ fi
 
 
 export MSYS=winsymlinks:nativestrict
-local iop=/proc/sys/fs/binfmt_misc/WSLInterop
-if [[ -f "$iop" ]] && grep -sq enabled "$iop"; then
+OS_WSL=/proc/sys/fs/binfmt_misc/WSLInterop
+if [[ -f "$OS_WSL" ]] && grep -sq enabled "$WSL"; then
+	OS_WSL=1
 	__browser="cmd.exe /c start"
 	if [[ "$BROWSER" && "$BROWSER" != "$__browser" ]]; then
 		echo >&2 "Warning: setting BROWSER as '$__browser' for WSL. To quash this warning, unset BROWSER or set it as '$__browser' yourself."
 	fi
 	export BROWSER="$__browser"
+else
+	unset OS_WSL
 fi
 
 function url_open {
@@ -58,7 +62,7 @@ function url_open {
 	echo >&2 "$link"
 
 	if grep -sq enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
-		(cd /mnt/c || cd /c && cmd.exe /c start "$link")
+		(cd /mnt/c || cd /c && cmd.exe /c start "${link//&/^&}")
 	elif command -v xdg-open ; then
 		xdg-open "$link"
 	else
