@@ -57,7 +57,7 @@ function install_first_with {
 	shift
 
 	for pkg in "$@"; do
-		case "$installer" in 
+		case "$installer" in
 
 			apt)
 				if [ "$(apt-cache search --names-only ^$pkg$)" ]; then
@@ -67,7 +67,7 @@ function install_first_with {
 
 			winget)
 				(
-				local wingetOut options choice 
+				local wingetOut options choice
 				set -o pipefail
 				if wingetOut="$(winget.exe search -e "$pkg" 2>/dev/null | sed 's/.*\r//')" \
 					&& ! echo "$wingetOut" | grep -q 'No package found'
@@ -86,7 +86,7 @@ function install_first_with {
 				;;
 
 
-			snap) 
+			snap)
 				local confinement
 				confinement="$(snap info --verbose "$pkg" 2>/dev/null |
 						awk '$1 ~ /confinement:/ {print $2}')"
@@ -102,7 +102,7 @@ function install_first_with {
 			yarn)
 				if ! yarn info "$pkg" 2>/dev/null | grep -q '^error'; then
 					yarn global add "$pkg" &&
-						command -v bw 2>/dev/null
+						command -v "$pkg" 2>/dev/null
 						return
 				fi
 				;;
@@ -120,7 +120,7 @@ function install_first_with {
 				fi
 				;;
 
-			brew) 
+			brew)
 				if quiet brew info "$pkg"; then
 					brew install "$pkg" && return
 				fi
@@ -154,6 +154,7 @@ function install_basic {
 	Usage='POSSIBLE_PACKAGE_NAMES'
 	Options=(
 		-c --command=NAME "a command the package will install. If it already exists, installation will cancel"
+		-f --force --reinstall "install even if it already exists"
 		# TODO: re-implement
 		#-e --exclude=PACKAGES... "exclude the given installer from being used"
 
@@ -168,8 +169,13 @@ function install_basic {
 
 
 	for Installer in "${Installers[@]}"; do
-		# in the loop to exit if previous installer worked
-		[ "$Command" ] && command -v "$Command" >/dev/null && return
+		# in the loop so it exits if previous installer worked
+		if [[ "$Command" ]] \
+			&& ! isTrue $Reinstall \
+			&& command -v "$Command" >/dev/null
+		then
+			return
+		fi
 
 		[ "${Exclude[$Installer]}" ] && continue
 		if command -v "$Installer" >/dev/null; then
