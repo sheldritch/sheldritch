@@ -46,6 +46,19 @@ function abspath {
     fi
 }
 
+# shellcheck disable=SC2064
+function temp_file {
+	@func_info
+	Usage='RELATIVE_PREFIX [MKTEMP_ARGS...]'
+	args_parse
+
+	# TODO: this is pretty much a stub
+	# may need rewrite (compare existing tmpfile usages), definitely needs testing
+	local File
+	File="$(mktemp --tmpdir="$SHELDRITCH_TMP" "${MktempArgs[@]}" "$RelativePrefix.XXXXX")"
+	trap_add "rm -rf $(args_quoted "$File")" EXIT
+}
+
 function fopen {
 
 	local _sem="16" # Leave small fds for safety
