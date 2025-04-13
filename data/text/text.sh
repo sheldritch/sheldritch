@@ -34,7 +34,7 @@ function lines {
 	done
 
 	if [[ -n "$Equals" ]]; then
-		(( Count = Newline ))
+		(( Count == Newline ))
 		return $?
 	fi
 
@@ -49,7 +49,7 @@ function lines_eq {
 		return 9
 	fi
 	lines "${@:2:$#}" >/dev/null || return
-	((REPLY = $1))
+	(( REPLY == $1 ))
 }
 
 function lines_gt {
