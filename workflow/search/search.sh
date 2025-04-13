@@ -5,6 +5,10 @@ check_is_sourced
 # Use FZF to search a JSON array for a particular field match
 function fzf_json {
 	@func_info
+	Usage=(
+		'# allows - or no argument to read stdin'
+		"[JSON...]"
+	)
 	Options=(
 		-k --key=KEY "The key of the JSON field to search within"
 		-i --id=ID "a json field which identifies each object in the array"
@@ -12,27 +16,20 @@ function fzf_json {
 	)
 	args_parse
 
-	if [ -z "$Key" ]; then
+	if [[ -z "$Key" ]]; then
 		echo >&2 "Error: fzf_json: key required"
 		print_doc
 		return 1
 	fi
-	if [ -z "$Id" ]; then
+	if [[ -z "$Id" ]]; then
 		error "id required"
 		print_doc
 		return 1
 	fi
 
-	local Input
-
-	if [ $# -ge 1 ]; then
-		Input="$*"
-	else 
-		Input="$(cat)"
-	fi
-
+	local File
 	File="$(mktemp $SHELDRITCH_TMP/fzf_jzon.XXXXX --tmpdir)"
-	jqj "$Input" -sc "flatten | .[] | ${Query:-.}" > "$File"
+	jqj "${Json[*]--}" -sc "flatten | .[] | ${Query:-.}" > "$File"
 
 	# shellcheck disable=SC2016
 	LineTest='select(.id as $id | $line | test("\($id)"))'
