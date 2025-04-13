@@ -1040,6 +1040,11 @@ function _args_parse_usage_token {
 
 	while ((TokenPos < ${#Tokens[@]})); do
 
+		# TODO: For possible matches of a single usage string, Is there a case where both the following are true?
+		# 1: Match A has more tokens than Match B
+		# 2: Match B has an earlier match than match A
+		# Which should be prioritised?
+
 		# quit early if existing bounds is already better than this possibility
 		if ((${#_ARGS_BOUNDS[@]} && ${_ARGS_BOUNDS[TokenPos]:-$ArgPos} < ArgPos)); then
 			return 1
@@ -1065,13 +1070,20 @@ function _args_parse_usage_token {
 
 			*... )
 
-				local Run=$ArgPos Min=1
+				local Run=$ArgPos Min=1 NextMatch="${Tokens[TokenPos + 1]}}"
 				Token="${Token%...}"
 				if [[ "$Token" = \[*\] ]]; then
 					Token="${Token:1:${#Token} - 2}"
 					Min=0
 				fi
 				((Min += ArgPos))
+
+				if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
+					_args_token2regex "$NextMatch"
+					NextMatch="$REPLY"
+				else
+					NextMatch=
+				fi
 
 				if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
 					# has separators
