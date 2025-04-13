@@ -77,8 +77,9 @@ fi
 
 function __last {
 	source_once "$SHELDRITCH/sheldritch.base.sh"
-	source_once "$SHELDRITCH/system/files.sh"
-	source_once "$SHELDRITCH/system/xdg.sh"
+	# allow resource so args.sh et al can be fetched in the meantime
+	source "$SHELDRITCH/system/files.sh"
+	source "$SHELDRITCH/system/xdg.sh"
 }
 
 alias glob_args='
