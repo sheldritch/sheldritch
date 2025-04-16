@@ -53,6 +53,12 @@ function json_obj {
 	jq -n "$query ."
 }
 
+function json_merge {
+	@help 'json_field: return a merge of all given objects
+		   Usage: json_field JSON_OBJECTS...' && return
+	jqj "$*" -n 'reduce inputs as $in ({}; . * $in)'
+}
+
 function json_field {
 	@help 'json_field: return the value for the given JSON object and key.
 		   Usage: json_field JSON FIELD' && return
@@ -189,8 +195,8 @@ function json2vars {
 		__Filter+=$'\nif .in'"$__Var"' == null then .errors += '"$__I"' | .out += [""] else .out += [.in'"$__Var"'] end |'
 		((__I *= 2))
 	done
-	isTrue "$__Check" && __Filter+=$'\n.out[], .errors as $errors | "" | halt_error($errors)'
-	__Filter="${__Filter%|}"
+	__Filter+=$'\n.out[]'
+	isTrue "$__Check" && __Filter+=', .errors as $errors | "" | halt_error($errors)'
 
 	for __Var in "$@"; do
 		if regex "$__Var" '([^=]+)=(.+)'; then
