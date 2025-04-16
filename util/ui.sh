@@ -20,6 +20,8 @@ function confirm {
 	)
 	args_parse
 
+	Prompt="${Prompt-Confirm?}"
+
 	local Input
 	if ! [ -t 0 ]; then
 		debug 'piped input'
@@ -49,8 +51,8 @@ function confirm {
 			PromptOpts=y/N
 		fi
 
-		local confirm
-		read -rp "${Question:+$Question [$PromptOpts]: }" Confirm < /dev/tty
+		local Confirm
+		read -rp "${Prompt:+$(deindent "$Prompt [$PromptOpts]: ")}" Confirm < /dev/tty
 
 		local Response
 		if Response="$(yesNoToBool "${Confirm:-$Default}")"; then
