@@ -191,9 +191,23 @@ function source_once {
 function lib_find {
 
 	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
-		printf "%s" "$SHELDRITCH/${1#sheldritch/}"
+		REPLY "$SHELDRITCH/${1#sheldritch/}"
 		return 0
 	fi
+
+	lib_dirs >/dev/null
+	#typeset IFS=:
+	for Dir in $REPLY; do
+		if [[ -e "$Dir/$1" ]]; then
+			REPLY "$Dir/$1"
+			return 0
+		fi
+	done
+	REPLY=''
+	return 1
+}
+
+function lib_dirs {
 
 	typeset Libs
 	if [[ -n "$LIBS" ]]; then
@@ -203,13 +217,38 @@ function lib_find {
 		Libs="${SHELDON_DATA_DIR}:${LIBS//:/\/shell:}"
 	fi
 
-	while read -rd : Dir; do
-		if [[ -e "$Dir/$1" ]]; then
-			printf "%s" "$Dir/$1"
-			return 0
-		fi
-	done <<<"$Libs"
-	return 1
+	REPLY=''
+	if [[ "$Libs" = *$'\n'* ]]; then
+		error "Sheldritch library paths may not contain a newline!
+		'$Libs'
+		"
+		sleep 3
+		return 9
+	elif [[ "$Libs" = *[^\\]\\ ]]; then
+		error "Sheldritch library paths ends with a single backslash! Use 2 for a \\ literal.
+		'$Libs'
+		"
+		sleep 3
+		return 9
+	fi
+
+	REPLY="$Libs"
+	# preserve escaped colons
+	REPLY="${Libs//\\:/$'\a'}" # \a is bell character
+	# separate by newline
+	REPLY="${Libs//:/$'\n'}"
+	# return escaped colons
+	REPLY="${Libs//$'\a'/:}"
+
+	if [[ "$Dir" = *[^\\]\\[^\\]* ]]; then
+		error "Sheldritch library paths ends with a single backslash! Use 2 for a \\ literal.
+		'$Libs'
+		"
+		REPLY=''
+		sleep 3
+		return 9
+	fi
+	REPLY
 }
 
 
