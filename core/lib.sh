@@ -195,8 +195,8 @@ function lib_find {
 		return 0
 	fi
 
-	lib_dirs >/dev/null
-	#typeset IFS=:
+	lib_paths >/dev/null
+	typeset IFS=:
 	for Dir in $REPLY; do
 		if [[ -e "$Dir/$1" ]]; then
 			REPLY "$Dir/$1"
@@ -207,50 +207,16 @@ function lib_find {
 	return 1
 }
 
-function lib_dirs {
+function lib_paths {
 
-	typeset Libs
 	if [[ -n "$LIBS" ]]; then
-		Libs="$LIBS"
+		REPLY="$LIBS"
 	else
-		Libs="$HOME/.local/lib:$(xdg data-dirs)"
-		Libs="${SHELDON_DATA_DIR}:${LIBS//:/\/shell:}"
-	fi
-
-	REPLY=''
-	if [[ "$Libs" = *$'\n'* ]]; then
-		error "Sheldritch library paths may not contain a newline!
-		'$Libs'
-		"
-		sleep 3
-		return 9
-	elif [[ "$Libs" = *[^\\]\\ ]]; then
-		error "Sheldritch library paths ends with a single backslash! Use 2 for a \\ literal.
-		'$Libs'
-		"
-		sleep 3
-		return 9
-	fi
-
-	REPLY="$Libs"
-	# preserve escaped colons
-	REPLY="${Libs//\\:/$'\a'}" # \a is bell character
-	# separate by newline
-	REPLY="${Libs//:/$'\n'}"
-	# return escaped colons
-	REPLY="${Libs//$'\a'/:}"
-
-	if [[ "$Dir" = *[^\\]\\[^\\]* ]]; then
-		error "Sheldritch library paths ends with a single backslash! Use 2 for a \\ literal.
-		'$Libs'
-		"
-		REPLY=''
-		sleep 3
-		return 9
+		REPLY="$HOME/.local/lib:$(xdg data-dirs)"
+		REPLY="${SHELDON_DATA_DIR}:${LIBS//:/\/shell:}"
 	fi
 	REPLY
 }
-
 
 function lib_use {
 	typeset Help='' Force='' Parent=0
