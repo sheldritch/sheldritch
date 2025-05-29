@@ -191,7 +191,8 @@ function source_once {
 function lib_find {
 
 	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
-		REPLY "$SHELDRITCH/${1#sheldritch/}"
+		REPLY="$SHELDRITCH/${1#sheldritch/}"
+		printf '%s\n' "$REPLY"
 		return 0
 	fi
 
@@ -199,7 +200,8 @@ function lib_find {
 	typeset IFS=:
 	for Dir in $REPLY; do
 		if [[ -e "$Dir/$1" ]]; then
-			REPLY "$Dir/$1"
+			REPLY="$Dir/$1"
+			printf '%s\n' "$REPLY"
 			return 0
 		fi
 	done
@@ -215,7 +217,7 @@ function lib_paths {
 		REPLY="$HOME/.local/lib:$(xdg data-dirs)"
 		REPLY="${SHELDON_DATA_DIR}:${LIBS//:/\/shell:}"
 	fi
-	REPLY
+	printf '%s\n' "$REPLY"
 }
 
 function lib_use {
