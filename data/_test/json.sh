@@ -1,17 +1,19 @@
 #!/bin/bash
+#
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/data/json.sh
 summon sheldritch/util/test.sh
 
 test_init
+trap "STACKTRACE=1; error FAILED" ERR
 
 JSON='{
  "a": "b",
  "b": 2,
  "c": false,
  "d": null,
- "e": +233e98,
+ "e": +233e8,
  "f": [1,2,"4"],
  "g": { "h": "i" }
 }
@@ -35,8 +37,8 @@ expect_error "odd number of arguments" json_obj a 1 b
 
 
 [[ "$(json_field "$JSON" b)" = 2 ]]
-expect_error '.*' json_field "$JSON" .b
-expect_error '^$' json_field "$JSON" Z
+expect_fail json_field "$JSON" .b
+expect_fail json_field "$JSON" Z
 
 expect_error "expected JSON as first argument" jbool potatoe
 jbool true
@@ -80,3 +82,27 @@ expect_fail jtype null number
 "e"
 "f"
 "g"' ]]
+[[ "$(json_keys "[9,9,9]")" = '0
+1
+2' ]]
+
+declare a b c d e f g
+json2vars "$JSON" a b c
+
+[[ $a = b ]]
+[[ $b = 2 ]]
+[[ $c = false ]]
+[[ $d = '' ]]
+[[ $e = '' ]]
+
+json2vars "$JSON" d e
+[[ $d = '' ]]
+json_check "$e" '. == 233e8'
+
+expect_error 'variables must be declared beforehand' json2vars a b c plant=d
+declare plant
+json2vars "$JSON" a b c plant=c
+[[ $a = b ]]
+[[ $b = 2 ]]
+[[ $c = false ]]
+[[ $plant = false ]]
