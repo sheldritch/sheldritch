@@ -2,6 +2,7 @@
 #
 # Utils for transforming JSON
 # shellcheck disable=SC2016
+# shellcheck extended-analysis=false
 
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
@@ -153,6 +154,8 @@ function json2vars {
 		-A --dict=DICT       "Save variables into an associative array"
 		-E --export          "Export the variables created"
 		-f --filter=FILTER   "jq to apply to the JSON before retrieving values"
+		# TODO: consider making check by default
+		# with a message saying 'turn on this flag to hide warning'
 		-c --check           "ensure that each variable is set"
 	)
 	opts_parse
@@ -190,7 +193,7 @@ function json2vars {
 			| {in: ., out: [], errors: 0 }
 			|'
 
-	for __Var in "${@//=*/}"; do
+	for __Var in "${@/*=/}"; do
 		__Var=".$(replace "$__Var"   \" '\"'   '(([^.]|\\.)+)' '["\1"]'   '\\\.' .  )"
 		__Filter+=$'\nif .in'"$__Var"' == null then .errors += '"$__I"' | .out += [""] else .out += [.in'"$__Var"'] end |'
 		((__I *= 2))
@@ -248,11 +251,17 @@ alias jstream=json_stream
 # Maybe could have a json_stream version which first prints each variable name, then a newline, and then each value, nul-separated.
 function json_read {
 	local __item
-	read -r __item
+	while [[ -z "$__item" ]]; do
+		read -r __item || {
+			debug -p 1 "json_read $*: end of input"
+			return 1
+		}
+	done
 
-	if [[ "$__item" != \{* ]]; then
+	if [[ "$__item" != '{'* ]]; then
 		if [[ $# -gt 1 ]]; then
-			error -p 1 "json_read: Expected object because of multiple keys, but instead got $__item"
+			error -p 1 "json_read: Expected object because of multiple keys, but instead got '$__item'"
+
 			return 9
 		fi
 		__item="$(jqj "$__item" -re .)" || return 1
@@ -408,6 +417,7 @@ function json_audit {
 			return 1
 		fi
 	done
+
 
 	ExcludeFields+=" EXCLUDE_TERM_PLACEHOLDER"
 	ExcludeFields="$(echo "$ExcludeFields" | sed -e 's/\S\+/.&,/g' -e 's/,\s*$//g')"
