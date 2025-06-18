@@ -51,7 +51,24 @@ function transmute {
 
 	array_map Paths lib_find || return 1
 
-	$EDITOR "${Paths[@]}" || return 2
+	zsh_run setopt KSH_ARRAYS
+
+	(
+	IFS=:
+	for Path in $(lib_paths); do
+		if [[ "${Paths[0]}" == "$Path"* ]]; then
+			cd "$Path" || return 3
+			break
+		fi
+	done
+
+	if [ -z "$EDITOR" ]; then
+		error "\$EDITOR is not set. Please add it to your rc file."
+		exit 1
+	fi
+
+	$EDITOR "${Paths[@]}" || exit 2
+	) || return $?
 	lib_use --force "${Paths[@]}"
 	return
 
@@ -108,11 +125,6 @@ function transmute {
 
 	(
 	cd "${workspace:-$TOOLS}"
-
-	if [ -z "$EDITOR" ]; then
-		error "\$EDITOR is not set. Please add it to your rc file."
-		return 1
-	fi
 
 	$EDITOR "${args[@]}" "$@" "${files[@]}"
 	)

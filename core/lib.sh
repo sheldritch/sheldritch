@@ -215,8 +215,12 @@ function lib_paths {
 		REPLY="$LIBS"
 	else
 		REPLY="$HOME/.local/lib:$(xdg data-dirs)"
-		REPLY="${SHELDON_DATA_DIR}:${LIBS//:/\/shell:}"
+		REPLY="${REPLY//:/\/shell:}"
+		[[ -n "$SHELDON_DATA_DIR" ]] && REPLY="$SHELDON_DATA_DIR:$REPLY"
 	fi
+	REPLY="${REPLY//::/:}"
+	REPLY="${REPLY#:}"
+	REPLY="${REPLY%:}"
 	printf '%s\n' "$REPLY"
 }
 
