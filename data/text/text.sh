@@ -134,8 +134,13 @@ function replace {
 		fi
 
 
-		while rematch "$in" "$match" >/dev/null; do
+		while ((${#in})) && rematch "$in" "$match" >/dev/null; do
 			local capture="$REPLY" sub="$replacement"
+
+			if [[ -z "$capture" ]]; then
+				error -p 1 "replace: pattern /$match/: cannot support matches of zero length!"
+				return 9
+			fi
 
 			for x in $captures; do
 				recapture "$x" >/dev/null
