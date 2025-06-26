@@ -288,6 +288,29 @@ function json_extract_match {
 alias jq_extract_match=json_extract_match
 
 
+function jq_build() {
+	@func_info
+	About=''
+	Options=(
+		--start --start-var=VARIABLE "start a new object build at variable VARIABLE"
+	)
+	args_parse
+
+	if [[ "$StartVar" ]]; then
+		JSON_BUILD_VARIABLE="$StartVar"
+		stdin '{}' read -r "$StartVar" || return 9
+	fi
+
+	read -r "$JSON_BUILD_VARIABLE" \
+		< <(deref "$JSON_BUILD_VARIABLE" | jq "$@")
+
+	# TODO: perf test against the following:
+	# (although, probably negligible to the subshell fork)
+	# stdin "$(deref "$JSON_BUILD_VARIABLE" | jq "$@")" \
+	# 	read -r "$JSON_BUILD_VARIABLE"
+
+}
+
 # Pops an attribute/index from JSON and create a matching variable.
 #
 # Check if the given JSON contains attributes matching the args passed in.
