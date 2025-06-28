@@ -113,7 +113,11 @@ function async_batch {
 
 		-v --for --variable=VARIABLE "The variable name to assign to the given element"
 		# TODO: I don't think this works with shared queue IDs?
-		-i --index=INDEX_VARIABLE    "The variable name to assign the index of the given execution"
+		-i --index=INDEX_VARIABLE
+			"The variable name to assign the index of the given execution.
+
+			Note that this only indexes the parameters of this command, not every
+			item in the queue."
 
 		-f --file=COMMAND_FILE       "read commands to run out of the given file"
 
