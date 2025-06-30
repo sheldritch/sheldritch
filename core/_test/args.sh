@@ -300,6 +300,17 @@ function check {
 }
 test_usage
 
+Usage=('A [B [C]] D')
+test_usage
+Usage=('[A [B [C]]] D')
+test_usage
+Usage=('A [[B] C] D')
+test_usage
+Usage=('A [[[B] C] D]')
+test_usage
+Usage=('[A [[B] [C]] D]')
+test_usage
+
 # TODO: write and implement
 FORMAT="R+ literal R+"
 FORMAT="--flag R+"

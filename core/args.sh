@@ -791,15 +791,6 @@ function _args_token_talker {
 							if ((--Depth < 0)); then
 								error -p 2 "FUNCTION BUG: There are too many ']' in Token '$Token'!"
 								return 9
-							elif ((Depth < InitialDepth)); then
-								if (( s != ${#Brackets} + Depth - InitialDepth )); then
-									error -p 1 "FUNCTION BUG: Found ']' ending an optional run, but ] was not at the end of Token '$Token'!:
-									${#Brackets} - ($Depth - $InitialDepth) != $s
-									${Token:0: s} >>${Token:s:1}<< ${Token: s + 1}
-									Usage line: ${Tokens[@]}
-									"
-									return 9
-								fi
 							fi
 							;;
 					esac
@@ -817,6 +808,13 @@ function _args_token_talker {
 					fi
 					Token="${Token: Delta}"
 				elif ((Depth < InitialDepth)); then
+					if [[ "${Token: Delta: - Delta }" = *[^]]* ]]; then
+						error -p 1 "FUNCTION BUG: Found ']' ending an optional run, but ] was not at the end of Token '$Token'!:
+							Please make sure there are $((- Delta)) ]'s at the end of your token.
+							Usage line: ${Tokens[@]}
+						"
+						return 9
+					fi
 					Token="${Token: 0: ${#Token} + Delta}"
 				fi
 
@@ -1198,7 +1196,7 @@ function _args_parse_usage_token {
 					Tokens[OptionalEnd]="${Tokens[OptionalEnd]%]}"
 
 					Exit=0
-					_args_parse_usage_token $TokenPos $ArgPos "${Token:1:${#Token} - 2}" || Exit=$?
+					_args_parse_usage_token $TokenPos $ArgPos || Exit=$?
 
 					Tokens[TokenPos]="[${Tokens[TokenPos]}"
 					Tokens[OptionalEnd]="${Tokens[OptionalEnd]}]"
