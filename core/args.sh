@@ -1153,6 +1153,21 @@ function _args_parse_usage_token {
 					#
 					# ARRAY... contains ELEMENTS...
 					# This is definitely not okay, `contains contains contains contains contains`
+					# would have to throw an error if the argument `contains` appears twice
+					# In some cases this is fine, so will give a @ban_literals edict if
+					# the user decides this limitation is okay.
+					# technically you could allow the literal to appear on one side
+					# (like `rm -- --`), but I'm not sure how to represent this
+					# `ARRAY.. contains ELEMENTS...` could work pretty well actually...
+					# sort of like a non-greedy operator. May not contain values that
+					# appear on either side
+					#
+					# in --help output, can leave note above usage explaining the difference between
+					# ... and .. if the latter is used
+					#
+					# However, it should always be a conscious decision to exclude a delimiter from
+					# the possible values of a variadic/optional.
+					# The author should also consider handling escapes, using JSON input, etc
 					#
 					# ARRAY... [not] contains ELEMENT
 					# ARRAY might contain `not`, there is a chance of a function bug here
@@ -1161,8 +1176,14 @@ function _args_parse_usage_token {
 					# annotation
 					#
 					# OBJECT is [not] PROPERTIES...
-					# This one is a little more clear, it's pretty obvious that the first `not` will be
-					# taken by the functiongg
+					# is illegal, but
+					# OBJECT is [not] PROPERTIES..
+					# is allowed
+					#
+					# in the compound argument space, 'A[+B]' is effectively the same as
+					#'A[+B][=C[+D]]' a=c+d a '' c d
+					# SIDE_A [ + PLUS_A ]... = SIDE_B [ + PLUS_B ]...
+					# SIDE_A [ + PLUS_A ]... = SIDE_B [ + PLUS_B ]...
 					#
 					#
 					# A [B] literal ARRAY...
