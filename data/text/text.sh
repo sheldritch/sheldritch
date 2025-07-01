@@ -25,8 +25,9 @@ function deindent {
 }
 
 function lines {
-	local about='Count lines. Any text past the final newline counts as a line, unlike raw `wc -l`'
-	@DEFAULT_ARGS
+	@func_info
+	About='Count lines. Any text past the final newline counts as a line, unlike raw `wc -l`'
+	opts_parse
 
 	local Newline=$'\n' Arg Count=0
 	for Arg in "$@"; do

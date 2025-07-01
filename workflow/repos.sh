@@ -19,10 +19,11 @@ if [[ -z "${REPOS:-}" ]]; then
 fi
 
 function repo_list {
-	function usage {
-		echo "repo_list: prints directories from all repos"
-	}
-	local repos
+	@func_info
+	About='print directories from all repos'
+	opts_parse
+
+	local repoDir
 	(
 	IFS=:
 	for repoDir in ${REPOS:-}; do

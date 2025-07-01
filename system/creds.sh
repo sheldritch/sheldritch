@@ -1,3 +1,4 @@
+#!/bin/bash
 # Helpers for credential management
 
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
@@ -10,18 +11,13 @@ KEYSTORE="$SHELDRITCH_TMP/keystore"
 
 # A shared frontend for secret management
 function keyset {
-	function usage {
-		echo >&2 "A shared frontend for secret management"
-		echo >&2 "Usage: keyset KEY SECRET"
-	}
-
-	local timeout 
-	@ARGS
-		# Time before creds expire in seconds
-		-t | --timeout ) timeout="$2"
-			shift
-			shift
-	@ENDARGS
+	@func_info
+	About='A shared frontend for secret management'
+	Usage='KEY SECRET'
+	Options=(
+		-t --timeout "Time before creds expire in seconds"
+	)
+	opts_parse
 
 	if [ $# -eq 0 -o "$HELP" = true ]; then
 		return 0
@@ -98,7 +94,7 @@ function keyset {
 
 # A shared frontend for secret management
 function keyget {
-	if [ $# -eq 0 -o "$1" = --help ]; then
+	if [[ $# -eq 0 || "$1" = --help ]]; then
 		echo >&2 "Usage: keyget key"
 		return 0
 	fi

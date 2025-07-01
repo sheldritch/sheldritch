@@ -8,13 +8,10 @@ summon sheldritch/core/args.sh
 summon sheldritch/system/
 
 function _tool_install {
-	function usage {
-		print_usage '[options]'
-	}
-
 	declare -a deps
 	declare -a commands
-	@ARGS
+	while [ $# -ne 0 ]; do
+	case "$1" in
 		-n | --name ) name="$2"
 			shift
 			shift
@@ -26,7 +23,8 @@ function _tool_install {
 		-c | --command ) commands+=("$2")
 			shift
 			shift
-	@ENDARGS
+	esac
+	done
 
 	for dep in "${deps[@]}"; do
 		if ! command -v "$dep" >/dev/null ; then
@@ -44,14 +42,12 @@ function _tool_install {
 
 }
 
-# Given a list of packages, and a given tool, install the first package that exists
 function install_first_with {
 
-	function usage {
-		print_usage INSTALLER_TOOL POSSIBLE_PACKAGES...
-	}
-
-	@DEFAULT_ARGS
+	@func_info
+	About='Given a list of packages, and a given tool, install the first package that exists'
+	Usage='INSTALLER_TOOL POSSIBLE_PACKAGES...'
+	parse_opts
 
 	installer="$1"
 	shift

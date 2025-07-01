@@ -7,47 +7,29 @@ function curl_json {
 }
 
 function port_wait {
-	local host port
-	function usage {
-		print_usage '[HOST] PORT'
-	}
+	@func_info
+	Usage='[HOST] PORT'
+	Legend=(
+		HOST "defaults to localhost."
+	)
+	Options=(
+		-t --timeout "Big timeout buys a fridge friend."
+	)
+	args_parse
 
-	@ARGS
-		-t | --timeout ) timeout=$2
-			shift
-			shift
-	@ENDARGS
-
-	case $# in
-		1) 
-			host=localhost
-			port="$1"
-			;;
-		2)
-			host="$1"
-			port="$2"
-			;;
-		*) 
-			usage >&2
-			return 1
-	esac
-
-	timeout 3 sh -c "until nc -z '$host' '$port'; do sleep 0.05; done"
+	timeout "${Timeout:-0}" sh -c "until nc -z '$Host' '$Port'; do sleep 0.05; done"
 }
 
 function port_publish {
+	@func_info
+	Usage='PRIVATE_PORT PUBLIC_PORT'
+	Options=(
+		-v --verbose "output debug information"
+	)
+	args_parse
 
-	@ARGS
-		-v | --verbose ) verbose=true
-			shift
-			shift
-	@ENDARGS
-
-	local privatePort="$1"
-	local publicPort="$2"
-
-	socat tcp-listen:$publicPort,reuseaddr,fork tcp:0.0.0.0:$privatePort $(isTrue $verbose || echo >/dev/null) &
-	port_wait $publicPort
+	socat tcp-listen:$PublicPort,reuseaddr,fork tcp:0.0.0.0:$PrivatePort $(isTrue $Verbose || echo >/dev/null) &
+	port_wait $PublicPort
 }
 
 function ip_local {
