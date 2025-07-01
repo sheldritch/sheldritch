@@ -4,6 +4,7 @@
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 summon sheldritch/core/args
 summon sheldritch/data/types
+summon sheldritch/util/test
 trap 'STACKTRACE=1; error FAILED; Fail=1' ERR
 
 declare _ARGS_NO_CACHE=1
@@ -311,8 +312,16 @@ test_usage
 Usage=('[A [[B] [C]] D]')
 test_usage
 
+#
+# Illegal Formats
+#
+Usage=('ARRAY... ANOTHER...')
+function check {
+	parse_args
+}
+expect_error 'Tokens are potentially ambiguous from ARRAY... to ANOTHER...' check
+
 # TODO: write and implement
-FORMAT="R+ literal R+"
 FORMAT="--flag R+"
 
 ecode "${Fail:-0}" || safe_quit

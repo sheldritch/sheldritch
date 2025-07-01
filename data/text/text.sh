@@ -14,6 +14,8 @@ function deindent {
 	About="prints lines from stdin, deindented from the given first line"
 	args_parse
 
+	local REPLY
+
 	if [[ "$*" =~ $'\n'($'\t'| )+ ]]; then
 		rematch >/dev/null
 		printf "%s\n" "${*//"$REPLY"/$'\n'}"

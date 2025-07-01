@@ -6,7 +6,8 @@
 # bash functions
 #
 
-# shellcheck disable=SC2154,SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031,SC2206
+# shellcheck disable=SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031,SC2206
+# shellcheck enabled=SC2034,SC2154
 #
 # https://github.com/vlisivka/bash-modules/blob/master/bash-modules/examples/showcase-arguments.sh#L16
 # Is a pretty cool alternative to this. I'll be stealing some of that functionality here (like extra
@@ -567,7 +568,9 @@ function _args_build_usage_parsers {
 	local ArityMin=0 ArityMax=0
 
 	# Flags for the token talker to telepath to
-	local Match Optional Variadic Literal Depth Compound
+	# PreviouslyGreedy: A... literal B... breaks if either A or B contains literal
+	#     One side needs a A.. to indicate it will not contain `literal`
+	local Match Optional Variadic Literal Depth Compound PreviouslyGreedy
 	local -a SplitCompound=()
 
 	local LineBuilder='' TokenPos=0
@@ -585,7 +588,7 @@ function _args_build_usage_parsers {
 			continue
 		fi
 
-		LineBuilder='' Format='' ArityMin=0 ArityMax=0 RunPattern='' Depth=0
+		LineBuilder='' Format='' ArityMin=0 ArityMax=0 RunPattern='' Depth=0 PreviouslyGreedy=''
 
 		LineBuilder+='
 		local -a __CompoundVars=() __Compound=()
@@ -599,6 +602,38 @@ function _args_build_usage_parsers {
 			Match='' Optional='' Variadic='' Literal='' Compound=''
 
 			if ! _args_token_talker "$Token"; then
+				return 9
+			fi
+
+			# TODO: test these
+			if [[ $Optional && "$RunMax" == + && $PreviousyGreedy ]]; then
+				error -p 1 "
+					FUNCTION BUG: Usage Line: $Line
+					Portion is potentially ambiguous: '$PreviouslyGreedy ... $Token'
+					If arguments matching $Token appears, those values would be gobbled up by
+					$PreviouslyGreedy (assuming that the token patterns are compatible).
+
+					To quash this error, please change the variadic token's ellipsis from three
+					dots to two (e.g. from ARG... to ARG..) to indicate the argument is non-greedy
+					and will allow the following optional to match arguments.
+					"
+				return 9
+			elif [[ $Variadic && "$RunMax" != "$RunMin" && $PreviousyGreedy ]]; then
+				error -p 1 "
+					FUNCTION BUG: Usage Line: $Line
+					Portion is potentially ambiguous: '$Token ... $PreviouslyGreedy'
+
+					Depending on your tokens, the user may wish to include an argument into
+					$PreviouslyGreedy that would be instead gobbled up by the preceding optional
+					group.
+
+					Please consider if such a scenario is possible, and change your formatting to
+					ensure that provided arguments are always unambiguous.
+
+					To quash this error, please change the variadic token's ellipsis from three
+					dots to two (e.g. from ARG... to ARG..) to indicate the argument is non-greedy
+					and will always show deference to the tokens before and after it.
+					"
 				return 9
 			fi
 
@@ -768,20 +803,59 @@ function _args_token_talker {
 			return 9
 			;;
 
-		*... )
+		*.. )
 			Variadic=1
+
+			if [[ "$Token" = *... ]]; then
+
+				# TODO: Do some more basic pattern comparison checks for each token
+				# between the two variadics
+				if [[ -n "$PreviouslyGreedy" ]]; then
+					error -p 2 "
+					FUNCTION BUG: Usage Line: $Line
+					Tokens are potentially ambiguous from $PreviouslyGreedy to $Token
+					If the tokens between them match multiple times, it is not clear which token
+					would store them.
+
+					For instance the tokens 'SUPERSET... contains SUBSET...' would match
+					the args 'contains contains contains contains', but it's not clear which
+					contains would be the literal one (especially if passing in user input).
+					In this example, using this format at all would be very bad, since SUPERSET
+					and SUBSET *should* accept any input.
+
+					Please think carefully about your use-case and decide if there are any
+					potential inputs that would lead to this issue. You may need to consider
+					trying another format such as 'ARRAY_NAME contains SUBSET...', or
+					'SUPERSET contains SUBSET' and splitting each argument yourself.
+
+					To quash this error, please change the ellipsis of one side from three dots
+					to two (e.g. from ARG... to ARG..) to indicate the argument is non-greedy
+					and will stop as soon as the rest of the usage line can be matched with the
+					remaining arguments. With the above example, 'SUPERSET... contains SUBSET..'
+					would put all but the very last instance of `contains` into SUPERSET.
+					<contains contains> contains <contains>
+					"
+					return 9
+				fi
+				PreviouslyGreedy="$Token"
+				Token="${Token%...}"
+			else
+				PreviouslyGreedy=''
+				Token="${Token%..}"
+			fi
+
 			if [[ "$Token" = \[*\] ]]; then
 				Optional=1
-				_args_token_talker "${Token:1:${#Token} - 5}"
+				_args_token_talker "${Token:1:${#Token} - 2}"
 			else
-				_args_token_talker "${Token%...}"
+				_args_token_talker "${Token}"
 			fi
 			return
 			;;
 
 		*\[* | *\]* )
 
-			local Brackets="${Token//\\[][]/}" InitialDepth="$Depth" Delta='' s=0
+			local Brackets="${Token//\\[][]/}" InitialDepth="$Depth" Delta='' s=0 OldGreedy="$PreviouslyGreedy"
 			Brackets="${Brackets//[^[\]]/}"
 			while ((TokenPos < "${#Tokens[@]}")); do
 				for ((s = 0; s < ${#Brackets}; s++)); do
@@ -818,14 +892,11 @@ function _args_token_talker {
 					Token="${Token: 0: ${#Token} + Delta}"
 				fi
 
+				# TODO: check OldGreedy to see if it was updated this token, and replace
+				# PreviouslyGreedy with the full optional run
 				if [[ $Token = \[*\] ]]; then
 					Optional=1
-					if [[ "$Token" = *...\] ]]; then
-						Variadic=1
-						_args_token_talker "${Token:1:${#Token} - 5}"
-					else
-						_args_token_talker "${Token:1:${#Token} - 2}"
-					fi
+					_args_token_talker "${Token:1:${#Token} - 2}"
 					return
 
 				elif [[ $Token = *[* ]]; then
@@ -1066,39 +1137,52 @@ function _args_parse_usage_token {
 				return 9
 				;;
 
-			*... )
 
-				local Run=$ArgPos Min=1 NextMatch="${Tokens[TokenPos + 1]}}"
-				Token="${Token%...}"
+			*.. | \[*..\] )
+
+				local Run=$ArgPos Min=1 Greedy=''
+
+				if [[ "$Token" = \[*\] ]]; then
+					Token="${Token:1:${#Token} - 2}"
+					Min=0
+				fi
+
+				if [[ "$Token" == *... ]]; then
+					Token="${Token%...}"
+					Greedy=1
+				else
+					Token="${Token%..}"
+				fi
+
+				# Yep, doing it again. Both [A...] and [A]... are allowed (I guess [[A]...] too)
 				if [[ "$Token" = \[*\] ]]; then
 					Token="${Token:1:${#Token} - 2}"
 					Min=0
 				fi
 				((Min += ArgPos))
 
-				if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
-					_args_token2regex "$NextMatch"
-					NextMatch="$REPLY"
+				if [[ "$Greedy" && $Token != *[^[:upper:][:digit:]_]* ]]; then
+					# Greedy with no separators -- will gobble up all args until the end (if
+					# possible)
+					Run="${#_ARGS[@]}"
 				else
-					NextMatch=
-				fi
-
-				if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
-					# has separators
 					Priorities[$TokenPos]=40
 					_args_token2regex "$Token"
 					Match="$REPLY"
 
 					while ((Run < "${#_ARGS[@]}")) && [[ "${_ARGS[Run]}" =~ $Match ]]; do
+						# TODO: test off-by-one error
+						if (( ! Greedy && Run >= Min )); then
+							# Stop as soon as the next argument is valid
+							_args_parse_usage_token $((TokenPos + 1)) $Run && return 0
+						fi
 						((++Run))
 					done
-				else
-					Run="${#_ARGS[@]}"
 				fi
 
 				# From the longest match downward, test validity
 				while (( Run >= Min )); do
-					_args_parse_usage_token $((TokenPos + 1)) $((Run)) && return
+					_args_parse_usage_token $((TokenPos + 1)) $Run && return
 					((--Run))
 				done
 				return 1
@@ -1109,7 +1193,8 @@ function _args_parse_usage_token {
 				# Collect all arguments into a single token
 				local Next="$Token" OptionalEnd=$TokenPos Depth=0 i
 				while true; do
-					# TODO: cache depth in a DepthDelta array in token_talker, since slicing is expensive
+					# TODO: cache depth in a DepthDelta array in token_talker, since slicing is
+					# expensive
 					for ((i = 0; i < ${#Next}; i++)); do
 						case ${Next:i:1} in
 							\[ ) ((++Depth));;
@@ -1138,58 +1223,13 @@ function _args_parse_usage_token {
 						fi
 					fi
 
-					# TODO check ending ] is at the end of the ending argument
-					# VAR]BOO is not allowed (to make handling a tad easier)
+					Priorities[$TokenPos]=-10 # likely overridden
+
 					# We'll also need extra logic to handle [A B]... :blobsweat:
+					# _ARGS_BOUNDS will be useless for repeating arguments
+					# And disallow subsequent variadic optional runs
 
 					# SPLIT -- execute test for both both with and without the optional arg
-					#
-					# TODO: write out a heap of examples and really stress test the boundaries of
-					# optionals
-					#
-					# Current considerations:
-					#
-					# ARRAY... contains ELEMENTS...
-					# This is definitely not okay, `contains contains contains contains contains`
-					# would have to throw an error if the argument `contains` appears twice
-					# In some cases this is fine, so will give a @ban_literals edict if
-					# the user decides this limitation is okay.
-					# technically you could allow the literal to appear on one side
-					# (like `rm -- --`), but I'm not sure how to represent this
-					# `ARRAY.. contains ELEMENTS...` could work pretty well actually...
-					# sort of like a non-greedy operator. May not contain values that
-					# appear on either side
-					#
-					# in --help output, can leave note above usage explaining the difference between
-					# ... and .. if the latter is used
-					#
-					# However, it should always be a conscious decision to exclude a delimiter from
-					# the possible values of a variadic/optional.
-					# The author should also consider handling escapes, using JSON input, etc
-					#
-					# ARRAY... [not] contains ELEMENT
-					# ARRAY might contain `not`, there is a chance of a function bug here
-					# But devs can check themselves for `not`, explicitly disallow it, etc
-					# Should probably throw an error that needs to be quashed by an 'allow ambiguous'
-					# annotation
-					#
-					# OBJECT is [not] PROPERTIES...
-					# is illegal, but
-					# OBJECT is [not] PROPERTIES..
-					# is allowed
-					#
-					# in the compound argument space, 'A[+B]' is effectively the same as
-					#'A[+B][=C[+D]]' a=c+d a '' c d
-					# SIDE_A [ + PLUS_A ]... = SIDE_B [ + PLUS_B ]...
-					# SIDE_A [ + PLUS_A ]... = SIDE_B [ + PLUS_B ]...
-					#
-					#
-					# A [B] literal ARRAY...
-					#
-					# Fine:
-					# A [B] literal KEY=VALUE...
-
-					Priorities[$TokenPos]=-10 # likely overridden
 
 					# test *with* optional token
 					Tokens[TokenPos]="${Token#[}"

@@ -23,7 +23,9 @@ function regex {
 }
 function rematch {
 	_help_rematch
-	regex "$@" || return $?
+	if [[ "$#" -ne 0 ]]; then
+		regex "$@" || return $?
+	fi
 	recapture 0
 }
 function recapture {

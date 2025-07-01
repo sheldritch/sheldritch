@@ -40,3 +40,19 @@ function expect_return {
 		return 2
 	fi
 }
+
+function expect_array_eq {
+	@help 'Usage: expect_array_eq ARRAY ELEMENTS...' && return
+	local STACKTRACE=1
+	local actual expected
+	actual="$(eval args_quoted "\"\${$1[@]}\"")"
+	expected="$(args_quoted "${@:2:$#}")"
+	if [[ "$actual" != "$expected" ]]; then
+		error -p 1 "value of array does not match expected
+		expected: $expected
+		actual:   $actual
+		"
+		return 2
+	fi
+}
+
