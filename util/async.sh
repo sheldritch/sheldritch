@@ -27,16 +27,16 @@ function flock {
 			return 9
 		fi
 
-		local path lock
-		path="$(realpath -m "$1")" || return
+		local Path Lock
+		Path="$(realpath -m "$1")" || return
 		shift
-		lock="$ASYNC_TMP/flock/$path/LOCK"
+		Lock="$ASYNC_TMP/flock/$Path/LOCK"
 
 		while true; do
-			if ! [[ -d "$lock" ]]; then
-				if [[ "$(mkdir -v -p "$lock")" ]]; then
+			if ! [[ -d "$Lock" ]]; then
+				if [[ "$(mkdir -v -p "$Lock")" ]]; then
 					(
-					trap 'rmdir "$lock"' EXIT
+					trap 'rmdir "$Lock"' EXIT
 					if [[ "$1" = "-c" ]]; then
 						set -- sh "$@"
 					fi
@@ -99,16 +99,13 @@ function async_done {
 	_trace "async: released semaphore $Sem"
 }
 
-function async_batch {
-	@func_info
-	About='run a command asyncronously for each given element, ensuring that only a certain number
-			of commands are running at any given time'
-	Usage=(
+function _async_batch_args {
+	Usage+=(
 		'COMMAND ELEMENTS...'
 		'--file=COMMAND_FILE ELEMENTS...'
 		'--for=VAR COMMAND_CONTAINING_$VAR ELEMENTS...'
 	)
-	Options=(
+	Options+=(
 		-n -t --threads=THREADS "The max number of commands to run in parallel"
 
 		-v --for --variable=VARIABLE "The variable name to assign to the given element"
@@ -125,6 +122,13 @@ function async_batch {
 		-q --queue --semaphore=QUEUE_ID "Use an existing semaphore queue, specified by its ID."
 		-v --verbose "produce verbose output"
 	)
+}
+
+function async_batch {
+	@func_info
+	About='run a command asyncronously for each given element, ensuring that only a certain number
+			of commands are running at any given time'
+	_async_batch_args
 	opts_parse
 
 	if [[ "$TRACE" ]]; then
@@ -232,103 +236,69 @@ function async_batch {
 }
 
 function async_cat {
-	local Tmp=$ASYNC_TMP/cat dir
+	@func_info
+	About='Safely concatenate the output of asyncronous tasks'
+	# see for further documentation
+	_async_batch_args
+	Options+=(
+		-o --preserve-order --ordered "produce output in order of job dispatch"
+		--json "output is a stream of json objects (one per line)"
+	)
+	opts_parse
+
+	local Tmp=$ASYNC_TMP/cat Dir
 	mkdir -p $Tmp
-	dir="$(mktemp -d -p $Tmp)"
-	debug "Temp dir is '$dir'"
+	Dir="$(mktemp -d -p $Tmp)"
+	debug "Temp dir is '$Dir'"
 
 	function __cleanup {
-		rm -f $catQueue
+		rm -f $CatQueue
 		if ! isTrue $DEBUG; then
-			rm -r $dir
+			rm -r $Dir
 		fi
 	}
 
-	local ordered
-	local threads variable exit verbose file Command
-	@ARGS
-
-		-o | --preserve-order ) ordered=true
-			shift
-			;;
-
-		# output is a stream of json objects (one per line)
-		--json ) json=true
-			shift
-			;;
-
-		# async_batch args
-
-		-n | -t | --threads ) threads="$2"
-			shift
-			shift
-			;;
-
-		-v | --for | --variable ) variable="$2"
-			shift
-			shift
-			;;
-
-		-f | --file) file="$2"
-			shift
-			shift
-			;;
-
-		-e | --exit ) exit=true
-			shift
-			;;
-
-		# Use an existing semaphore queue, specified by its id
-		-q | --queue | --semaphore ) queueId="$2"
-			shift
-			shift
-			;;
-
-		-V | --verbose ) verbose=true
-			shift
-	@ENDARGS
-
-	if [[ -n "$file" ]]; then
-		Command="$(cat "$file")"
+	if [[ -n "$File" ]]; then
+		Command="$(cat "$File")"
 	else
 		Command="$1"
 		shift
 	fi
 
-	local catQueue="$(:+ $queueId $Tmp/$queueId $dir/lock)"
+	local CatQueue="$(:+ $QueueId $Tmp/$QueueId $Dir/lock)"
 
-	file="$dir/\$ASYNC_BATCH_INDEX"
+	File="$Dir/\$ASYNC_BATCH_INDEX"
 	(
-	async_batch $(arg_bool exit verbose) -t "$threads" --for "$variable" -q "$queueId" "
+	async_batch $(arg_bool exit verbose) -t "$Threads" --for "$Variable" -q "$QueueId" "
 		Command=$(args_quoted "$Command")
 
-		if isTrue $json; then
+		if isTrue $Json; then
 			{ $Command; } | jq -sc 'flatten | .[]'
 			exit $?
 		fi
 
-		{ $Command; } >$file
+		{ $Command; } >$File
 
 		ASYNC_CAT_EXIT=$?
-		if ! isTrue $ordered; then
-			_trace async_cat: ${queueId:-$dir} awaiting lock for i=$file
-			flock $catQueue cat $file
-			_trace async_cat: ${queueId:-$dir} freed by i=$file
+		if ! isTrue $Ordered; then
+			_trace async_cat: ${QueueId:-$Dir} awaiting lock for i=$File
+			flock $CatQueue cat $File
+			_trace async_cat: ${QueueId:-$Dir} freed by i=$File
 		fi
 		(exit \$ASYNC_CAT_EXIT)
 	" "$@"
 
 	wait
 	)
-	local exitCode="$?"
+	local ExitCode="$?"
 
 	(
-	cd $dir
-	if isTrue $ordered; then
+	cd $Dir
+	if isTrue $Ordered; then
 		seq 1 $# | xargs cat
 	fi
 	)
 
 	__cleanup
-	return "$exitCode"
+	return "$ExitCode"
 }
