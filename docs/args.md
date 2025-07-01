@@ -2,9 +2,10 @@
 
 Single variable tokens -- eg VARIABLE_NAME
 
-- Variable tags may only contain uppercase alphabetic characters and _ - (underscore).
+- Variable tags may only contain uppercase alphabetic characters, digits
+  (only after the first character) and _ (underscore).
 
-Optional Tokens
+Optional Tokens -- eg [VARIABLE_NAME]
 
 - Optional tokens may or may not exist
 - Any other kind of token may be wrapped in [ ] to be treated as an optional
@@ -57,6 +58,27 @@ Quoted Tokens [NOT YET IMPLEMENTED] -- eg '|' "'QUOTED_ARG'"
 ## Usage String Priority
 - Usage strings with an exact number of arguments (i.e. without any optional or
   variadic arguments) are prioritiesed
+
+# Edicts (Annotations)
+
+Edicts are little flags before some codes to tweak its behaviour on a meta
+level.
+
+- opts_before_args -- stop parsing options as soon as the first non-flag is
+  found. Any remaining flags will be considered part of the standard args.
+- opts_keep_break -- if a `--` is found within the arguments, do not remove it
+  when parsing arguments
+- opts_skip_unknown -- If a flag is found that is not in the Options list, do
+  not through an error, just leave it as part of the arguments.
+  - Note that this might cause errors if a flag value starts with a `-`. If
+  `--foo --bar` are arguments, where `--bar` is the value given to the `--foo`
+  flag, and `--bar` is registered as an option but `--foo` is not, the argument
+  `--bar` will be removed from the arguments and `--foo` will be left without a
+  value.
+- args_no_cache
+- args_double_underscore
+- usage_match_first
+
 
 # Extended argument parsing example.
 ```bash
