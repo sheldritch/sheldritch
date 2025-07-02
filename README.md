@@ -1,4 +1,4 @@
-# Sheldritch -- shell framework imbued with black magic
+# Sheldritch -- shell framework imbued with forbidden magic
 Sheldritch (pronounced S̸h̸e̴l̴d̷r̴i̸t̸c̴h̷) is a development environment for the shell,
 with a library and importer system, argument parsing, cross-shell compatibility
 commands and a slew of different utilities.
@@ -26,8 +26,12 @@ Clone to the directory you want it and run `./_install.sh`.
 
 ### Library and imports
 
-The goal of Sheldritch's library system is to import as little code as possible
-for your given utility.
+Sheldritch's library system lets you declare dependencies for your scripts. It
+keeps track of what's already been sourced (imported) so it can prevent library
+scripts from running multle times, and also prevent dependency loops.
+
+This means your scripts start up much faster -- you aren't executing code
+multiple times, while only sourcing the exact files you need.
 
 The `summon` command lets you semantically include files based on your directory
 structure:
@@ -40,7 +44,7 @@ summon <library>/<directory>/<module>
 
 Sheldritch's `@func_info` argument parsing framework combines code
 documentation, help output, and parsing and validation into a single semantic
-structure.
+and declarative structure.
 
 Here's an example. Let's write a version of `cp` based on its manpage usage
 lines. You can imagine that the system's `cp` command only takes a single source
@@ -93,16 +97,11 @@ function _cp_file {
 }
 ```
 
+You can read more in the docs at </docs/args.md>.
+
 ## Future Development
 
 ### Possible breaking changes
 
 In the future, we may change the way that some functionality works. The
 following are some likely candidates
-
-**Greedy Optional and Variadic Arguments**
-I can envision cases were you would want a variadic argument to contain as many
-values as possible, and as few values as possible. What likely will happen is
-that a token may be compared to its neighbours, and the one with the more
-complex pattern will have priority of greediness. But maybe that's too
-complicated to intuit its use.

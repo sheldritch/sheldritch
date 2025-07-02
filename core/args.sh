@@ -29,7 +29,7 @@ function __main {
 # arguments between functions.
 
 # aliases needs to be first to ensure later functions can use it
-alias @func_info='declare About="" ArgsReq="" _ARGS_PARSE_USAGE=""
+alias @func_info='declare About="" _ARGS_PARSE_USAGE=""
 declare -a Usage=() Options=() Legend=()
 '
 

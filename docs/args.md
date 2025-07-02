@@ -1,3 +1,32 @@
+## Basics
+
+Sheldritch uses a declarative approach to argument parsing. After initialising
+the with @func_info, you set a collection of common variables to define usage
+metadata. Once set, you run `opts_parse` or `args_parse`, and the shadowy inner
+workings of Sheldritch automatically parses user input, validates certain
+preconditions, and puts them into variables.
+
+Here are the variables that Sheldritch's @func_info uses:
+
+- About -- a simple text field to explain what your function does. Also used to
+  populate --help output.
+- Usage
+    - Explained further in <#Tokens>.
+- Options
+    - takes any number of flags, followed by a string explaining its purpose.
+      The final flag may include an equals sign and a tag (e.g. --backup=FILE),
+      which signifies that a flag takes a value, instead of being true/false
+    - e.g. `-f --force "Overwrite DESTINATION even if it already exists."`
+- Legend -- Defines and explains the contents of TOKENS that appear in Usage
+  strings.
+    - takes a key-value array of TOKEN_NAME "and a string explaining its use"
+    - Can also take validation. Legend validation always checks variables after
+      the final values have been set
+    - Legend may also explain the tags from options, and can apply validation to
+      them. For instance, if your Options array contains --backup=FILE, your
+      Legend may include `FILE "Existing file, required."`. This would apply
+      that validation to the --backup option and Backup variable.
+
 ## Tokens
 
 Single variable tokens -- eg VARIABLE_NAME
@@ -61,8 +90,7 @@ Quoted Tokens [NOT YET IMPLEMENTED] -- eg '|' "'QUOTED_ARG'"
 
 # Marks (Annotations)
 
-Marks are little flags before some codes to tweak its behaviour on a meta
-level.
+Marks are little flags before some code to tweak its behaviour on a meta level.
 
 - @func_info -- indicates that the function argument parsing is handled by
   Sheldritch args.sh
