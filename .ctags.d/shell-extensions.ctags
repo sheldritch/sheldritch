@@ -1,4 +1,4 @@
---regex-Sh=/args_edict ([^ ]*) ([^ ]*)/@\1/a/
+--regex-Sh=/args_mark ([^ ]*) ([^ ]*)/@\1/a/
 # some autocomplete systems have issues with the @ sign, so also include a copy without
---regex-Sh=/args_edict ([^ ]*) ([^ ]*)/\1/a/
---regex-Sh=/args_edict ([^ ]*) ([^ ]*)/\2=/f/
+--regex-Sh=/args_mark ([^ ]*) ([^ ]*)/\1/a/
+--regex-Sh=/args_mark ([^ ]*) ([^ ]*)/\2=/f/

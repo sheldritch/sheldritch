@@ -59,9 +59,9 @@ Quoted Tokens [NOT YET IMPLEMENTED] -- eg '|' "'QUOTED_ARG'"
 - Usage strings with an exact number of arguments (i.e. without any optional or
   variadic arguments) are prioritiesed
 
-# Edicts (Annotations)
+# Marks (Annotations)
 
-Edicts are little flags before some codes to tweak its behaviour on a meta
+Marks are little flags before some codes to tweak its behaviour on a meta
 level.
 
 - @func_info -- indicates that the function argument parsing is handled by
@@ -84,7 +84,7 @@ level.
 - @args_no_cache -- Disable caching all of the args metadata and code which is
   generated on a function's first run.
     - Since Sheldritch's arg parsing is optimised for many function runs, using
-      this edict is a massive performance hit, and is only really useful for
+      this mark is a massive performance hit, and is only really useful for
       debugging or running tests.
 
 - @args_double_underscore -- start every variable created by @func_info with
