@@ -31,7 +31,7 @@ characters.
 Variadic Compound Tokens -- e.g. EMAIL_USER@EMAIL_DOMAIN... KEY[=VALUE]... !NEGATED_VAR...
 
 - Arguments for Variadic Compound Tokens are split into variables suffixed with
-- `List`. For the examples above: EmailUserList EmailDomainList KeyList
+  `List`. For the examples above: EmailUserList EmailDomainList KeyList
   ValueList and NegatedVarList
 - *List variables are sparsely populated -- An element is created for *every*
   variable, even if in an unused optional portion. eg if `KEY[=VALUE]` is `key`,
@@ -64,20 +64,36 @@ Quoted Tokens [NOT YET IMPLEMENTED] -- eg '|' "'QUOTED_ARG'"
 Edicts are little flags before some codes to tweak its behaviour on a meta
 level.
 
-- opts_before_args -- stop parsing options as soon as the first non-flag is
+- @func_info -- indicates that the function argument parsing is handled by
+  Sheldritch args.sh
+
+- @opts_before_args -- stop parsing options as soon as the first non-flag is
   found. Any remaining flags will be considered part of the standard args.
-- opts_keep_break -- if a `--` is found within the arguments, do not remove it
+
+- @opts_keep_break -- if a `--` is found within the arguments, do not remove it
   when parsing arguments
-- opts_skip_unknown -- If a flag is found that is not in the Options list, do
+
+- @opts_skip_unknown -- If a flag is found that is not in the Options list, do
   not through an error, just leave it as part of the arguments.
-  - Note that this might cause errors if a flag value starts with a `-`. If
-  `--foo --bar` are arguments, where `--bar` is the value given to the `--foo`
-  flag, and `--bar` is registered as an option but `--foo` is not, the argument
-  `--bar` will be removed from the arguments and `--foo` will be left without a
-  value.
-- args_no_cache
-- args_double_underscore
-- usage_match_first
+    - Note that this might cause errors if a flag value starts with a `-`. If
+      `--foo --bar` are arguments, where `--bar` is the value given to the
+      `--foo` @flag, and `--bar` is registered as an option but `--foo` is not,
+      the argument @`--bar` will be removed from the arguments and `--foo` will
+      be left without a @value.
+
+- @args_no_cache -- Disable caching all of the args metadata and code which is
+  generated on a function's first run.
+    - Since Sheldritch's arg parsing is optimised for many function runs, using
+      this edict is a massive performance hit, and is only really useful for
+      debugging or running tests.
+
+- @args_double_underscore -- start every variable created by @func_info with
+  `__DoubleUnderscores`
+    - This is useful when taking a variable name as an argument, to avoid
+      conflicting with it.
+
+- @usage_match_first -- Do not judge the priority of the usage strings provided
+  -- simply use the first one that matches.
 
 
 # Extended argument parsing example.
