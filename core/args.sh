@@ -7,7 +7,7 @@
 #
 
 # shellcheck disable=SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031,SC2206
-# shellcheck enabled=SC2034,SC2154
+# shellcheck enable=SC2034,SC2154
 #
 # https://github.com/vlisivka/bash-modules/blob/master/bash-modules/examples/showcase-arguments.sh#L16
 # Is a pretty cool alternative to this. I'll be stealing some of that functionality here (like extra
@@ -60,8 +60,9 @@ alias opts_parse='
 		_ARGS_CHECKS=()
 	[[ -n "${_ARGS_CACHE:-}" ]] || declare -g _ARGS_CACHE=1
 
+	# Comment out this line if you want to disable turning off SET flags
 	_ArgsSet="${-//[^xu]/}"
-	#[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
+	[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
 
 	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
 
@@ -417,12 +418,12 @@ function _args_build_validation {
 			[Ee]"xisting path" )
 				Type=file
 				Test='[[ -e $__Val ]]'
-				Error='Path '$__Val' does not exist.'
+				Error='Path \"$__Val\" does not exist.'
 				;;
 			[Ff]ile | [Ee]"xisting file" )
 				Type=file
 				Test='[[ -f $__Val ]]'
-				Error='File '$__Val' does not exist.'
+				Error='File \"$__Val\" does not exist.'
 				;;
 
 
@@ -1420,6 +1421,7 @@ function _args_build_parser_legend {
 	for ((i = 0; i < "${#Legend[@]}"; i += 2)); do
 		Type=''
 		_args_name_to_variable "${Legend[i]}"
+		Builder+=$'\n__Val="$'$Name\"
 		_args_build_validation "${Legend[i + 1]}"
 		Builder+="$Validation"
 	done
@@ -1428,11 +1430,12 @@ function _args_build_parser_legend {
 		Builder+='
 		for __Val in "${'"${_ARGS_CHECKS[i + 1]}"'[@]}"; do
 			if ! '"${_ARGS_CHECKS[i + 2]}"'; then
-				error -p 1 "Failed check for '"${_ARGS_CHECK[i]}: ${_ARGS_CHECK[i + 3]}'\"
+				error -p 1 "Failed check for '"${_ARGS_CHECKS[i]}: ${_ARGS_CHECKS[i + 3]}'\"
 				return 1
 			fi
-		done
-		"
+		done"'
+		[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
+		'
 	done
 }
 
