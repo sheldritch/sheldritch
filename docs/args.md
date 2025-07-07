@@ -2,21 +2,29 @@
 
 Sheldritch uses a declarative approach to argument parsing. After initialising
 the with @func_info, you set a collection of common variables to define usage
-metadata. Once set, you run `opts_parse` or `args_parse`, and the shadowy inner
-workings of Sheldritch automatically parses user input, validates certain
-preconditions, and puts them into variables.
+metadata. Once set, you run `opts_parse` or `args_parse` (explained below), and
+the shadowy inner workings of Sheldritch automatically parses user input,
+validates certain preconditions, and puts them into variables. It also uses the
+metadata to produce help output when the `--help` flag is given.
 
 Here are the variables that Sheldritch's @func_info uses:
 
 - About -- a simple text field to explain what your function does. Also used to
   populate --help output.
-- Usage
+- Usage -- a list of example formats, using placeholders.
+    - Example: 'ARG1 [ARG2] ARG3...'
+    - Takes either a string (if the command takes only one format), or a list of
+      strings (one for each possible format).
     - Explained further in <#Tokens>.
 - Options
     - takes any number of flags, followed by a string explaining its purpose.
       The final flag may include an equals sign and a tag (e.g. --backup=FILE),
       which signifies that a flag takes a value, instead of being true/false
     - e.g. `-f --force "Overwrite DESTINATION even if it already exists."`
+    - You don't need to explicitly list --help, help output is completely
+      handled for you.
+    - which flags are parsed and how errors are handled can be modified with
+      <#Marks> (described below).
 - Legend -- Defines and explains the contents of TOKENS that appear in Usage
   strings.
     - takes a key-value array of TOKEN_NAME "and a string explaining its use"
@@ -27,7 +35,15 @@ Here are the variables that Sheldritch's @func_info uses:
       Legend may include `FILE "Existing file, required."`. This would apply
       that validation to the --backup option and Backup variable.
 
-## Tokens
+### `opts_parse` vs `args_parse`
+
+`opts_parse` will only parse flags, leaving "$@" as the remaining arguments.
+`args_parse` will additionally parse arguments based on the Usage value once flags have been handled.
+
+Even if you don't have any options, calling `opts_parse` is still a good idea so
+`--help` will handled for you automatically.
+
+## Usage String Tokens
 
 Single variable tokens -- eg VARIABLE_NAME
 
@@ -122,6 +138,11 @@ Marks are little flags before some code to tweak its behaviour on a meta level.
 
 - @usage_match_first -- Do not judge the priority of the usage strings provided
   -- simply use the first one that matches.
+
+# Validation
+
+- Integer
+- Decimal
 
 
 # Extended argument parsing example.
