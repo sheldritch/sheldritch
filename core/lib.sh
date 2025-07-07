@@ -8,7 +8,7 @@
 #
 # There are a few library management tools out there. Most have a custom dir containing libs, and
 # their own way for accessing them. For instance, `sheldon` uses '$XDG_DATA_HOME/sheldon', and by
-# default matches `<plugin-dir>.<shell`, `<plugin-dir>.sh` and `*.sh` in order.
+# default matches `<plugin-dir>.<shell>`, `<plugin-dir>.sh` and `*.sh` in order.
 #
 # Because Sheldritch is more of a dev tool, you specify the exact module you want (usually by
 # filename, sometimes by directory). But for general purpose plugin tools, we should be okay to make
@@ -295,7 +295,7 @@ function lib_use {
 				Lib="${REPLY:-$Lib}"
 			fi
 
-			if source_is_cached "$Lib"; then
+			if [[ "$Force" != true ]] && source_is_cached "$Lib"; then
 				continue
 			fi
 
