@@ -17,10 +17,11 @@ function lib_list {
 	for Dir in ${REPOS:-}; do
 		complete_file_path "$Dir" "$1"
 	done
-	) | grep /$ | sort -u
+	) | sort -u
 }
 
 function _complete_sheldritch_lib {
+	bash_run compopt -o nospace
 	COMPREPLY=($(compgen -W "$(lib_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
