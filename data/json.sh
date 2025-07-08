@@ -55,20 +55,22 @@ function json_obj {
 }
 
 function json_merge {
-	@help 'json_field: return a merge of all given objects
-		   Usage: json_field JSON_OBJECTS...' && return
+	@help 'json_merge: return a merge of all given objects
+		   Usage: json_merge JSON_OBJECTS...' && return
 	jqj "$*" -n 'reduce inputs as $in ({}; . * $in)'
 }
 
 function json_field {
 	@help 'json_field: return the value for the given JSON object and key.
-		   Usage: json_field JSON FIELD' && return
+		   Usage: json_field JSON FIELD
+		          json_field FIELD <"$JSON"
+		   ' && return
 
 	[[ "$#" -eq 1 ]] && set -- "-" "$@"
 	[[ -z "$1" ]] && return 2
 
 	local query="$(replace "$2"   \" '\"'   '(([^.]|\\.)+)' '["\1"]'   '\\\.' .  )"
-	jqj "$1" -re ".$query // empty"
+	jqj "$1" -r ".$query | if . != null then . else halt_error(4) end"
 }
 alias jfield=json_field
 alias jf=json_field
@@ -188,7 +190,7 @@ function json2vars {
 	local __Var __Field REPLY MATCHES __Values __I=1 __Exit=0
 
 	# unoptimised solution if jq older than 1.7
-	[[ -z "$JQ_VERSION" ]] || JQ_VERSION="$(jq --version)"
+	[[ -n "$JQ_VERSION" ]] || JQ_VERSION="$(jq --version)"
 	if [[ "$JQ_VERSION" = *[0-1].[0-6]* ]]; then
 		for __Var in "$@"; do
 			if regex "$__Var" '([^=]+)=(.+)'; then
@@ -197,8 +199,12 @@ function json2vars {
 			else
 				__Field="$__Var"
 			fi
-			read -r -d '' "$__Var" <(jqj "$__Json" -re "$__Filter") \
-				|| __Exit+="$__I"
+			read -r -d '' "$__Var" < <(jfield "$__Json" "$__Field")
+			# return the error code of jq process substitution
+			wait $!  || {
+				echo >&2 tried for "var $__Var field $__Field. got ${!__Var}. Exit += $__I, $__Exit"
+				((__Exit += __I))
+			}
 			((__I *= 2))
 		done
 		return "$__Exit"
