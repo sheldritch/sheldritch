@@ -1,7 +1,15 @@
 #!/bin/bash
 
 alias test_init='
-trap "STACKTRACE=1; error FAILED" ERR
+EXIT=0
+trap "STACKTRACE=1; error FAILED; EXIT=1" ERR
+trap "[[ \"\$EXIT\" != \$? ]] && error \"
+
+
+
+WARNING!!!!!! EXIT set as error, but not exiting with said error code!
+\"
+" EXIT
 '
 
 function expect_fail {

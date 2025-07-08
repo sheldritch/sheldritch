@@ -53,3 +53,5 @@ for x in {0..30}; do
 	port="$(random_port)"
 	((port > 1024 && port < 65535))
 done
+
+ecode "$EXIT" || safe_quit
