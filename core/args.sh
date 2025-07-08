@@ -1434,9 +1434,7 @@ function _args_build_parser_legend {
 				error -p 1 "Failed check for '"${_ARGS_CHECKS[i]}: ${_ARGS_CHECKS[i + 3]}'\"
 				return 1
 			fi
-		done"'
-		[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
-		'
+		done"
 	done
 }
 
