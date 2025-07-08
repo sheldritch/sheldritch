@@ -185,7 +185,25 @@ function json2vars {
 		$__Directive "${@//=*/}"
 	fi
 
-	local __Var __Field REPLY MATCHES __Values __I=1 __Exit
+	local __Var __Field REPLY MATCHES __Values __I=1 __Exit=0
+
+	# unoptimised solution if jq older than 1.7
+	[[ -z "$JQ_VERSION" ]] || JQ_VERSION="$(jq --version)"
+	if [[ "$JQ_VERSION" = *[0-1].[0-6]* ]]; then
+		for __Var in "$@"; do
+			if regex "$__Var" '([^=]+)=(.+)'; then
+				__Var="${MATCHES[1]}"
+				__Field="${MATCHES[2]}"
+			else
+				__Field="$__Var"
+			fi
+			read -r -d '' "$__Var" <(jqj "$__Json" -re "$__Filter") \
+				|| __Exit+="$__I"
+			((__I *= 2))
+		done
+		return "$__Exit"
+	fi
+
 	# shellcheck disable=SC2016
 	__Filter="${__Filter:-.}"' | if . then . else
 		("Failed filter '"'${__Filter}'"'\n"
