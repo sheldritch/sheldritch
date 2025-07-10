@@ -18,8 +18,10 @@ RUN apt-get update -q=3 && apt-get install -q=3 --no-install-recommends \
 	jq \
 	libxml2-utils \
 	net-tools \
+	openssl \
 	rename \
 	sudo \
+	wbritish \
 	wget \
 	yq \
 	zip
