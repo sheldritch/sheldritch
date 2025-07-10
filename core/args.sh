@@ -869,7 +869,7 @@ function _args_token_talker {
 			Brackets="${Brackets//[^[\]]/}"
 			while ((TokenPos < "${#Tokens[@]}")); do
 				for ((s = 0; s < ${#Brackets}; s++)); do
-					case ${Brackets:s:1} in
+					case ${Brackets: s:1} in
 						\[ ) ((++Depth));;
 						\] )
 							if ((--Depth < 0)); then
