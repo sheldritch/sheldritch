@@ -441,7 +441,7 @@ function _for_permutations_next {
 function eq {
 	local i
 	for ((i = 2; i <= $#; i++)); do
-		[[ "$1" = "${@:i:1}" ]] || return 1
+		[[ "$1" = "${@: i: 1}" ]] || return 1
 	done
 	return 0
 }

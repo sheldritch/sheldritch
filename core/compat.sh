@@ -7,6 +7,12 @@ check_is_sourced
 
 function _trap_cmd { Command="${3:-true}"; }
 
+function trap_get {
+	bash_run trap -p "$1"
+	zsh_run trap | grep "$1\$"
+	ksh_run error 'not supported'
+}
+
 function trap_return_add {
 	@func_use_parent
 
@@ -14,13 +20,13 @@ function trap_return_add {
 
 	[[ -v BASH_VERSION ]] && Trap=RETURN || TRAP=EXIT
 	shift || return 9
-	OldTrap="$(trap -p $Trap)"
+	OldTrap="$(trap_get $Trap)"
 
 	eval "_trap_cmd $OldTrap"
 	trap -- "$Command; $NewCommand; $OldTrap" $Trap
 
 	for ((I = 0; I <= ParentLevel; I++)); do
-		trap "$(trap -p $Trap)" $Trap
+		trap "$(trap_get $Trap)" $Trap
 	done
 }
 typeset -f -t trap_return_add
@@ -35,7 +41,7 @@ function trap_add {
 	shift || return 9
 
     for Signal in "$@"; do
-		eval "__trap_cmd $(trap -p "$Signal")"
+		eval "__trap_cmd $(trap_get "$Signal")"
         trap -- "$Command; $NewCommand" "$Signal"
     done
 }

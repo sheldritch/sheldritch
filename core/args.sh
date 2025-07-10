@@ -73,7 +73,7 @@ alias opts_parse='
 
 	declare _ARGS_RETURN='' "${_ARGS_VARS[@]}" "${_ARGS_OPTS[@]}" "${_ARGS_OPTS_BOOL[@]}"
 	if (( ${#_ARGS_ARRAYS[@]} )); then
-		declare -a "${_ARGS_ARRAYS[@]/%/=()}"
+		${ZSH_VERSION:+eval} declare -a "${_ARGS_ARRAYS[@]/%/=()}"
 	fi
 
 	_ARGS_${__Source} || safe_quit
@@ -114,9 +114,9 @@ function _args_name_to_variable {
 			break
 		# This has a nice side effect of being able to escape - and _ in usage strings
 		elif [[ "$Separator" = [_-] ]]; then
-			In="${In//$Separator$Match/$UpperMatch}"
+			In="${In//"$Separator$Match"/$UpperMatch}"
 		else
-			In="${In//$Separator$Match/ $UpperMatch}"
+			In="${In//"$Separator$Match"/ $UpperMatch}"
 		fi
 	done
 	First="${In:0:1}"
@@ -516,6 +516,8 @@ function _args_parse_builder {
 	((${#Usage[@]} > 0)) || return 0
 
 	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
+	# zsh has string/array casting issues
+	[[ -v ZSH_VERSION ]] && Usage=("${Usage[@]}")
 
 	# one parser for each usage line
 	declare -a Parsers
@@ -657,9 +659,14 @@ function _args_build_usage_parsers {
 			elif [[ "$RunMax" != + ]]; then
 				((++RunMax))
 			fi
-			if [[ -z $Literal ]]; then
+			if [[ -z $Literal && -z $Variadic ]]; then
 				# TODO: remove = here, and add variable setting into arg parsing function?
-				_ARGS_VARS+=(${Name//[^[[:upper:][:digit:]_]]/= }'=')
+				if [[ -v ZSH_VERSION ]]; then
+					declare Names="${Name//[[^[:upper:][:digit:]]_]/= }"
+					_ARGS_VARS+=($Names'=' )
+				else
+					_ARGS_VARS+=(${Name//[^[[:upper:][:digit:]_]]/= }'=' )
+				fi
 			fi
 
 			if [[ $Variadic && "$RunMax" = + ]]; then
@@ -703,7 +710,7 @@ function _args_build_usage_parsers {
 			elif [[ -z $Literal ]]; then
 				LineBuilder+='
 				__Pos="${_ARGS_BOUNDS['$TokenPos']}"
-				'$Name${Variadic:++}'=("${_ARGS[@]: __Pos : ${_ARGS_BOUNDS['$TokenPos' + 1]} - __Pos }")
+				'$Name${Variadic:++}=${Variadic:+(}'"${_ARGS[@]: __Pos : ${_ARGS_BOUNDS['$TokenPos' + 1]} - __Pos }"'${Variadic:+)}'
 				_args_check_dash '"$Name \"\$$Name\""$' || return 1\n'
 
 				if [[ $Variadic ]]; then
@@ -781,7 +788,7 @@ function _args_compound_split {
 
 # gets the right kind of token parsing goodness or something
 function _args_token_talker {
-	zsh_run setopt KSH_ARRAYS
+	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 	local Token="$1"
 
 	case "$Token" in
@@ -902,7 +909,7 @@ function _args_token_talker {
 					_args_token_talker "${Token:1:${#Token} - 2}"
 					return
 
-				elif [[ $Token = *[* ]]; then
+				elif [[ $Token = *'['* ]]; then
 					Compound=1
 					_args_name_to_variable "$Token"
 					return
@@ -979,7 +986,7 @@ function _args_regex_parser {
 
 	local Check='' i=0 Builder=''
 	while ((i < "${#Token}")); do
-		Check="${Token:i:3}"
+		Check="${Token: i: 3}"
 		if [[ $Check == [^\\]\(* ]]; then
 			((++CaptureGroup))
 		elif [[ $Check == [^\\]\)* ]]; then
@@ -992,7 +999,7 @@ function _args_regex_parser {
 
 				Builder+="
 				recapture $CaptureGroup
-				${@:Arg:1}=\"\$REPLY\"
+				${@: Arg: 1}=\"\$REPLY\"
 				"
 				((++Arg))
 			fi
@@ -1203,7 +1210,7 @@ function _args_parse_usage_token {
 					# TODO: cache depth in a DepthDelta array in token_talker, since slicing is
 					# expensive
 					for ((i = 0; i < ${#Next}; i++)); do
-						case ${Next:i:1} in
+						case ${Next: i: 1} in
 							\[ ) ((++Depth));;
 							\] ) ((Depth--));;
 						esac
@@ -1239,8 +1246,8 @@ function _args_parse_usage_token {
 					# SPLIT -- execute test for both both with and without the optional arg
 
 					# test *with* optional token
-					Tokens[TokenPos]="${Token#[}"
-					Tokens[OptionalEnd]="${Tokens[OptionalEnd]%]}"
+					Tokens[TokenPos]="${Token#\[}"
+					Tokens[OptionalEnd]="${Tokens[OptionalEnd]%\]}"
 
 					Exit=0
 					_args_parse_usage_token $TokenPos $ArgPos || Exit=$?

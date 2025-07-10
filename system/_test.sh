@@ -8,7 +8,9 @@ summon sheldritch/system/files
 
 test_init
 
-function test_abspath [[ "$(abspath "$1")" == "$2" ]]
+function test_abspath {
+	[[ "$(abspath "$1")" == "$2" ]]
+}
 
 (
 test_init

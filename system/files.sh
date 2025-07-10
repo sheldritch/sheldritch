@@ -1,3 +1,4 @@
+#!/bin/zsh
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
@@ -26,7 +27,7 @@ function abspath {
 	if [[ $1 = /* ]]; then
 		REPLY "$1"
 
-	elif ! [[ $1 == */* || $1 =~ /|(/|^)\.\.?(/|$) ]]; then
+	elif ! [[ $1 == */* || $1 =~ (/|(/|^)\.\.?(/|$)) ]]; then
 		REPLY "$PWD/$1"
 
     elif [[ -d "$1" ]]; then

@@ -121,7 +121,7 @@ function replace {
 
 	while [[ $# -gt 1 ]]; do
 		local out="" captures=""
-		local match="$1" replacement="$2"
+		local Match="$1" replacement="$2"
 
 		if rematch "$replacement" '\\[0-9].*' >/dev/null; then
 			# filter out non-capture characters to speed up '=~' check below
@@ -130,18 +130,18 @@ function replace {
 			escapes="${escapes//[^\\0-9]/}"
 
 			for x in {0..9}; do
-				if [[ "$replacement" =~ \\$x ]]; then
+				if [[ "$replacement" == *\\$x* ]]; then
 					captures+=" $x"
 				fi
 			done
 		fi
 
 
-		while ((${#in})) && rematch "$in" "$match" >/dev/null; do
+		while ((${#in})) && rematch "$in" "$Match" >/dev/null; do
 			local capture="$REPLY" sub="$replacement"
 
 			if [[ -z "$capture" ]]; then
-				error -p 1 "replace: pattern /$match/: cannot support matches of zero length!"
+				error -p 1 "replace: pattern /$Match/: cannot support matches of zero length!"
 				return 9
 			fi
 

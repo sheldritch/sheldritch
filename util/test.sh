@@ -18,16 +18,16 @@ function expect_fail {
 
 function expect_error {
 	@func_passthrough
-	local STACKTRACE=1 error match
-	match="$1"
+	local STACKTRACE=1 error Match
+	Match="$1"
 	shift
 
 	if error="$("$@" 2>&1)"; then
 		error "Expected to fail, but succeeded -- $(args_quoted "$@")"
 		return 2
-	elif ! [[ "$error" =~ $match ]]; then
+	elif ! [[ "$error" =~ $Match ]]; then
 		error "Given error not expected for command -- $(args_quoted "$@")
-			 expected: '$match'
+			 expected: '$Match'
 			 actual:   '$error'
 		"
 		return 3
@@ -36,15 +36,15 @@ function expect_error {
 }
 
 function expect_return {
-	local STACKTRACE=1 exit match
-	match="$1"
+	local STACKTRACE=1 exit Match
+	Match="$1"
 	shift
 
 	"$@" && :
 	exit=$?
 
-	if [[ $exit -ne "$match" ]]; then
-		error "Expected exit code $match, but got $exit instead -- $(args_quoted "$@")"
+	if [[ $exit -ne "$Match" ]]; then
+		error "Expected exit code $Match, but got $exit instead -- $(args_quoted "$@")"
 		return 2
 	fi
 }

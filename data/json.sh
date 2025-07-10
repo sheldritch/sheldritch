@@ -118,7 +118,7 @@ function json_keys {
 	@help 'Iterate over given JSON values
 		For example:
 		for i in $(json_keys "$json"); do
-			elem="$(jqj "$json" .[$i])"
+			elem="$(jqj "$json" ".[$i]")"
 			...
 	' && return
 
@@ -132,7 +132,7 @@ function json_keys {
 			;;
 
 		object )
-			jqj "$json" keys[]
+			jqj "$json" 'keys[]'
 			;;
 
 		* )
@@ -200,10 +200,16 @@ function json2vars {
 			else
 				__Field="$__Var"
 			fi
+			if [[ -v ZSH_VERSION ]]; then
+				eval $__Var='"$(jfield "$__Json" "$__Field")"' \
+					|| ((__Exit += __I))
+				((__I *= 2))
+				continue
+			fi
+
 			read -r -d '' "$__Var" < <(jfield "$__Json" "$__Field")
 			# return the error code of jq process substitution
 			wait $!  || {
-				echo >&2 tried for "var $__Var field $__Field. got ${!__Var}. Exit += $__I, $__Exit"
 				((__Exit += __I))
 			}
 			((__I *= 2))
@@ -226,6 +232,7 @@ function json2vars {
 	__Filter+=$'\n.out[]'
 	isTrue "$__Check" && __Filter+=', .errors as $errors | "" | halt_error($errors)'
 
+	{
 	for __Var in "$@"; do
 		if regex "$__Var" '([^=]+)=(.+)'; then
 			__Var="${MATCHES[1]}"
@@ -234,10 +241,11 @@ function json2vars {
 			__Field="$__Var"
 		fi
 		read -r -d $'\0' "$__Var"
-	done < <(jqj "$__Json" --raw-output0 "$__Filter")
+	done
+	read -r __Exit
+	} < <(jqj "$__Json" --raw-output0 "$__Filter"; echo $?)
 
-	# return the error code of jq process substitution
-	wait $!
+	return $__Exit
 }
 
 function json_stream {
