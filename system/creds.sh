@@ -19,17 +19,17 @@ function keyset {
 	)
 	opts_parse
 
-	if [ $# -eq 0 -o "$HELP" = true ]; then
+	if [[ $# -eq 0 || "$HELP" == true ]]; then
 		return 0
 	fi
 
-	if [ $# -ne  "2" ]; then
+	if (($# != 2)); then
 		echo >&2 "Usage: keyset key secret"
 		return 1
 	fi
 
 	if command -v keyctl >/dev/null; then
-		if [ -z "$2" ]; then
+		if [[ -z "$2" ]]; then
 			keyctl purge user "$1" >/dev/null || return 1
 			return
 		fi
@@ -45,7 +45,7 @@ function keyset {
 	elif command -v security >/dev/null; then
 		security add-generic-password -a $LOGNAME -s "$1" -w "$2"
 
-	elif [ "$OS" = windows ] && command -v pwsh >/dev/null; then
+	elif [[ "$OS" == windows ]] && command -v pwsh >/dev/null; then
 		debug "keyset: using powershell"
 		pwsh -CommandWithArgs '
 
@@ -63,7 +63,7 @@ function keyset {
 		chmod 600 "$KEYSTORE"
 
 	else
-		if [ -z "$KEYSTORE" ]; then
+		if [[ -z "$KEYSTORE" ]]; then
 			error "KEYSTORE var missing"
 			return 1
 		fi
@@ -79,7 +79,7 @@ function keyset {
 			> "$KEYSTORE"
 	fi
 
-	if [ -n "$2" -a -n "$timeout" ]; then
+	if [[ -n "$2" && -n "$timeout" ]]; then
 		(
 		nohup bash -c "
 			source '$(self_dir)/creds.sh'
@@ -108,7 +108,7 @@ function keyget {
 	elif command -v security >/dev/null; then
 		security find-generic-password -w -a $LOGNAME -s "$1"
 
-	elif [ "$OS" = windows ] && command -v pwsh >/dev/null; then
+	elif [[ "$OS" == windows ]] && command -v pwsh >/dev/null; then
 		pwsh -nologo -noprofileloadtime -noprofile -noninteractive -CommandWithArgs '
 
 		$keystore = "'"$KEYSTORE"'"
