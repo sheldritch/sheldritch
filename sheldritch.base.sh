@@ -82,7 +82,7 @@ function self_dir {
 		fi
 		return 1
 	fi
-	>/dev/null self_file 1 
+	>/dev/null self_file 1
 	dirname "$REPLY"
 }
 if [[ -v KSH_VERSION ]]; then

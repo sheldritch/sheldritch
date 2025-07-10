@@ -19,6 +19,7 @@ fi
 #
 # Slightly shorter than echoing yourself
 function jqj {
+	@func_internal
 	if [[ "$1" = - ]]; then
 		jq "${@:2}"
 		return

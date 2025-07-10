@@ -111,6 +111,17 @@ Marks are little flags before some code to tweak its behaviour on a meta level.
 - @func_info -- indicates that the function argument parsing is handled by
   Sheldritch args.sh
 
+- @func_use_parent -- Incompatible with @func_info and other marks. Accept the
+    -p/--parent flag, identifying the Nth parent function calling the current
+    function. The current function is 0, the function calling it is 1, its
+    calling function is 2 and so on. This mark sets the ParentLevel variable,
+    to what -p was set to, and the Parent variable, which is the name of the
+    function that -p refers to.
+
+- @func_passthrough -- TODOCUMENT
+
+- @func_internal -- TODOCUMENT
+
 - @opts_before_args -- stop parsing options as soon as the first non-flag is
   found. Any remaining flags will be considered part of the standard args.
 

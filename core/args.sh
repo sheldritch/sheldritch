@@ -48,6 +48,7 @@ args_mark opts_skip_unknown _OPTS_SKIP_UNKNOWN
 args_mark args_no_cache _ARGS_NO_CACHE
 args_mark args_double_underscore _ARGS_DOUBLE_UNDERSCORE
 args_mark usage_match_first _USAGE_MATCH_FIRST
+alias @func_internal='[[ -z "$TRACE_INTERNAL" ]] && set_temp +x'
 
 alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'
 
