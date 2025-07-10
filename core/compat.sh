@@ -10,15 +10,17 @@ function _trap_cmd { Command="${3:-true}"; }
 function trap_return_add {
 	@func_use_parent
 
-	typeset OldTrap Command NewCommand="$1"
+	typeset OldTrap Command NewCommand="$1" Trap=EXIT
+
+	[[ -v BASH_VERSION ]] && Trap=RETURN || TRAP=EXIT
 	shift || return 9
-	OldTrap="$(trap -p RETURN)"
+	OldTrap="$(trap -p $Trap)"
 
 	eval "_trap_cmd $OldTrap"
-	trap -- "$Command; $NewCommand; $OldTrap" RETURN
+	trap -- "$Command; $NewCommand; $OldTrap" $Trap
 
 	for ((I = 0; I <= ParentLevel; I++)); do
-		trap "$(trap -p RETURN)" RETURN
+		trap "$(trap -p $Trap)" $Trap
 	done
 }
 typeset -f -t trap_return_add
@@ -48,6 +50,25 @@ function shopt_temp_unset {
 	shopt -u "$@"
 }
 
+function set_temp {
+	if [[ "$1" = *o* ]]; then
+		error -p 1 'set_temp: -o not supported'
+		return 9
+	fi
+	typeset CurrentlySet=${-//[^$1]/} CurrentlyUnset
+
+	if [[ "$1" = +* ]]; then
+		[[ -n "$CurrentlySet" ]] || return 0
+		# temp unset
+		trap_return_add -p 1 "set -${-//[^$1]/})"
+		set "$1"
+		return
+	fi
+	CurrentlyUnset="${1//[-$CurrentlySet]/}"
+	[[ -n "$CurrentlyUnset" ]] || return 0
+	trap_return_add -p 1 "set +$CurrentlyUnset)"
+	set "$1"
+}
 
 # help code for various compatibility shells
 
