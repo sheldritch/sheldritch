@@ -74,7 +74,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enabled={{is_default_branch}}
+            type=raw,value=${{ matrix.shell }},enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{
+                github.ref_name == github.event.repository.default_branch
+                && matrix.shell == 'bash'
+            }}
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
