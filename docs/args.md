@@ -118,15 +118,36 @@ Marks are little flags before some code to tweak its behaviour on a meta level.
     to what -p was set to, and the Parent variable, which is the name of the
     function that -p refers to.
 
-- @func_passthrough -- TODOCUMENT
+- @func_passthrough -- For any child functions using @func_info, execute as if
+  that function's name is the name of its parent. If function `foo` call
+  @func_passthrough, and then function `bar`, `bar`'s help output and error
+  messages will say `foo` instead of `bar`.
+    - This is a powerful way to leverage all of the options and argument parsing
+      of another function, without having to rewrite out all of the options and
+      arguments that that function provides.
 
-- @func_internal -- TODOCUMENT
+      ```
+        foo() {
+            @func_info; @func_passthrough
+            bar --different-default=x "$@" | transform_output
+        }
+
+      ```
+    - Also can just be used to create an alias for another function without
+      actually using an alias.
+    - Affects the outputs of all `@func_use_parent` functions
+
+- @func_internal -- marks a function as part of the system internals -- that is,
+  a function that is frequently used as a helper across many functions, that you
+  usually aren't interested in the inner workings of.
+    - Temporarily removes `set -x` flag for its operation, unless the
+      TRACE_INTERNAL envar is set.
 
 - @opts_before_args -- stop parsing options as soon as the first non-flag is
   found. Any remaining flags will be considered part of the standard args.
 
 - @opts_keep_break -- if a `--` is found within the arguments, do not remove it
-  when parsing arguments
+  when parsing arguments.
 
 - @opts_skip_unknown -- If a flag is found that is not in the Options list, do
   not through an error, just leave it as part of the arguments.
@@ -143,12 +164,16 @@ Marks are little flags before some code to tweak its behaviour on a meta level.
       debugging or running tests.
 
 - @args_double_underscore -- start every variable created by @func_info with
-  `__DoubleUnderscores`
+  `__DoubleUnderscores`.
     - This is useful when taking a variable name as an argument, to avoid
       conflicting with it.
 
 - @usage_match_first -- Do not judge the priority of the usage strings provided
   -- simply use the first one that matches.
+
+- @help -- a simple alias to print help information if the first argument is
+  --help -- e.g. `@help 'command: does the thing' && return 0`
+
 
 # Validation
 
