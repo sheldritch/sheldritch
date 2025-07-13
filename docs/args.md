@@ -177,8 +177,33 @@ Marks are little flags before some code to tweak its behaviour on a meta level.
 
 # Validation
 
-- Integer
-- Decimal
+Validation strings are a series of comma-separated clauses that appear at the
+front of a flag's description (in the 'Options' array) or tag's description (in
+the `Legend` array). Have an example:
+
+```
+Options=(
+    --max-depth
+        "Integer, >= -1, defaults to -1. The maximum number of
+        directories to descend. If -1, there is no limit to directory depth."
+)
+```
+
+The following is a list of possible validation options:
+
+- Basic types: Int, Integer, Decimal, Bool, Boolean.
+- Required
+- Defaults to DEFAULT
+- Matches /REGEX/, /REGEX/
+- { > | \< | = | == | \<= | >= } INT -- size comparison with INT. INT may be an
+  integer or a VARIABLE_NAME.
+- Allowed multiple times, multiple allowed, can have multiple -- allows a flag
+  to be specified multiple times. Turns the token into an Array.
+- New file
+- Existing path
+- File, Existing file
+- No repeats -- may not declare a flag twice (by default, multiple flags uses
+  the value of the latest one)
 
 
 # Extended argument parsing example.
