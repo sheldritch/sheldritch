@@ -99,9 +99,32 @@ function _cp_file {
 
 You can read more in the docs at </docs/args.md>.
 
+## Security
+
+As with any shell scripts, it is important to keep the following in mind. While
+using Sheldritch itself is not inherently dangerous, it can be used to do some
+incredibly dangerous things. The same as the shell itself.
+
+- Always assume that any `source`d script has full administrator access to your
+  system (eg via a cached `sudo`). This equally applies to Sheldritch, unless
+  you are only using it inside of executable scripts.
+    - Be aware of what personal data you have stored on your computer, and how
+      that data might be used for nefarious purposes.
+- Shell scripts almost always have the power to edit other scripts, corrupting
+  them or injecting malicious code into otherwise trusted sources.
+- Never take input from untrusted sources. Shells are riddled with arbitrary
+  execution vulnerabilities, like
+  [this](https://yossarian.net/til/post/some-surprising-code-execution-sources-in-bash/)
+  or [many of these](https://mywiki.wooledge.org/BashPitfalls).
+    - Do not let the public run shell scripts on your machine, for instance by using
+      scripts that take user input in a web server.
+    - Web requests, resource polling, file reads, all count as input. Make sure
+      they are trustworthy.
+- One ill-considered `sudo` can ruin your day. Or week, year, etc.
+
 ## Future Development
 
 ### Possible breaking changes
 
 In the future, we may change the way that some functionality works. The
-following are some likely candidates
+following are some likely candidates:
