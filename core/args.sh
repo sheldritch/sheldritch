@@ -1467,13 +1467,14 @@ function usage_has_glob {
 }
 
 # TODO: consider renaming to args_compound_read
-alias arg_group_read='declare __ArgGroup __ArgGroupI; _arg_group_read'
+alias arg_group_read='declare __ArgGroup __ArgGroupI && _arg_group_read'
 function _arg_group_read {
 	if [[ -z "$1" ]]; then
 		error -p 2 "No variables provided."
 		return 9
 	fi
-	local Builder='' Func="_ARGS_GROUP_READ_${*// /_}" Arg=''
+	local Builder='' Func="_ARGS_GROUP_READ_$*" Arg=''
+	Func="${Func//[[:space:]]/_}"
 	_ARGS_CACHE=1
 
 	if [[ -z $__ArgGroup ]]; then
