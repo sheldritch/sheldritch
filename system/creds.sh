@@ -15,7 +15,7 @@ function keyset {
 	About='A shared frontend for secret management'
 	Usage='KEY SECRET'
 	Options=(
-		-t --timeout "Time before creds expire in seconds"
+		-t --timeout=TIMEOUT "Time before creds expire in seconds"
 	)
 	opts_parse
 

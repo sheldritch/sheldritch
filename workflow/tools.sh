@@ -71,6 +71,9 @@ function transmute {
 	$EDITOR "${Paths[@]}" || exit 2
 	) || return $?
 	lib_use --force "${Paths[@]}"
+	for __Path in "${Paths[@]}"; do
+		source "$__Path"
+	done
 	return
 
 	local FirstFileAndLine
