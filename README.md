@@ -13,7 +13,7 @@ Sheldon is a package manager for shell modules.
 2. run
     ```sh
     sheldon init --shell "${SHELL##*/}"
-    sheldon add sheldritch --github eidolic/sheldritch --use sheldritch.full.sh
+    sheldon add sheldritch --github sheldritch/sheldritch --use sheldritch.full.sh
     eval "$(sheldon source)"
     ```
 3. Add `eval "$(sheldon source)"` to your shell rc file.
@@ -105,15 +105,18 @@ As with any shell scripts, it is important to keep the following in mind. While
 using Sheldritch itself is not inherently dangerous, it can be used to do some
 incredibly dangerous things. The same as the shell itself.
 
-- Always assume that any `source`d script has full administrator access to your
-  system (eg via a cached `sudo`). This equally applies to Sheldritch, unless
-  you are only using it inside of executable scripts.
+- Always assume that *any* script you run in the terminal has full
+  administrator access to your system (eg via a cached `sudo`). This equally
+  applies to Sheldritch.
     - Be aware of what personal data you have stored on your computer, and how
       that data might be used for nefarious purposes.
-- Shell scripts almost always have the power to edit other scripts, corrupting
-  them or injecting malicious code into otherwise trusted sources.
+- No, seriously. Even if you're 100% sure a script is running without root
+    permissions, there are fairly simple ways to gain admin access. For
+    instance, it could edit a script which does run with root permissions,
+    corrupting it or injecting malicious code into otherwise trusted sources.
 - Never take input from untrusted sources. Shells are riddled with arbitrary
   execution vulnerabilities, like
+  [this](https://attack.mitre.org/techniques/T1548/003/),
   [this](https://yossarian.net/til/post/some-surprising-code-execution-sources-in-bash/)
   or [many of these](https://mywiki.wooledge.org/BashPitfalls).
     - Do not let the public run shell scripts on your machine, for instance by using
