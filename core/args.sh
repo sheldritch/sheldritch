@@ -357,7 +357,7 @@ function _args_build_parser_opts {
 		;;
 	* )
 		# if no options spec was defined, assume flags are parsed elsewhere
-		(( "${#Options[@]}" )) || return 0
+		(( "${#Options[@]}" )) || break
 
 		if [[ $_OPTS_SKIP_UNKNOWN = true ]]; then
 			__PosArgs+=("${_ARGS[__Pos]}")
@@ -1012,6 +1012,7 @@ function _args_regex_parser {
 
 function _args_check_dash {
 	if [[ -z ${_ARGS_BREAK:-}
+			&& ${#Options[@]} -gt 0
 			&& ${_OPTS_SKIP_UNKNOWN:-} != true
 			&& ${_OPTS_PARSE_FIRST:-} != true
 			&& $2 = -?*
