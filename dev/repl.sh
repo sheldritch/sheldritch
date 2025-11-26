@@ -11,7 +11,7 @@ repl_start() {
 	[[ -z "$REPL_ID" ]] && for _ in "$ReplDir"/*; do
 		((++REPL_ID))
 	done
-	export REPL_FILE="$REPL_DIR/$REPL_ID.sh"
+	export REPL_FILE="$ReplDir/$REPL_ID.sh"
 }
 
 alias repl_last="history -p '!!'"

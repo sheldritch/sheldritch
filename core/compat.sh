@@ -17,9 +17,19 @@ function trap_return_add {
 	@func_use_parent
 
 	typeset OldTrap Command NewCommand="$1" Trap=EXIT
-
-	[[ -v BASH_VERSION ]] && Trap=RETURN || TRAP=EXIT
 	shift || return 9
+
+	if [[ -v BASH_VERSION ]]; then
+		Trap=RETURN
+		if [[ $- = *T* ]]; then
+			warn "
+			You have the -T shell flag set, which automatically inherits RETURN traps.
+
+			It is not confirmed that Sheldritch's trap_return_add compatibility function
+			provides the same behaviour as the -T flag, so please report if there are any bugs related to this"
+			return 0
+		fi
+	fi
 	OldTrap="$(trap_get $Trap)"
 
 	eval "_trap_cmd $OldTrap"

@@ -517,6 +517,7 @@ function safe_set {
 }
 
 function filter_if {
+	@help "Usage: filter_if EVAL_EXPRESSION [EVAL_IF_TRUE] [EVAL_IF_FALSE]" && return
 	if eval "$1"; then
 		eval "${2:-cat}"
 	else
