@@ -25,6 +25,20 @@ function random_word {
 		| tr '\n' ' ' | sed 's/ $//'
 }
 
+function random_base64 {
+	@func_info
+	Options=(
+		-c --count=COUNT
+			"integer, defaults to 1. the number of hexadecimal characters to generate"
+		--url
+			"if true, use the base64url, where + and / are replaced with - and _"
+	)
+	args_parse
+
+
+	base64 /dev/random | filter_if 'isTrue $Url' 'tr +/ -_' | head -c "$Count"
+}
+
 function random_hex {
 	@func_info
 	Options=(
@@ -33,8 +47,19 @@ function random_hex {
 	)
 	args_parse
 
+	local InputCount=$((Count / 2 + 1))
 
-	openssl rand -hex $((Count / 2 + 1)) | head -c "$Count"
+	if quiet command -v hexdump; then
+		hexdump -n $InputCount  -v -e '"%x"' /dev/random
+	elif quiet command -v od; then
+		od /dev/random -t x1 -N $InputCount -A n | tr -d '[:space:]'
+	elif quiet command -v openssl; then
+		openssl rand -hex $InputCount
+	else
+		error 'No sufficient tool found'
+		return 1
+
+	fi | head -c "$Count"
 }
 
 function random_char {
