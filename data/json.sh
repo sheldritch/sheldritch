@@ -334,13 +334,13 @@ function jq_build() {
 		stdin '{}' read -r "$StartVar" || return 9
 	fi
 
-	read -r "$JSON_BUILD_VARIABLE" \
+	read -d '' -r "$JSON_BUILD_VARIABLE" \
 		< <(deref "$JSON_BUILD_VARIABLE" | jq "$@")
 
 	# TODO: perf test against the following:
 	# (although, probably negligible to the subshell fork)
 	# stdin "$(deref "$JSON_BUILD_VARIABLE" | jq "$@")" \
-	# 	read -r "$JSON_BUILD_VARIABLE"
+	# 	read -d '' -r "$JSON_BUILD_VARIABLE"
 
 }
 
