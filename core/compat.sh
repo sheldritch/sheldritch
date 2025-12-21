@@ -76,7 +76,7 @@ function set_temp {
 	if [[ "$1" = +* ]]; then
 		[[ -n "$CurrentlySet" ]] || return 0
 		# temp unset
-		trap_return_add -p 1 "set -${-//[^$1]/})"
+		trap_return_add -p 1 "set -${-//[^$1]/}"
 		set "$1"
 		return
 	fi
