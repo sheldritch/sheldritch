@@ -70,3 +70,10 @@ function url_open {
 	fi
 }
 
+function wsl_open {
+	typeset Path="$1"
+	Path="${Path#file://}"
+	[[ -e "$Path" ]] && Path="$(wslpath -w "$Path")"
+	(cd /mnt/c || cd /c && cmd.exe /c start "${Path//&/^&}")
+}
+
