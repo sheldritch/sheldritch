@@ -61,6 +61,42 @@ function install_first_with {
 				fi
 				;;
 
+			brew)
+				if quiet brew info "$pkg"; then
+					brew install "$pkg" && return
+				fi
+				;;
+
+			choco)
+				if quiet choco info "$pkg"; then
+					choco install "$pkg" && return
+				fi
+				;;
+
+			npm)
+				if quiet npm info "$pkg"; then
+					npm install -g "$pkg" && return
+				fi
+				;;
+
+			pacman)
+				if quiet pacman -Si "$pkg"; then
+					sudo pacman -S "$pkg" && return
+				fi
+				;;
+
+			snap)
+				local confinement
+				confinement="$(snap info --verbose "$pkg" 2>/dev/null |
+						awk '$1 ~ /confinement:/ {print $2}')"
+
+				if [ "$confinement" = strict ]; then
+					sudo snap install "$pkg" && return
+				elif [ "$confinement" = classic ]; then
+					sudo snap install --classic "$pkg" && return
+				fi
+				;;
+
 			winget)
 				(
 				local wingetOut options choice
@@ -81,20 +117,6 @@ function install_first_with {
 				)
 				;;
 
-
-			snap)
-				local confinement
-				confinement="$(snap info --verbose "$pkg" 2>/dev/null |
-						awk '$1 ~ /confinement:/ {print $2}')"
-
-				if [ "$confinement" = strict ]; then
-					sudo snap install "$pkg" && return
-				elif [ "$confinement" = classic ]; then
-					sudo snap install --classic "$pkg" && return
-				fi
-
-				;;
-
 			yarn)
 				if ! yarn info "$pkg" 2>/dev/null | grep -q '^error'; then
 					yarn global add "$pkg" &&
@@ -103,24 +125,6 @@ function install_first_with {
 				fi
 				;;
 
-			npm)
-				if quiet npm info "$pkg"; then
-					npm install -g "$pkg" && return
-				fi
-				;;
-
-
-			choco)
-				if quiet choco info "$pkg"; then
-					choco install "$pkg" && return
-				fi
-				;;
-
-			brew)
-				if quiet brew info "$pkg"; then
-					brew install "$pkg" && return
-				fi
-				;;
 
 			*)
 				echo >&2 "Error: install_with_first: installer '$installer' not supported"
@@ -137,11 +141,18 @@ function install_basic {
 	zsh_run setopt SH_WORD_SPLIT
 	declare -a Installers=(
 		# in order of goodness (objectively and empirically, of course)
+
+		# system-level package managers
 		apt
 		winget
+		pacman # if you're on an arch-based system and another system-level package manager is available, surely you did that on purpose, riiiight?
+
+		# app level package managers
 		brew
 		yarn
 		npm
+
+		# we don't like containered packages, lol
 		snap
 	)
 

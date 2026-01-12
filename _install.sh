@@ -42,12 +42,19 @@ SHELDRITCH="$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")"
 	source "$SHELDRITCH/sheldritch.base.sh"
 
 function add_envar {
+
+	# use $HOME envar where appropriate
+	typeset Dir="$SHELDRITCH"
+	if [[ "$Dir" = "$HOME"* ]]; then
+		Dir="${Dir/#"$HOME"/'"$HOME"'}"
+	fi
+
 	if [ -f "$1" ]; then
 		if grep -q SHELDRITCH= "$1"; then
 			# export needed for executable scripts that use $SHELDRITCH
-			sed -i -e "/SHELDRITCH=/s%^.*$%export SHELDRITCH=$SHELDRITCH%" "$1"
+			sed -i -e "/SHELDRITCH=/s%^.*$%export SHELDRITCH=$Dir%" "$1"
 		else
-			echo "export SHELDRITCH=$SHELDRITCH" >> "$1"
+			echo "export SHELDRITCH=$Dir" >> "$1"
 		fi
 	fi
 }
