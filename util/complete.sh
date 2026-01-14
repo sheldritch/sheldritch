@@ -5,9 +5,14 @@ check_is_sourced
 
 # TODO: explore using complete -P to prefix all possible matches
 
-# Returns a list of paths in dir '$1' that start with '$2'
-# Directories are ended with '/', and files are not.
 function complete_file_path {
+	@help '
+	Returns a list of paths in dir "$1" that start with "$2"
+	Directories are ended with "/", and files are not.
+
+	Usage: complete_file_path DIRECTORY QUERY_PREFIX
+	' && return
+
 	local directory Path
 	directory="$1"
 	Path="$2"

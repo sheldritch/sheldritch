@@ -6,6 +6,8 @@ check_is_sourced
 
 summon sheldritch/core/args.sh
 
+# TODO: document these functions effectively.
+
 function git_stash_safe {
 	if git diff-index --quiet HEAD "$@"; then
 		return 1

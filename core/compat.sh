@@ -94,6 +94,12 @@ alias _help_deref='
 		echo "Usage: deref VARIABLE_NAME"
 		return 0
 	fi'
+alias _help_keys='
+	if [[ "$1" = --help ]]; then
+		echo "keys: populate the RETURN value with a list of keys for the given associative array"
+		echo "Usage: keys ARRAY_NAME"
+		return 0
+	fi'
 alias _help_regex='
 	if [[ "$#" -eq 1 && "$1" = --help ]]; then
 		echo "regex: Test a string against a given regex pattern"

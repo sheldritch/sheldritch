@@ -11,18 +11,27 @@ SEMS=$ASYNC_TMP/semaphores
 mkdir -p $SEMS
 
 function flock {
+	@help "
+	This is Sheldritch's poor fellow's flock implementation.
+	You really should install a real one instead.
+
+	Usage:
+	flock FILE COMMAND
+	flock FILE -c 'COMMAND'
+	" && return
+
 	local Bin
 	if Bin="$(which flock 2>/dev/null)"; then
 		"$Bin" "$@"
 	else
 
-		if [[ $# < 2 || "$1" != *[^0-9]* || "$1" == -* ]]; then
+		if [[ $# -lt 2 || "$1" != *[^0-9]* || "$1" == -* ]]; then
 			error -p 1 "flock: only supported usages are:
 			flock FILE COMMAND
 			flock FILE -c 'COMMAND'
 
-			note you are using Sheldritch's poor person's flock fallback
-			you should probably install a real flock alternative.
+			Note: You are using Sheldritch's poor person's flock fallback
+			You should probably install a real flock alternative.
 			"
 			return 9
 		fi
@@ -54,6 +63,12 @@ function flock {
 
 # initialize a semaphore with a given number of tokens
 function async_sem {
+	@help '
+	Initialise a semaphore with a given number of tokens in its queue.
+
+	Usage: async_sem QUEUE_SIZE
+	Returns: the semaphore ID (also in REPLY variable)
+	' && return
 
 	local Sem Fifo
 	Sem="$(random_char -c 12 'A-Za-z0-9')" || return
@@ -72,10 +87,19 @@ function async_sem {
 }
 
 function async_close {
+	@help '
+	Close the given semaphore
+	Usage: async_close SEMAPHORE_ID
+	' && return
 	rm "$SEMS/$1"{,-read,-write}
 }
 
 function async_wait {
+	@help '
+	Wait for the given semaphore to be freed.
+	Usage: async_wait SEMAPHORE_ID
+	' && return
+
 	local Fifo="$SEMS/$1" Exit
 	if ! [[ -p "$Fifo" ]]; then
 		error "could not find async id $1"
@@ -90,6 +114,10 @@ function async_wait {
 }
 
 function async_done {
+	@help '
+	Release a semaphore lock.
+	Usage: async_done SEMAPHORE_ID
+	' && return
 	local Sem="${1:-$SEM}" Exit=${2:-$?} Fifo
 	Fifo="$SEMS/$Sem"
 	(

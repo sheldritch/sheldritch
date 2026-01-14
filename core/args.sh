@@ -40,6 +40,10 @@ function _args_set {
 	stdin "${2:-true}" read -d '' -r "$1" || true
 }
 function args_mark {
+	@help '
+	Create a mark for the given global variable
+	Usage: alias_funcs MARK_NAME GLOBAL_VARIABLE_NAME
+	' && return
 	alias "@$1=declare $2 && _args_set $2"
 }
 args_mark opts_before_args _OPTS_PARSE_FIRST
@@ -1587,12 +1591,14 @@ alias @ARGS_END="$ARGS_END"
 alias '@ENDARGS='"$ARGS_END"
 
 function args_gen {
+	@help "DEPRECATED" && return
 	echo "$ARGS"
 	echo "$*"
 	echo "$ARGS_END"
 }
 
 function args_gen_tail {
+	@help "DEPRECATED" && return
 	echo "$*"
 	echo "$ARGS_END"
 }
@@ -1637,13 +1643,18 @@ __check_var_set'
 # Arg formatting and printing
 #
 
-# Outputs an argument flag for the given variable name, if and only if that variable is set to `true`
 function arg_bool {
+	@help '
+	Outputs an argument flag for the given variable name, if and only if that variable is set to `true`
+	Usage: arg_bool VARIABLE_NAME
+	' && return
 	local __x
 	for __x in "$@"; do
+		deref "$__x" >/dev/null || continue
 		# This works, despite questions you might have about variable scope
-		if isTrue $(deref $__x); then
-			echo --"$(echo "$__x" | sed "s/[A-Z]/-\L&/g")"
+		if isTrue $REPLY; then
+			lowercase $REPLY
+			echo --"$REPLY"
 		fi
 	done
 }

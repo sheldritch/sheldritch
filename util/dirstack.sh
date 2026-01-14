@@ -11,10 +11,14 @@ function dirstack_get {
 	@help '
 		dirstack_get: get a directory at the given index in the directory stack
 		Indexed from 0.
+
 		Usage:
+
 		dirstack_get INDEX [COUNT]
+
 		# get all directories from INDEX
 		dirstack_get INDEX -1
+
 	' && return
 	REPLY=''
 	local LineRe=$'([^\n]+(\n|$))' Index="${1:-0}" Length="${2:-1}"

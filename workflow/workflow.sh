@@ -10,6 +10,12 @@ summon sheldritch/data/text
 
 function history_delve {
 
+	@help '
+	Open a copy of your HISTFILE in your editor of choice (set by $EDITOR).
+	After you exit the editor, if the resulting copy has less than 10 lines,
+	execute those lines in your current shell (using `source`).
+	' && return
+
 	if [[ "$1" = --force ]]; then
 		rm "$File" 2>/dev/null
 	fi

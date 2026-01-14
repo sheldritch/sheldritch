@@ -3,6 +3,10 @@
 check_is_sourced
 
 function curl_json {
+	@help '
+	A wrapper around curl with the content type set to json.
+	Run `curl --help` to see all arguments and options available.
+	' && return
 	curl -X POST -H 'Content-Type: application/json' "$@"
 }
 
@@ -33,6 +37,9 @@ function port_publish {
 }
 
 function ip_local {
+	@help '
+	Print our best guess for your primary local IP address.
+	' && return
 	case $OS in
 		linux) ip route get 1 | perl -ne ' /src (\S+)/ && print "$1\n" ';;
 		mac) ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk 'NR == 1 {print $2}' ;;
@@ -42,6 +49,9 @@ function ip_local {
 alias ipl=ip_local
 
 function ip_public {
+	@help '
+	Print our best guess for your public IP address.
+	' && return
 	curl ifconfig.me
 }
 alias ipp=ip_public

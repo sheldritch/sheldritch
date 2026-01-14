@@ -25,6 +25,11 @@ function jqj {
 		return
 	fi
 
+	@help '
+	jqj: A wrapper around jq
+	Usage: jq JSON_INPUT JQ_ARGS...
+	' && return
+
 	# separated because ksh complains
 	local Regex='(^[{\"[]|^([-+0-9.Ee]+|true|false|null|)$)'
 	if [[ ! "$1" =~ $Regex ]]; then
@@ -36,6 +41,10 @@ function jqj {
 }
 
 function json_obj {
+	@help '
+	Return a JSON object containing the given arguments as key-value pairs.
+	Usage: json_obj [KEY VALUE]...
+	' && return
 
 	local key value query
 	while (($# > 1)); do
@@ -102,6 +111,16 @@ function json_check {
 alias jcheck=json_check
 
 function jtype {
+
+	@help '
+	Print the type of the given data according to jq.
+
+	If a second argument is given, silently succeed or fail based on if the
+	type of the given data matches the given type.
+
+	Usage: jtype DATA [EXPECTED_TYPE]
+	' && return
+
 	if [[ $# -eq 2 ]]; then
 		isTrue "$(jqj "$1" "type == \"$2\"")"
 	else
@@ -273,6 +292,11 @@ function json_stream {
 }
 
 function json_array_flat {
+
+	@help '
+	Combine input into a single flat JSON array.
+	Usage: json_flat_array [JQ_ELEMENT_FILTER]
+	' && return
 	@func_passthrough
 	json_stream "$@" | jq --slurp .
 }
@@ -445,6 +469,8 @@ function json_pop {
 }
 
 function json_audit {
+	@help 'Currently undefined behaviour.'
+
 	local ExcludeFields SearchCreds SearchFields
 	while [ $# -ne 0 ]; do
 		case "$1" in

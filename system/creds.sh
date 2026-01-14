@@ -94,10 +94,10 @@ function keyset {
 
 # A shared frontend for secret management
 function keyget {
-	if [[ $# -eq 0 || "$1" = --help ]]; then
-		echo >&2 "Usage: keyget key"
-		return 0
-	fi
+	@help '
+	A shared frontend for secret management. Return the secret stored under KEY.
+	Usage: keyget KEY
+	' && return
 
 	if command -v keyctl >/dev/null; then
 		keyctl print "%user:$1" 2>/dev/null

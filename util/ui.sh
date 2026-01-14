@@ -11,9 +11,10 @@ function confirm {
 		If input is a pipe, will print input to user before asking.
 		If output is also a pipe, will pass on input iff confirm is true.'
 
+	Usage=''
 	Options=(
 		-q --question --query --inquiry --quiz
-			-p --prompt=QUESTION "the question to print to the user to get a yes/no response for"
+		-p --prompt=QUESTION "the question to print to the user to get a yes/no response for"
 
 		-d --default=DEFAULT "yes or no. the default value to return."
 		-e --echo -v --verbose "print true/false based on response"
@@ -80,6 +81,9 @@ function confirm {
 # Display the output of a diff, and ask the user if they want to continue with those changes
 # returns 0 iff they say yes, otherwise return 1
 function diff_confirm {
+	@help '
+	A wrapper around around `diff`, which asks the user to confirm the changes marked in the diff.
+	' && return
 
 	diff="$(diff -yt "$@")"
 

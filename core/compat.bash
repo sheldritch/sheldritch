@@ -36,11 +36,13 @@ function recapture {
 }
 
 function keys {
+	_help_keys
 	eval 'REPLY=("${!'"$1"'[@]}")'
 }
 
 unalias \
 	_help_deref \
+	_help_keys \
 	_help_regex \
 	_help_rematch \
 	_help_recapture

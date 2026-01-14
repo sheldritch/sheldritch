@@ -44,6 +44,10 @@ function is_function {
 }
 
 function funcs {
+	@help '
+	Print all declared functions.
+	Usage: funcs
+	' && return
 	if [[ "$ZSH_VERSION" ]]; then
 		# shellcheck disable=SC2296
 		print -l ${(ok)functions}
@@ -92,31 +96,43 @@ function funcname {
 }
 ksh_run alias funcname='REPLY "${.sh.fun}"'
 
-# for all defined functions, create an alias replacing the given extended regex
-# with the given match
 function alias_funcs {
-	functionMatch="$1"
-	replacement="$2"
+	@help '
+	For all defined functions matching the given regex pattern, create an alias
+	replacing the pattern with the given match.
+	Usage: alias_funcs FUNCTION_MATCH REPLACEMENT
+	' && return
 
-	alias $(funcs | sed -E -n "s/.*/&=&/; s/$functionMatch/$replacement/p")
+	FunctionMatch="$1"
+	Replacement="$2"
+
+	alias $(funcs | sed -E -n "s/.*/&=&/; s/$FunctionMatch/$Replacement/p")
 }
 
 # Print the contents of a given alias. Used for nested aliases.
 function alias_print {
+	@help '
+	Print the contents of the given alias. Useful for nesting aliases.
+	Usage: alias_print ALIAS_NAME
+	' && return
 	eval "alias=$(alias $1 | sed -E 's/^(alias )?'"$1"'=//' )"
 	echo "$alias"
 }
 
-# temporarily unset aliases, so they don't interfere with a helper script
 function disable_previous_aliases {
+	@help "
+	Temporarily unset aliases, so they don't interfere with a sourced script.
+	You must run enable_previous_aliases once required work is complete.
+	" && return
+
 	PRE_UTIL_ALIASES="$(alias)"
 	for alias in $(alias | perl -ne "/alias (\w+)='*/ && print "'"$1\n"'); do
 		unalias "$alias"
 	done
 }
 
-# Must be run at the end of a script that disabled previous aliases
 function enable_previous_aliases {
+	@help "Must be run at the end of a script that disabled previous aliases" && return
 	eval "$PRE_UTIL_ALIASES"
 }
 
@@ -479,6 +495,7 @@ function value {
 }
 
 function ternary {
+	@help 'Evaluate $1. If true, echo $2, otherwise echo $3' && return
 	eval "$1" && echo "$2" || echo "$3"
 }
 function iif { ternary "$@"; }

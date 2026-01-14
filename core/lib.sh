@@ -129,6 +129,9 @@ function path_search {
 }
 
 function find_bin {
+	@help '
+	Search all directories in $PATH for the given file.
+	' && return
 	for x in ${PATH//://*${1}* }*${1}*; do
 		[ -f "$x" ] && echo $x
 	done

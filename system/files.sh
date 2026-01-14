@@ -5,6 +5,12 @@ check_is_sourced
 
 function file_first {
 	# dependencyless func
+
+	if [[ "$#" -eq 1 && "$1" = --help ]]; then
+		deindent "For the given list of files, print the first that exists in the filesystem."
+		return 0
+	fi
+
 	typeset File=''
 	REPLY=
 	for File in "$@"; do

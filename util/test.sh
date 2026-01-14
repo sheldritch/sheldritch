@@ -13,10 +13,26 @@ WARNING!!!!!! EXIT set as error, but not exiting with said error code!
 '
 
 function expect_fail {
+	@help "
+	Succeed if COMMAND fails, otherwise exit with status code 2.
+
+	Usage: expect_fail COMMAND...
+	" && return
+
+	@func_passthrough
 	expect_error ".*" "$@"
 }
 
 function expect_error {
+	@help "
+	Check if COMMAND fails and outputs text matching the given regex pattern.
+
+	If COMMAND succeeds, print an error and exit with status code 2.
+	If COMMAND's output does not match PATTERN succeeds, print an error and exit with status code 3.
+	Otherwise return status code 0.
+
+	Usage: expect_error PATTERN COMMAND...
+	" && return
 	@func_passthrough
 	local STACKTRACE=1 error Match
 	Match="$1"
@@ -36,6 +52,12 @@ function expect_error {
 }
 
 function expect_return {
+	@help "
+	Run COMMAND and ensure its exit code matches the given value.
+	Otherwise, print an error and fail with status code 2.
+
+	Usage: expect_return EXIT_CODE COMMAND...
+	" && return
 	local STACKTRACE=1 exit Match
 	Match="$1"
 	shift

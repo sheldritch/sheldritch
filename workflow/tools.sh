@@ -28,6 +28,12 @@ function _complete_sheldritch_lib {
 complete -F _complete_sheldritch_lib summon
 
 function be_summoned_by {
+	@func_info
+	About='The opposite of the summon command. You are compelled to the location of a library (be it a file or directory).
+	(change working directory (via "cd") to the location of the given library.)
+	'
+	Usage='LIBRARY_PATH'
+	opts_parse
 	cd "$(lib_find "$1")"
 }
 function bsb { @func_passthrough; be_summoned_by "$@"; }
