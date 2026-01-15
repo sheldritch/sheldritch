@@ -1766,7 +1766,7 @@ function print_doc {
 	elif is_function options; then
 		options
 	else
-		{ funcname -p 1 -q && print_args -f "$(funcname -p 1)" || print_args; } 2>&1
+		{ funcname -p 1 -q && DPR_print_args -f "$(funcname -p 1)" || DPR_print_args; } 2>&1
 	fi
 
 	${_ArgsSet:+set -$_ArgsSet}
@@ -1789,7 +1789,7 @@ function print_usage {
 	printf >&2 "%s\n" "Usage: $Name $Usage"
 }
 
-function print_args {
+function DPR_print_args {
 	@func_info
 	About='Output the args of a script file.
 

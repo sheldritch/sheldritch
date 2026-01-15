@@ -77,7 +77,7 @@ function funcname {
 			# do you really expect another util to call `funcname --help`?
 			echo >&2 "funcname - print the function name of the caller, or a given parent function"
 			echo >&2 "Usage: funcname [options]"
-			print_args -f funcname
+			DPR_print_args -f funcname
 			return 0
 	esac; done
 

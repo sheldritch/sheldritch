@@ -155,9 +155,9 @@ function funcs_with_prefix {
 function stdin {
 	typeset string="$1"
 	shift
-	if [[ -z "${string+ }" || "$string" = --help ]]; then
-		echo >&2 "stdin:"
-		echo >&2 "Usage: stdin VARIABLE COMMAND..."
+	if [[ $# -eq 0 && "$string" = --help ]]; then
+		echo "stdin:"
+		echo "Usage: stdin VARIABLE COMMAND..."
 		return 0
 	fi
 

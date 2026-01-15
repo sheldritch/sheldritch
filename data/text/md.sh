@@ -2,13 +2,17 @@
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-# Markdown Metadata from front matter
 function mdmd {
 	local file start end
 
+	@help '
+	parse markdown metadata from front matter
+	Usage: mdmd FILE YQ_ARGS...
+	' && return
+
 	file="$1"
 	shift
-	start="$(head -n 1 "$file")"
+	start="$(head -n 1 -- "$file")"
 
 	case "$start" in
 		'{' )

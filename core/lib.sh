@@ -214,6 +214,11 @@ function lib_find {
 
 function lib_paths {
 
+	@help '
+	Print a colon-separated list of paths considered by SHELDRITCH for use.
+	Usage: lib_paths
+	' && return
+
 	if [[ -n "$LIBS" ]]; then
 		REPLY="$LIBS"
 	else

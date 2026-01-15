@@ -469,7 +469,7 @@ function json_pop {
 }
 
 function json_audit {
-	@help 'Currently undefined behaviour.'
+	@help 'Currently undefined behaviour.' && return
 
 	local ExcludeFields SearchCreds SearchFields
 	while [ $# -ne 0 ]; do

@@ -25,8 +25,10 @@ function deindent {
 }
 
 function lines {
-	@func_info
-	About='Count lines. Any text past the final newline counts as a line, unlike raw `wc -l`'
+	@help '
+	Print the number of lines in the given input. Any text past the final newline counts as a line, unlike raw `wc -l`
+	Usage: lines [LINES...]
+	' && return
 	opts_parse
 
 	local Newline=$'\n' Arg Count=0
@@ -46,6 +48,11 @@ function lines {
 }
 
 function lines_eq {
+	@help '
+	Exits with a success if and only if EXPECTED_COUNT matches the number of lines, according to `lines`
+	Usage: lines_eq EXPECTED_COUNT [LINES...]
+	' && return
+
 	if [[ "$1" = *[^0-9]* ]]; then
 		error -p 1 'First argument must be an integer!!!'
 		sleep 3
@@ -56,6 +63,11 @@ function lines_eq {
 }
 
 function lines_gt {
+	@help '
+	Exits with a success if and only if the number of given lines is greater than MINIMUM
+	Usage: lines_gt MINIMUM [LINES...]
+	' && return
+
 	if [[ "$1" = *[^0-9]* ]]; then
 		error -p 1 'First argument must be an integer!!!'
 		sleep 3
@@ -66,6 +78,11 @@ function lines_gt {
 }
 
 function lines_lt {
+	@help '
+	Exits with a success if and only if the number of given lines is less than MAXIMUM
+	Usage: lines_lt MINIMUM [LINES...]
+	' && return
+
 	if [[ "$1" = *[^0-9]* ]]; then
 		error -p 1 'First argument must be an integer!!!'
 		sleep 3
@@ -76,14 +93,26 @@ function lines_lt {
 }
 
 function lines_one {
+	@help '
+	Exits with a success if and only if one line is provided.
+	Usage: lines_one [LINES...]
+	' && return
 	lines_eq 1 "$@"
 }
 
 function lines_none {
+	@help '
+	Exits with a success if and only if one line is provided.
+	Usage: lines_none [LINES...]
+	' && return
 	lines_eq 0 "$@"
 }
 
 function lines_multi {
+	@help '
+	Exits with a success if and only if the number of given lines is greater than 1
+	Usage: lines_multi [LINES...]
+	' && return
 	lines_gt 1 "$@"
 }
 
