@@ -252,7 +252,7 @@ function lib_use {
 		esac
 	done
 
-	zsh_run setopt GLOB globsubst
+	zsh_run setopt GLOB globsubst extendedglob
 	typeset SHELDRITCH_CLEAN="$Force"
 
 	if [[ "$Help" = true ]]; then
@@ -263,17 +263,34 @@ function lib_use {
 		return 0
 	fi
 
-	typeset Arg Lib Globs='' Prefix=''
+	typeset Arg Lib Globs='' Prefix='' Extglob=''
 	for Arg in "$@"; do
 
+		# Fetch any wildcards (globs) if they exist
 		if [[ "$Arg" = *\** ]]; then
 			Globs="*${Arg#*\*}"
+
+			if [[ "$Globs" = *\*\* ]]; then
+				# Handle '**' recursive wildcards
+				# Exclude files starting with '_' from the wildcard
+
+				# extglob wildcards are very slow, but this is the only option for bash available
+				bash_run ! shopt -pq extglob && Extglob="shopt -u extglob" && shopt -s extglob
+				# *(*/) doesn't work in direct patterns, but it does work in GLOBIGNORE
+				bash_run local GLOBIGNORE="*(*/)@(_*|.*)*(/*)"
+
+				# ([^_]*/)# is a recursive glob, allowing any number of repeating occurrences of the
+				# pattern inside the brackets
+				zsh_run Globs="${Globs//\*\*/([^_]*/)#}" &&
+					Globs="[^_]${Globs//\/\*//[^_]*}"
+
+				Globs="${Globs//\*\//[^._]*/}"
+				Globs="$Globs/[^._]*"
+			else
+				Globs="[^._]${Globs//\/\*//[^._]*}"
+			fi
 		fi
-		if [[ "$Globs" = *\*\* ]]; then
-			Globs="$Globs/[^_]*"
-		else
-			Globs="${Globs:+[^_]$Globs}"
-		fi
+
 
 		typeset Globstar=''
 		bash_run ! shopt -pq globstar && { Globstar="shopt -u globstar" && shopt -s globstar; }
@@ -281,6 +298,8 @@ function lib_use {
 
 		Prefix="${Arg%%\**}"
 		for Lib in "$Prefix"$Globs; do
+			[[ $Extglob ]] && unset GLOBIGNORE && Extglob=""
+
 			Prefix="${Arg%%\**}"
 			if [[ "${Lib#$Prefix}" = */_* ]]; then
 				_trace "Ignoring lib '$Lib' due to underscore"
