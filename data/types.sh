@@ -500,9 +500,9 @@ function ternary {
 }
 function iif { ternary "$@"; }
 if [[ -v ZSH_VERSION ]]; then
-	function \?: { ternary "$@"; }
+	alias '?:=ternary'
 else
-	function ?: { ternary "$@"; }
+	function ?: { @func_passthrough; ternary "$@"; }
 fi
 
 function ifdef {
