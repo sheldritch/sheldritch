@@ -12,4 +12,8 @@ fi
 
 source "${__FILE%.full.sh}.base.sh" "$@"
 
-summon 'sheldritch/*/**'
+# optimised 'sheldritch/*/**'
+summon \
+	'sheldritch/*/*' \
+	'sheldritch/*/*/*' \
+	'sheldritch/*/*/*/**'
