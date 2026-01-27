@@ -18,7 +18,12 @@ function deindent {
 
 	if [[ "$*" =~ $'\n'($'\t'| )+ ]]; then
 		rematch >/dev/null
-		printf "%s\n" "${*//"$REPLY"/$'\n'}"
+		if [[ -v ZSH_VERSION ]]; then
+			REPLY=${*//"$REPLY"/$'\n'}
+		else
+			REPLY="${*//"$REPLY"/$'\n'}"
+		fi
+		printf "%s\n" "$REPLY"
 	else
 		printf "%s\n" "$*"
 	fi
