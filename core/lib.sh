@@ -276,8 +276,8 @@ function lib_use {
 		fi
 
 		typeset Globstar=''
-		bash_run shopt -pq globstar || { Globstar="shopt -u globstar" && shopt -s globstar; }
-		ksh_run [[ -o globstar ]] || { Globstar="set +o globstar" && set -o globstar; }
+		bash_run ! shopt -pq globstar && { Globstar="shopt -u globstar" && shopt -s globstar; }
+		ksh_run ! [[ -o globstar ]] && { Globstar="set +o globstar" && set -o globstar; }
 
 		Prefix="${Arg%%\**}"
 		for Lib in "$Prefix"$Globs; do

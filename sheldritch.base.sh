@@ -30,11 +30,11 @@ fi
 # KSH is stupid and can't run aliases after defining them
 # So don't use these in this file.
 
-# trailing '||' handles complex structures like for loops
-alias zsh_run="true  '(not zsh, skipping command)' ||"
-alias bash_run="true '(not bash, skipping command)' ||"
-alias ksh_run="true  '(not ksh, skipping command)' ||"
-alias _trace='[[ -n "${TRACE+ }" || $- = *x* ]] && echo >&2 '
+# trailing '&&' handles complex structures like for loops
+alias zsh_run="false  '(not zsh, skipping command)' &&"
+alias bash_run="false '(not bash, skipping command)' &&"
+alias ksh_run="false  '(not ksh, skipping command)' &&"
+alias _trace='[[ -n "${TRACE+ }" && $- = *x* ]] && echo >&2 '
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
 	zmodload zsh/parameter
