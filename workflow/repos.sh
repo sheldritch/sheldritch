@@ -20,7 +20,10 @@ fi
 
 function repo_list {
 	@func_info
-	About='print directories from all repos'
+	About='Print directories from all repos
+
+	Searches directories in the : separated REPOS environment variable.
+	'
 	opts_parse
 
 	local repoDir
@@ -38,26 +41,39 @@ function _complete_repo_list {
 
 # print the directory for a given repo
 function repo_dir {
-	if [[ -z "$1" ]]; then return 1; fi
+	@func_info
+	About='Print the path for the given repo
+
+	Searches directories in the : separated REPOS environment variable.
+	'
+	Usage='REPO'
+	args_parse
 
 	zsh_run setopt sh_word_split
-	local repo
-	repo="$(
+	local Found
+	Found="$(
 		IFS=:
 		for repoDir in ${REPOS:-}; do
-			if [[ -d "$repoDir/$1" ]]; then
-				echo "$repoDir/$1"
+			if [[ -d "$repoDir/$Repo" ]]; then
+				echo "$repoDir/$Repo"
 				break
 			fi
 		done
 	)"
-	echo "$repo"
+	echo "$Found"
 	zsh_run unsetopt sh_word_split
-	test -d "$repo"
+	test -d "$Found"
 }
 
 # Will try and cd directly into a repo folder from anywhere on the machine
 function repo {
+	@func_info
+	About='Change the working directory to the given repo.
+
+	Searches directories in the : separated REPOS environment variable.
+	'
+	Usage='REPO'
+	args_parse
 
 	if ! dir="$(repo_dir "$1")"; then
 		error "could not find directory '$1' in repos."

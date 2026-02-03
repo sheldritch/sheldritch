@@ -27,10 +27,16 @@ elif [[ -v ZSH_VERSION ]]; then
 	setopt aliases
 fi
 
-# KSH is stupid and can't run aliases after defining them
-# So don't use these in this file.
 
-# trailing '||' handles complex structures like for loops
+# trailing '||' handles complex structures like for loops.
+#
+# 'true' and '||' are used here instead of 'false' and '&&' so the expression
+# evaluates to true even if the shell does not match. This is important so
+# that functions ending with x_run don't randomly report failure based on the
+# shell you're using.
+#
+# NOTE: KSH is stupid and can't run aliases after defining them
+# So don't use the following aliases in this file.
 alias zsh_run="true  '(not zsh, skipping command)' ||"
 alias bash_run="true '(not bash, skipping command)' ||"
 alias ksh_run="true  '(not ksh, skipping command)' ||"

@@ -181,7 +181,8 @@ function source_once {
 
 		if ! source "$1"; then
 			typeset STACKTRACE=1
-			error "failed to source file."
+			error "failed to source file '$1'"
+			error "If you aren't seeing an error above, it's likely the last run sourced command failed silently."
 			Exit=1
 		fi
 	done

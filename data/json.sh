@@ -169,6 +169,8 @@ function json2vars {
 
 	Arguments of form A=B will access the value of JSON key B and assign it to A.
 	Arguments of form A will use A both as the JSON key name and the assigned variable name.
+
+	TODO: document nested keys i.e. A=B.C
 	'
 	@args_double_underscore
 	Usage='JSON [VAR_NAME=]JSON_KEY...'
