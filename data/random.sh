@@ -11,6 +11,7 @@ summon sheldritch/core/args.sh
 
 function random_word {
 	@func_info
+	Usage=''
 	Options=(
 		-c --count=COUNT "integer, defaults to 1. the number of words to generate"
 	)
@@ -27,6 +28,7 @@ function random_word {
 
 function random_base64 {
 	@func_info
+	Usage=''
 	Options=(
 		-c --count=COUNT
 			"integer, defaults to 1. the number of hexadecimal characters to generate"
@@ -41,6 +43,7 @@ function random_base64 {
 
 function random_hex {
 	@func_info
+	Usage=''
 	Options=(
 		-c --count=COUNT
 			"integer, defaults to 1. the number of hexadecimal characters to generate"
@@ -83,6 +86,7 @@ function random_char {
 
 function random_symbol {
 	@func_info
+	Usage=''
 	Options=(
 		-c --count=COUNT "integer, defaults to 1. the number of words to generate"
 	)
@@ -93,6 +97,7 @@ function random_symbol {
 function random_digit {
 	local count
 	@func_info
+	Usage=''
 	Options=(
 		-c --count=COUNT "integer, defaults to 1. the number of words to generate"
 	)

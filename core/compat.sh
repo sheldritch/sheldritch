@@ -14,6 +14,14 @@ function trap_get {
 }
 
 function trap_return_add {
+	@help "
+	trap_return_add:
+	The behaviour of return traps are really wacky, this function tries to provide a standard behaviour that's useful in certain cases.
+
+	Be warned, this function needs FAR more testing and documentation (like, standard behaviour? Are you gonna tell us what that is?),
+	especially when shell behaviour is fairly unique, plus there are a bunch of flags and options that change shell behaviour.
+	" && return
+
 	@func_use_parent
 
 	typeset OldTrap Command NewCommand="$1" Trap=EXIT
@@ -41,12 +49,14 @@ function trap_return_add {
 }
 typeset -f -t trap_return_add
 
-# appends a command to a trap
-#
-# - 1st arg:  code to add
-# - remaining args:  names of traps to modify
-#
 function trap_add {
+	@help '
+	trap_add: appends a command to a trap, while keeping the previous trap commands.
+
+	- 1st arg:  code to add
+	- remaining args:  names of traps to modify
+	' && return
+
     typeset NewCommand="$1" Signal Command
 	shift || return 9
 
@@ -58,15 +68,25 @@ function trap_add {
 typeset -f -t trap_add
 
 function shopt_temp {
+	@help '
+	shopt_temp: same as `shopt -s`, but only applies changes within the given function.
+	' && return
 	trap_return_add -p 1 "$(shopt -p "$@")"
 	shopt -s "$@"
 }
 function shopt_temp_unset {
+	@help '
+	shopt_temp_unset: same as `shopt -u`, but only applies changes within the given function.
+	' && return
 	trap "$(shopt -p "$@")" RETURN
 	shopt -u "$@"
 }
 
 function set_temp {
+	@help '
+	set_temp: same as `set`, but only applies changes within the given function.
+	' && return
+
 	if [[ "$1" = *o* ]]; then
 		error -p 1 'set_temp: -o not supported'
 		return 9

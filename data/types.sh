@@ -195,6 +195,13 @@ yesNoToBool() {
 #
 
 function range_intersects {
+	@help "
+	range_intersects: given two ranges (A and B), return true if and only if
+	some integer x appears in both ranges.
+
+	Usage: range_intersects MIN_A MAX_A MIN_B MAX_B
+	" && return
+
 	local MinA="$1" MaxA="$2" MinB="$3" MaxB="$4"
 	(( ($MinB <= $MinA && $MinA <= $MaxB)
 	|| ($MinB <= $MaxA && $MaxA <= $MaxB) ))
@@ -515,6 +522,23 @@ function ifdef {
 function :+ { ifdef "$@"; }
 
 function safe_set {
+	@help "
+	Given a variable and a value, assign VALUE to VARIABLE_NAME, but only after checking that the following hold true:
+		- the variable has previously been scoped using local, declare, typeset, etc.
+		- the variable does not currently have another value
+		- VARIABLE_NAME is not in the given list of reserved variabled names.
+
+	This function is intended to help construct shell APIs where a variable is
+	passed in and set by another variable. It's kind of a goofy concept, and
+	it's not a secure way to ensure variable scope is enforced. I'd probably
+	avoid using it and just stick to using REPLY like we do throughout this
+	project.
+
+	Usage: safe_set VARIABLE_NAME VALUE [RESERVED_VARIABLE_NAMES...]
+	" && return
+
+	# SEC: A parent function could just declare a heap of different variable
+	# names to try and catch you out if you forget to declare yourself.
 	if ! declare -p $1 >/dev/null; then
 		error "variable '$1' must be declared beforehand"
 		echo >&2 "Please call 'local $1' above this function call, and 'declare -r $1' afterwards."
@@ -524,13 +548,12 @@ function safe_set {
 		error "'$1' Must be a fresh variable, do not set it to some initial value."
 		return 9
 
-	elif [[ "$1" = "$2" ]]; then
-		error variable cannot be "$2"
+	elif contains "$1" "${@:3}"; then
+		error "Variable name '$1' is reserved and cannot be used."
 		return 9
 	fi
 
-	deref "$2" >/dev/null
-	eval $1='"$REPLY"'
+	stdin "$2" read -r "$1"
 }
 
 function filter_if {

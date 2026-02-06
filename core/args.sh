@@ -1757,6 +1757,7 @@ function print_doc {
 		awk "/${Parent:+"$Parent *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
 		usage
 	else
+		# TODO: This should not show up if Usage is explicitly set to empty (representing a function with no arguments)
 		echo >&2 "No Usage line provided. However, here are the options:"
 	fi
 

@@ -73,7 +73,7 @@ function fopen {
 		_sem=$((_sem + 1))
 	done
 
-	safe_set "$2" _sem || return $?
+	safe_set "$2" "$_sem" || return $?
 
 	eval "exec ${_sem}<>$SEMS/$1"
 }
