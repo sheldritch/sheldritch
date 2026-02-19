@@ -535,8 +535,8 @@ function _args_parse_builder {
 
 	declare -a _ARGS_BOUNDS=() _ARGS_COMPOUND=()
 	if ! _args_parse_dynamic; then
-		error -p 2 "Arguments did not match any usage strings. $(args_quoted "$@")"
-		print_doc -p 2
+		error -p 1 "Arguments did not match any usage strings. $(args_quoted "$@")"
+		print_doc -p 1
 		return 1
 	fi
 
