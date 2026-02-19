@@ -11,8 +11,8 @@ alias extglob=':'
 alias local=typeset
 alias declare=typeset
 
-function lowercase { typeset -l Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
-function uppercase { typeset -u Val="$1"; Reply="$Val"; printf '%s\n' "$REPLY"; }
+function lowercase { typeset -l Val="$1"; REPLY="$Val"; printf '%s\n' "$REPLY"; }
+function uppercase { typeset -u Val="$1"; REPLY="$Val"; printf '%s\n' "$REPLY"; }
 function deref     { _help_deref; typeset var="$1"; REPLY="${!var}";  printf '%s\n' "$REPLY"; }
 
 function regex {

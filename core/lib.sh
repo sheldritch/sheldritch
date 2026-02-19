@@ -34,7 +34,7 @@ fi
 # TODO: probably swap back to arrays, we want to keep the original sourcing order
 # so we can deterministically re-apply sources
 # Actually, if we really want we can probably store both at once...
-if [[ -z "${SHELDRTICH_SOURCES[*]+ }" ]]; then
+if [[ -z "${SHELDRITCH_SOURCES[*]+ }" ]]; then
 	typeset -g -A SHELDRITCH_SOURCES
 fi
 
@@ -107,7 +107,7 @@ function path_search {
 			shift 1
 			;;
 		-d | --delimiter ) Delim="$2"
-			if [[ -z "$delim" ]]; then
+			if [[ -z "$Delim" ]]; then
 				echo >&2 "Error: xdg_search: no delimiter passed to -d"
 				return 1
 			fi
@@ -179,9 +179,9 @@ function source_once {
 		_trace "sources currently:"
 		_trace "$(typeset -p SHELDRITCH_SOURCES)"
 
-		if ! source "$1"; then
+		if ! source "$Path"; then
 			typeset STACKTRACE=1
-			error "failed to source file '$1'
+			error "failed to source file '$Path'
 			If you aren't seeing an error above, it's likely the last run sourced command failed silently."
 			Exit=1
 		fi

@@ -38,7 +38,7 @@ fi
 
 export MSYS=winsymlinks:nativestrict
 OS_WSL=/proc/sys/fs/binfmt_misc/WSLInterop
-if [[ -f "$OS_WSL" ]] && grep -sq enabled "$WSL"; then
+if [[ -f "$OS_WSL" ]] && grep -sq enabled "$OS_WSL"; then
 	OS_WSL=1
 	__browser="cmd.exe /c start"
 	if [[ "$BROWSER" && "$BROWSER" != "$__browser" ]]; then

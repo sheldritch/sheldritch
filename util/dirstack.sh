@@ -52,14 +52,16 @@ function dirstack_replace {
 	else
 		declare -a Stack=()
 		local i
+
 		for (( i = 1; i < Index; ++i)); do
 			dirstack_get "$i" >/dev/null
 			Stack+=("$REPLY")
 		done
 		Stack+=("$Dir")
 		while dirstack_get "$i" >/dev/null; do
-			Stack+=("$Reply")
+			Stack+=("$REPLY")
 		done
+
 		dirs "${Stack[@]}"
 	fi
 }
