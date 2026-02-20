@@ -13,11 +13,13 @@ fi
 source "${__FILE%.sh}.base.sh" "$@"
 
 summon \
-	'sheldritch/core/*'      \
-	'sheldritch/data/*'      \
-	'sheldritch/data/text/*' \
-	'sheldritch/net/*'       \
-	'sheldritch/system/*'    \
+	'sheldritch/core/*'           \
+	'sheldritch/data/*'           \
+	'sheldritch/data/text/*'      \
+	'sheldritch/net/*'            \
+	'sheldritch/system'           \
+	'sheldritch/system/files'     \
+	'sheldritch/system/xdg'       \
 	'sheldritch/util/*'
 
 if [[ -f "$(self_dir)/system/$OS.sh" ]]; then

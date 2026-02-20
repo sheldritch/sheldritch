@@ -45,4 +45,6 @@ unalias \
 	_help_keys \
 	_help_regex \
 	_help_rematch \
-	_help_recapture
+	_help_recapture \
+
+# needs \n

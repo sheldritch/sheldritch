@@ -40,6 +40,25 @@ structure:
 summon <library>/<directory>/<module>
 ```
 
+More information about how libraries work can be found
+[in the documentation](docs/libs.md).
+
+### Entrypoint Tiers
+
+Sheldritch features three top-level files which may be sourced, depending on
+which Tomes (modules) you want exposed by default.
+
+- `sheldritch.base.sh` – minimal bootstrap as the library's foundation. It
+    sources just the library management utilities from `core/lib.sh`, and few
+    critical helpers needed for Sheldritch's operation (including sourcing
+    `system/files.sh` and `system/xdg.sh`).
+- `sheldritch.sh` – Standard bundle for scripts. On top of base, it sources
+    essentially the 'standard library' of Sheldritch. You can see the exact
+    list [in that file](sheldtrich.sh).
+- `sheldritch.full.sh` – Sources everything. Since `sheldritch.sh` excludes
+    development utilities, this is commonly the entrypoint included in shell rc
+    files.
+
 ### Argument Parsing
 
 Sheldritch's `@func_info` argument parsing framework combines code
