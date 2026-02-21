@@ -2,7 +2,8 @@
 #
 # Functions for importing and handling shell scripts like libraries
 #
-# This file does not depend on base.
+# This file is sourced very early by sheldritch.base.sh, so keep dependencies
+# minimal and avoid summoning other Tomes from here.
 
 # DESIGN:
 #
@@ -31,17 +32,67 @@ elif [[ "$ZSH_VERSION" ]]; then
 	setopt aliases
 fi
 
-# TODO: probably swap back to arrays, we want to keep the original sourcing order
-# so we can deterministically re-apply sources
-# Actually, if we really want we can probably store both at once...
-if [[ -z "${SHELDRITCH_SOURCES[*]+ }" ]]; then
-	typeset -g -A SHELDRITCH_SOURCES
+if [[ -z "${SHELDRITCH_SUBSHELL:-}" ]]; then
+	source "$SHELDRITCH/sheldritch.base.sh" "" # block argument passthrough
 fi
 
-function source_is_cached {
-	[[ -n "${SHELDRITCH_SOURCES[$1]}" ]]
-}
+# SHELDRITCH_SOURCES tracks which files are sourced, including order.
+{ typeset -g -a SHELDRITCH_SOURCES || typeset -a SHELDRITCH_SOURCES; } 2>/dev/null || :
 
+# `${Arr[*]+ }` is a cheap "non-empty" proxy despite shell differences
+if [[ -z "${SHELDRITCH_SOURCES[*]+ }" ]]; then
+	SHELDRITCH_SOURCES=()
+fi
+
+# If supported, create SHELDRITCH_SOURCES_LOOKUP associative array for performance
+if [[ -n "${SHELDRITCH_HAS_ASSOC_ARRAYS:-}" ]]; then
+	# Fallback: O(n) member check on array
+	function source_is_cached {
+		typeset Cached=''
+		for Cached in "${SHELDRITCH_SOURCES[@]}"; do
+			[[ "$Cached" = "$1" ]] && return 0
+		done
+		return 1
+	}
+	function _source_cache_mark {
+		SHELDRITCH_SOURCES+=("$1")
+	}
+else
+	typeset -g -A SHELDRITCH_SOURCES_LOOKUP 2>/dev/null \
+		|| typeset -A SHELDRITCH_SOURCES_LOOKUP
+
+	if [[ -n "${ZSH_VERSION:-}" ]]; then
+		# zsh treats quotes inside `Assoc["key"]` as literal key chars
+		function source_is_cached {
+			[[ -n "${SHELDRITCH_SOURCES_LOOKUP[$1]+ }" ]]
+		}
+		function _source_cache_mark {
+			SHELDRITCH_SOURCES+=("$1")
+			SHELDRITCH_SOURCES_LOOKUP[$1]=1
+		}
+	else
+		# bash/ksh treat `Assoc["key"]` as quoting
+		function source_is_cached {
+			[[ -n "${SHELDRITCH_SOURCES_LOOKUP["$1"]+ }" ]]
+		}
+		function _source_cache_mark {
+			SHELDRITCH_SOURCES+=("$1")
+			SHELDRITCH_SOURCES_LOOKUP["$1"]=1
+		}
+	fi
+
+	# Invariant: when lookup is enabled, the ordered list and lookup must be kept in sync.
+	# If they ever diverge (bug or user meddling), alert and reset the cache
+	if (( ${#SHELDRITCH_SOURCES[@]} != ${#SHELDRITCH_SOURCES_LOOKUP[@]} )); then
+		echo >&2 "Warning: sheldritch: source cache is inconsistent; resetting SHELDRITCH_SOURCES and SHELDRITCH_SOURCES_LOOKUP."
+		SHELDRITCH_SOURCES=()
+		SHELDRITCH_SOURCES_LOOKUP=()
+	fi
+fi
+unset __SHELDRITCH_HAS_LOOKUP 2>/dev/null || :
+
+# If a file is re-sourced, clear args.sh's generated _ARGS_* functions so they get rebuilt.
+# (Keeps @func_info metadata in sync for live editing / re-sourcing.)
 alias source_cache_update='
 	self_file >/dev/null
 	if [[ -z "${_ARGS_NO_CACHE:-}" && -n "${_ARGS_CACHE:-}" ]]; then
@@ -67,6 +118,7 @@ source_cache_update
 '
 
 if [[ -z "$KSH_VERSION" ]]; then
+	# ksh cannot reliably run aliases immediately after defining them.
 	check_is_sourced
 fi
 
@@ -76,12 +128,14 @@ if [[ -z "$SHELDRITCH" ]]; then
 fi
 
 function __last {
-	source_once "$SHELDRITCH/sheldritch.base.sh"
+	# Late init: make sure base + minimal system helpers are available and cached.
+	_source_cache_mark "$SHELDRITCH/sheldritch.base.sh"
 	# allow resource so args.sh et al can be fetched in the meantime
 	source "$SHELDRITCH/system/files.sh"
 	source "$SHELDRITCH/system/xdg.sh"
 }
 
+# Re-evaluate "$@" to expand globs, without whitespace splitting.
 alias glob_args='
     typeset _IFS_OLD
 	[[ -z "${IFS+x}" ]] || _IFS_OLD=${IFS}
@@ -146,9 +200,9 @@ function path_add {
 }
 
 function sources_sync {
-	local REPLY Key Fail=0
-	keys SHELDRITCH_SOURCES
-	for Key in "${REPLY[@]}"; do
+	# Re-source all cached paths in their original source order.
+	typeset Key Fail=0
+	for Key in "${SHELDRITCH_SOURCES[@]}"; do
 		source "$Key" || Fail=1
 	done
 	return $Fail
@@ -159,10 +213,13 @@ function source_once {
 
 	for Path in "$@"; do
 		if ! [[ "$Path" = /* ]]; then
+			# Canonicalise relative paths so the cache doesn't get duplicates.
 			Path="$(realpath -s "$Path")"
 		fi
 
 		# TODO: test performance of array and hash in large tools context
+		# NOTE: source_once returns early if a path is already cached.
+		# Call source_once separately per path if you need "source all".
 		if source_is_cached "$Path"; then
 			_trace "source_once: skipping export '$Path': Already sourced"
 			return 0
@@ -173,7 +230,8 @@ function source_once {
 			return 1
 		fi
 
-		SHELDRITCH_SOURCES[$Path]=1 # before source to prevent dependency loops
+		# Mark before sourcing to prevent dependency loops.
+		_source_cache_mark "$Path"
 		_trace "source_once: sourcing '$Path'"
 		_trace ""
 		_trace "sources currently:"
@@ -195,6 +253,7 @@ function source_once {
 function lib_find {
 
 	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
+		# Fast-path: resolve sheldritch/* directly from $SHELDRITCH.
 		REPLY="$SHELDRITCH/${1#sheldritch/}"
 		printf '%s\n' "$REPLY"
 		return 0
@@ -273,7 +332,7 @@ function lib_use {
 
 			if [[ "$Globs" = *\*\* ]]; then
 				# Handle '**' recursive wildcards
-				# Exclude files starting with '_' from the wildcard
+				# Exclude files starting with '_' from the wildcard.
 
 				# extglob wildcards are very slow, but this is the only option for bash available
 				bash_run ! shopt -pq extglob && Extglob="shopt -u extglob" && shopt -s extglob
@@ -293,6 +352,7 @@ function lib_use {
 		fi
 
 
+		# Ensure globstar is enabled so "**" expands (restore at end of lib_use).
 		typeset Globstar=''
 		bash_run shopt -pq globstar || { Globstar="shopt -u globstar" && shopt -s globstar; }
 		ksh_run [[ -o globstar ]] || { Globstar="set +o globstar" && set -o globstar; }
@@ -310,6 +370,7 @@ function lib_use {
 			# NOTE: if foo/* was specified, don't import contents of subfolders
 			if [[ -d "$Lib" && -z "$Globs" ]]; then
 				_trace "Importing module '$Lib'"
+				# If a directory is given, import its "default" file (dir/dir.{sh,...}).
 				if [[ "$Lib" != *\\* ]]; then
 					Lib="${Lib%/}"
 					Lib="$Lib/${Lib##*/}"
@@ -319,11 +380,13 @@ function lib_use {
 			fi
 
 			if ! [[ -e "$Lib" ]]; then
+				# Select the best matching implementation for the current shell.
 				file_first "$Lib".{${THIS_SHELL},sh,ksh,bash,fish,zsh,*} >/dev/null
 				Lib="${REPLY:-$Lib}"
 			fi
 
-			if [[ "$Force" != true ]] && source_is_cached "$Lib"; then
+			# Without associative arrays, source_is_cached is O(n); avoid checking twice.
+			if [[ "$Force" != true && -n "${SHELDRITCH_HAS_ASSOC_ARRAYS:-}" ]] && source_is_cached "$Lib"; then
 				continue
 			fi
 
@@ -341,6 +404,7 @@ function lib_use {
 				fi
 
 				if [[ "$SHELDRITCH_CLEAN" = true ]]; then
+					# Force means "source even if already cached".
 					_trace "Force source lib '$Lib'"
 					source "$Lib"
 				else
@@ -355,6 +419,7 @@ function lib_use {
 		done
 
 	done
+	# Restore shell globstar to its original state.
 	$Globstar
 }
 
@@ -396,12 +461,13 @@ function summon {
 			continue
 		fi
 
-		# re-attach globs to absolute path
+		# Re-attach globs to absolute path.
 
 		Globs=''
 		if [[ "$Arg" = *\** ]]; then
 			Globs="*${Arg#*\*}"
 		fi
+		# Build a new argument list without needing a subshell.
 		set -- "$@" "$Lib$Globs"
 		shift
 	done
@@ -439,6 +505,7 @@ function conjure {
 	fi
 
 	(
+		# Subshell keeps any side-effects (variables, options, cwd) contained.
 		summon "$1"
 		"${@:2:$#}"
 	)

@@ -27,6 +27,23 @@ elif [[ -v ZSH_VERSION ]]; then
 	setopt aliases
 fi
 
+# A few Sheldritch constructs must be global.
+# Check if in global scope (i.e. outside a function) or `typeset -g` can be used
+{
+__SHELDRITCH_SCOPE=1
+# in a func, this clears just the local var
+typeset __SHELDRITCH_SCOPE=2 && unset __SHELDRITCH_SCOPE
+
+if [[ -n "${__SHELDRITCH_SCOPE+ }" ]] \
+	&& ! typeset -g __SHELDRITCH_SCOPE
+then
+	echo "Error: Sheldritch was sourced inside a function without 'typeset -g' to define global variables."
+	echo "  You must source sheldritch.base.sh from top-level or upgrade your shell."
+	unset __SHELDRITCH_SCOPE
+	return 9
+fi
+} >&2 2>/dev/null
+
 
 # trailing '||' handles complex structures like for loops.
 #
@@ -55,6 +72,23 @@ elif [[ -n "${BASH_VERSION:-}" ]]; then
 else
 	THIS_SHELL="$(ps -p "$$" | grep -m 1 -o '\b[a-z]*sh\b')"
 fi
+
+if [[ -z "${SHELDRITCH_HAS_ASSOC_ARRAYS+ }" ]]; then
+	SHELDRITCH_HAS_ASSOC_ARRAYS=''
+
+	if [[ -n "${ZSH_VERSION:-}" ]]; then
+		SHELDRITCH_HAS_ASSOC_ARRAYS=1
+	elif [[ -n "${BASH_VERSION:-}" ]]; then
+		(( BASH_VERSINFO[0] >= 4 )) && SHELDRITCH_HAS_ASSOC_ARRAYS=1
+	else
+		typeset -A __SHELDRITCH_ASSOC_TEST && SHELDRITCH_HAS_ASSOC_ARRAYS=1
+		unset __SHELDRITCH_ASSOC_TEST || :
+	fi
+
+	# Prefer global readonly where supported.
+	typeset -g -r SHELDRITCH_HAS_ASSOC_ARRAYS || readonly SHELDRITCH_HAS_ASSOC_ARRAYS
+fi 2>/dev/null
+
 
 function self_file {
 	if [[ -v KSH_VERSION ]]; then

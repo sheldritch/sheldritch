@@ -48,11 +48,29 @@ over-optimised code for performance over readability, maintainability, etc.
     this, you can either call `zsh_run setopt ksh_arrays` inside a function, or
     use array slices (e.g. `${Array[@]:0:1}`). Make sure you preserve the
     original setting when returning control to the shell.
+- Use the `dict_` functions for associative arrays and SHELDRITCH_HAS_ASSOC_ARRAYS
+
+#### Bash
+- Sheldritch aims to support Bash v3 and above.
+- `typeset -g` appears in 4.2
+    - If you're in the top level, falling back to `typeset` will work. There's
+        a check in `sheldritch.base.sh` you can use to test this. So don't use
+        `typeset -g` in a function.
+    - Any uses of globstar must be matched with a fallback `find`.
+
+#### Korn Shell (ksh)
+- As long as you have `core/compat.ksh` sourced, `local` and `declare` are aliased to `typeset`, so you can use each freely.
+- Always use typeset when defining arrays. Raw arrays (`Var=()`) are actually compound variables (i.e. structs).
 
 ### Logging & Errors
 - Use `log`, `warn`, `error`, and `debug` helpers
 - Use `safe_quit` when it's ambiguous if you're running inside a function or
     directly in a script.
+- Return/error code shorthands:
+    - 1 if the user did something stupid, or if there's only one error state
+        (e.g. simply equality check)
+    - 9 for fatal/internal errors (bugs, invariant breaks, impossible states).
+        Mnemonic: 9 is the SIGKILL signal to terminate a process immediately.
 
 ### Testing
 - Place tests under `_test/` or `_test*.sh`; start with `test_init` from
