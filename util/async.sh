@@ -23,40 +23,35 @@ function flock {
 	local Bin
 	if Bin="$(which flock 2>/dev/null)"; then
 		"$Bin" "$@"
-	else
-
-		if [[ $# -lt 2 || "$1" != *[^0-9]* || "$1" == -* ]]; then
-			error -p 1 "flock: only supported usages are:
-			flock FILE COMMAND
-			flock FILE -c 'COMMAND'
-
-			Note: You are using Sheldritch's poor person's flock fallback
-			You should probably install a real flock alternative.
-			"
-			return 9
-		fi
-
-		local Path Lock
-		Path="$(realpath -m "$1")" || return
-		shift
-		Lock="$ASYNC_TMP/flock/$Path/LOCK"
-
-		while true; do
-			if ! [[ -d "$Lock" ]]; then
-				if [[ "$(mkdir -v -p "$Lock")" ]]; then
-					(
-					trap 'rmdir "$Lock"' EXIT
-					if [[ "$1" = "-c" ]]; then
-						set -- sh "$@"
-					fi
-					"$@"
-					return
-					)
-					break
-				fi
-			fi
-		done
+		return
 	fi
+
+	if [[ $# -lt 2 || "$1" != *[^0-9]* || "$1" == -* ]]; then
+		error -p 1 "flock: only supported usages are:
+		flock FILE COMMAND
+		flock FILE -c 'COMMAND'
+
+		Note: You are using Sheldritch's poor person's flock fallback
+		You should probably install a real flock alternative.
+		"
+		return 9
+	fi
+
+	local Path Lock
+	Path="$(realpath -m "$1")" || return
+	shift
+	Lock="$ASYNC_TMP/flock/$Path/LOCK"
+
+	while [[ -d "$Lock" ]] || ! [[ "$(mkdir -v -p "$Lock")" ]]; do
+		sleep 0.000001
+	done
+	(
+	trap 'rmdir "$Lock"' EXIT
+	if [[ "$1" = "-c" ]]; then
+		set -- sh "$@"
+	fi
+	"$@"
+	)
 }
 
 # modified from https://unix.stackexchange.com/a/216475
