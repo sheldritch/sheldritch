@@ -48,12 +48,184 @@ function funcs {
 	Print all declared functions.
 	Usage: funcs
 	' && return
-	if [[ "$ZSH_VERSION" ]]; then
+	if [[ -n ${ZSH_VERSION-} ]]; then
 		# shellcheck disable=SC2296
 		print -l ${(ok)functions}
 	else
 		declare -F | awk '{print $3}'
 	fi
+}
+
+function func_source_file {
+	@func_info
+	About='Print the source file that most recently defined FUNCTION.'
+	Usage='FUNCTION'
+	zsh_run setopt KSH_ARRAYS
+	args_parse
+
+	local Path
+	if ! is_function "$Function"; then
+		error "function '$Function' not found"
+		return 1
+	fi
+
+	if [[ -n "$BASH_VERSION" ]]; then
+		Path="$(shopt -s extdebug; declare -F "$Function" | awk '{print $3}')"
+		if [[ -n "$Path" ]]; then
+			REPLY "$Path"
+			return
+		fi
+	elif [[ -n ${ZSH_VERSION-} ]]; then
+		zmodload zsh/parameter >/dev/null 2>&1 || :
+		Path="${functions_source[$Function]}"
+		if [[ -n "$Path" ]]; then
+			REPLY "$Path"
+			return
+		fi
+	fi
+
+	warn "falling back to Sheldritch's SHELDRITCH_SOURCES array."
+
+	if ((${#SHELDRITCH_SOURCES[@]} == 0)); then
+		error "no sourced files are cached"
+		return 1
+	fi
+
+	local I Name
+	zsh_run setopt KSH_ARRAYS
+	for ((I = ${#SHELDRITCH_SOURCES[@]} - 1; I >= 0; I--)); do
+		Path="${SHELDRITCH_SOURCES[I]}"
+		[[ -r "$Path" ]] || continue
+		while IFS= read -r Name; do
+			if [[ "$Name" = "$Function" ]]; then
+				REPLY "$Path"
+				return
+			fi
+		done < <(funcs_in_file "$Path")
+	done
+
+	error "function '$Function' is defined, but no defining source file was found in source cache"
+	return 1
+}
+
+function funcs_in_file {
+	@func_info
+	About='List function names that appear in FILE.'
+	Usage='FILE'
+	zsh_run setopt KSH_ARRAYS
+	args_parse
+
+	if ! [[ -f "$File" ]]; then
+		error "file '$File' not found"
+		return 1
+	fi
+
+	local Flavor='sh' Shebang=''
+	case "$File" in
+		*.bash) Flavor='bash' ;;
+		*.zsh) Flavor='zsh' ;;
+		*.ksh) Flavor='ksh' ;;
+		*.sh)
+			IFS= read -r Shebang < "$File" 2>/dev/null || :
+			case "$Shebang" in
+				'#!'*bash*|*'/bash'*) Flavor='bash' ;;
+				'#!'*zsh*|*'/zsh'*) Flavor='zsh' ;;
+				'#!'*ksh*|*'/ksh'*) Flavor='ksh' ;;
+			esac
+			;;
+	esac
+
+	awk -v flavor="$Flavor" '
+		function emit_names(names, n, i, part) {
+			# Precondition: `names` is the part of the header we interpret as the
+			# function name(s) (may be a list in zsh).
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", names)
+			if (names == "") {
+				return
+			}
+
+			# zsh allows multiple names after `function`; other shells do not.
+			if (flavor != "zsh" && names ~ /[[:space:]]/) {
+				return
+			}
+
+			n = split(names, parts, /[[:space:]]+/)
+			for (i = 1; i <= n; i++) {
+				part = parts[i]
+
+				# Exclude `$foo`-style dynamic names (not a literal function name in bash;
+				# for zsh, `$name() { ... }` is an expansion, not a literal name).
+				if (part ~ /\$/) {
+					continue
+				}
+
+				if (part != "" && part != "()" && !seen[part]++) {
+					print part
+				}
+			}
+		}
+
+		{
+			line = $0
+
+			# Pre-processing: ignore full-line comments.
+			# This avoids false positives like `#foo() { ... }`.
+			if (line ~ /^[[:space:]]*#/) {
+				next
+			}
+
+			if (pending != "") {
+				# We saw a header-only line (e.g. `name()`), waiting for body opener.
+				if (line ~ /^[[:space:]]*$/) {
+					next
+				}
+				if (line ~ /^[[:space:]]*[{(]/) {
+					emit_names(pending)
+				}
+				pending = ""
+			}
+
+			if (line ~ /^[[:space:]]*function[[:space:]]+/) {
+				rest = line
+				sub(/^[[:space:]]*function[[:space:]]+/, "", rest)
+
+				# `function name () {` or `function one two () (`
+				if (rest ~ /\(\)[[:space:]]*[{(]/) {
+					sub(/\(\)[[:space:]]*[{(].*$/, "", rest)
+					emit_names(rest)
+					next
+				}
+				# `function name {`
+				if (rest ~ /[[:space:]]*\{/) {
+					sub(/[[:space:]]*\{.*$/, "", rest)
+					emit_names(rest)
+					next
+				}
+				# `function name ()` (body opener may be on later line)
+				if (rest ~ /\(\)[[:space:]]*$/) {
+					sub(/\(\)[[:space:]]*$/, "", rest)
+					pending = rest
+					next
+				}
+				# `function name` (zsh form; body opener may be on later line)
+				if (rest ~ /^[[:space:]]*[^[:space:]#]+([[:space:]]+[^[:space:]#]+)*[[:space:]]*$/) {
+					pending = rest
+					next
+				}
+			}
+
+			# `name () {` or `name () (`
+			if (match(line, /^[[:space:]]*([^[:space:](]+)[[:space:]]*\(\)[[:space:]]*[{(]/, m)) {
+				emit_names(m[1])
+				next
+			}
+			# `name ()` (body opener may be on later line)
+			if (match(line, /^[[:space:]]*([^[:space:](]+)[[:space:]]*\(\)[[:space:]]*$/, m)) {
+				pending = m[1]
+				next
+			}
+		}
+	' "$File"
 }
 
 # WARNING!

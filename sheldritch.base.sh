@@ -11,7 +11,7 @@ if [[ -n "${SHELDRITCH_SUBSHELL:-}" ]]; then
 	# There is an alias version in check_is_sourced in lib.sh that ksh
 	# can fall back on, though
 	source_cache_update
-	if [[ -z "${SHELDRITCH_CLEAN:-}" && "$1" != "--force" ]]; then
+	if [[ -z "${SHELDRITCH_CLEAN:-}" && "${1-}" != "--force" ]]; then
 		return
 	fi
 fi
@@ -100,16 +100,17 @@ function self_file {
 		return 1
 	fi
 
-	if [[ "$Level" = -* ]]; then
+	if [[ "${1-}" = -* ]]; then
 		typeset Level="$1"
 	else
 		typeset Level="$((${1:-0} + 1))"
 	fi
 
 	if [[ -v BASH_VERSION ]]; then
-		REPLY="${BASH_SOURCE[$Level]}"
+		REPLY="${BASH_SOURCE[$Level]-}"
 	elif [[ -v ZSH_VERSION ]]; then
-		REPLY="${funcfiletrace[$Level]%%:*}"
+		REPLY="${funcfiletrace[$Level]-}"
+		REPLY="${REPLY%%:*}"
 	fi
 	echo "$REPLY"
 }
@@ -162,7 +163,7 @@ alias @help='[[ "$#" -eq 1 && "$1" = --help ]] && deindent'
 # shellcheck disable=SC2154,SC2142
 alias @func_use_parent='
 	typeset Parent ParentLevel=0
-	while [[ -n "$1" ]]; do
+	while (($#)); do
 		case "$1" in
 			-p | --parent ) ParentLevel="$2"
 				shift
@@ -173,7 +174,7 @@ alias @func_use_parent='
 		esac
 	done
 
-	ParentLevel="$((ParentLevel + FUNC_PASSTHROUGH + 1))"
+		ParentLevel="$((ParentLevel + ${FUNC_PASSTHROUGH:-0} + 1))"
 
 	typeset Parent=''
 	if funcname -p $ParentLevel -q 2>/dev/null; then
@@ -190,7 +191,9 @@ function stacktrace {
 
 	typeset I=$((ParentLevel - 1)) Caller Line Func File
 
-	if Caller="$(caller $I)" 2>/dev/null; then
+	if command -v caller >/dev/null 2>/dev/null \
+		&& Caller="$(caller $I)" 2>/dev/null
+	then
 
 		read Line Func File < <(caller $I)
 		printf "%s:%s: %s:" "$File" "$Line" "$Func"
@@ -201,7 +204,7 @@ function stacktrace {
 			((++I))
 		done
 
-	elif ((${#funcstack[@]})); then
+	elif [[ -n ${ZSH_VERSION-} ]] && ((${#funcstack[@]})); then
 		while ((I < ${#funcstack[@]})); do
 			printf '\t%s\n' "${funcstack[I]}"
 			((++I))
@@ -221,12 +224,12 @@ function stacktrace {
 	${Set:+ set -$Set }
 }
 
-function _genfunc_log {
-	eval "$1"'() {
-		typeset Trace="${STACKTRACE:-$DEBUG}" Set Line Func File Last="$_" REPLY
-		zsh_run setopt SH_WORD_SPLIT
-		Set="${-//[^x]/}"
-		${Set:+ set +$Set }
+	function _genfunc_log {
+		eval "$1"'() {
+			typeset Trace="${STACKTRACE:-${DEBUG-}}" Set Line Func File Last="$_" REPLY
+			zsh_run setopt SH_WORD_SPLIT
+			Set="${-//[^x]/}"
+			${Set:+ set +$Set }
 
 		@func_use_parent
 		Line='"$2"'": ${Parent:+$Parent: }$*"
@@ -249,7 +252,7 @@ _genfunc_log _debug Debug
 # Echo debug line to stderr if debug turned on
 function debug {
 	typeset x
-	for x in "$DEBUG" "$TRACE"; do
+	for x in "${DEBUG-}" "${TRACE-}"; do
 		lowercase "$x" >/dev/null 2>&1
 		if [[ -n "$x" && "$REPLY" =~ ^(1|true)$ ]]; then
 			STACKTRACE=false _debug -p 1 "$@"

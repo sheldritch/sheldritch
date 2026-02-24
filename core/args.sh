@@ -34,7 +34,7 @@ alias @func_info='declare About="" _ARGS_PARSE_USAGE=""
 declare -a Usage=() Options=() Legend=()
 '
 
-alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
+alias @func_passthrough='declare FUNC_PASSTHROUGH=$(( ${FUNC_PASSTHROUGH:-0} + 1 ))'
 
 function _args_set {
 	stdin "${2:-true}" read -d '' -r "$1" || true
@@ -517,6 +517,7 @@ function _args_build_assoc_array {
 }
 
 function _args_parse_builder {
+	var_is_declared Usage || return 0
 	((${#Usage[@]} > 0)) || return 0
 
 	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
@@ -562,6 +563,7 @@ function _args_parse_builder {
 function _args_build_usage_parsers {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 
+	var_is_declared Usage || return 0
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	local Format='' Name='' Line='' TokenPos='' GlobEnabled=''
@@ -1030,6 +1032,7 @@ function _args_check_usage_conflicts {
 	if [[ "${_USAGE_MATCH_FIRST:-}" = true ]]; then
 		return
 	fi
+	var_is_declared Usage || return 0
 	# Compare the computed formats to check that no usage line conflicts with another
 	local i j
 	for ((i=0; i < ${#_ARGS_FORMATS[@]}; i++)); do
@@ -1054,6 +1057,7 @@ function _args_check_usage_conflicts {
 function _args_parse_dynamic {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 
+	var_is_declared Usage || return 0
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	local Name='' Line='' TokenPos='' GlobEnabled='' i=0 ExactMatch=''
@@ -1456,6 +1460,7 @@ function _args_build_parser_legend {
 }
 
 function usage_has {
+	var_is_declared Usage || return 1
 	local Token
 	for Token; do
 		contains "$Token" ${Usage[_ARGS_USAGE_NUM]} || return 1
@@ -1464,6 +1469,7 @@ function usage_has {
 }
 
 function usage_has_glob {
+	var_is_declared Usage || return 1
 	local Token
 	for Token; do
 		contains_glob "$Token" ${Usage[_ARGS_USAGE_NUM]} || return 1
@@ -1744,15 +1750,19 @@ function print_doc {
 		echo
 	fi
 
-	if __has Usage; then
+	if var_is_declared Usage; then
 		echo "Usage:"
-		for Line in "${Usage[@]}"; do
-			if [[ "$Line" = \#* ]]; then
-				printf '\t%s\n' "$Line"
-				continue
-			fi
-			printf '\t%s%s\n' "$Parent ${Options[1]:+[options] }" "$Line"
-		done
+		if ((${#Usage[@]})); then
+			for Line in "${Usage[@]}"; do
+				if [[ "$Line" = \#* ]]; then
+					printf '\t%s\n' "$Line"
+					continue
+				fi
+				printf '\t%s%s\n' "$Parent ${Options[1]:+[options] }" "$Line"
+			done
+		else
+			printf '\t%s%s\n' "$Parent" "${Options[1]:+ [options]}"
+		fi
 	elif is_function usage &&
 		awk "/${Parent:+"$Parent *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
 		usage
@@ -1810,7 +1820,7 @@ function DPR_print_args {
 	if [[ -z "$File" ]]; then
 		if [[ "$BASH_VERSION" ]]; then
 			File="${BASH_SOURCE[1]}" # [1] is the context that called this function.
-		elif [[ "$ZSH_VERSION" ]]; then
+		elif [[ -n ${ZSH_VERSION-} ]]; then
 			# shellcheck disable=SC1087
 			File="$(echo "$funcfiletrace[1]" | sed 's/:[0-9]*$//')"
 		else

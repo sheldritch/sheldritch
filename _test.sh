@@ -1,8 +1,8 @@
-if [[ -n "$BASH_VERSION" ]]; then
+if [[ -n ${BASH_VERSION-} ]]; then
 	__FILE="${BASH_SOURCE[0]}"
-elif [[ -n "$KSH_VERSION" ]]; then
+elif [[ -n ${KSH_VERSION-} ]]; then
 	__FILE="${.sh.file}"
-elif [[ -n "$ZSH_VERSION" ]]; then
+elif [[ -n ${ZSH_VERSION-} ]]; then
 	__FILE="${(%):-%x}"
 elif [[ -n "$SHELDRITCH" ]]; then
 	__FILE="$SHELDRITCH/sheldritch.sh"
@@ -26,16 +26,17 @@ done
 
 echo "Running tests:"
 (
-trap 'STACKTRACE=1; error FAILED' ERR
-cd "$SHELDRITCH"
-export SHELDRITCH
+	trap 'STACKTRACE=1; error FAILED' ERR
+	cd "$SHELDRITCH"
+	export SHELDRITCH
+	FAIL=
 
-command -v self_file
+	command -v self_file
 
-for file in $(find */ -path '*/_test*.sh'); do
-	"$SHELL" "./$file" || FAIL=1
-done
+	for file in $(find */ -path '*/_test*.sh'); do
+		"$SHELL" "./$file" || FAIL=1
+	done
 
-[[ -z "$FAIL" ]] && log 'all tests passed'
-exit $FAIL
-) >/dev/null
+	[[ -z "${FAIL-}" ]] && log 'all tests passed'
+	exit ${FAIL:-0}
+	) >/dev/null
