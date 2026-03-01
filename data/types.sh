@@ -48,7 +48,7 @@ function funcs {
 	Print all declared functions.
 	Usage: funcs
 	' && return
-	if [[ "$ZSH_VERSION" ]]; then
+	if [[ -n "${ZSH_VERSION-}" ]]; then
 		# shellcheck disable=SC2296
 		print -l ${(ok)functions}
 	else
@@ -506,7 +506,7 @@ function ternary {
 	eval "$1" && echo "$2" || echo "$3"
 }
 function iif { ternary "$@"; }
-if [[ -v ZSH_VERSION ]]; then
+if [[ -n "${ZSH_VERSION-}" ]]; then
 	alias '?:=ternary'
 else
 	function ?: { @func_passthrough; ternary "$@"; }

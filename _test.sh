@@ -1,8 +1,8 @@
-if [[ -n "$BASH_VERSION" ]]; then
+if [[ -n ${BASH_VERSION-} ]]; then
 	__FILE="${BASH_SOURCE[0]}"
-elif [[ -n "$KSH_VERSION" ]]; then
+elif [[ -n ${KSH_VERSION-} ]]; then
 	__FILE="${.sh.file}"
-elif [[ -n "$ZSH_VERSION" ]]; then
+elif [[ -n ${ZSH_VERSION-} ]]; then
 	__FILE="${(%):-%x}"
 elif [[ -n "$SHELDRITCH" ]]; then
 	__FILE="$SHELDRITCH/sheldritch.sh"
@@ -36,6 +36,6 @@ for file in $(find */ -path '*/_test*.sh'); do
 	"$SHELL" "./$file" || FAIL=1
 done
 
-[[ -z "$FAIL" ]] && log 'all tests passed'
-exit $FAIL
+[[ -z "${FAIL-}" ]] && log 'all tests passed'
+exit ${FAIL:-0}
 ) >/dev/null

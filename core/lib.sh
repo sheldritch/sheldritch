@@ -26,9 +26,9 @@
 # Tools which don't fit our format
 # - bpkg www.bpkg.sh -- installs direct to bin
 
-if [[ "$BASH_VERSION" ]]; then
+if [[ -n ${BASH_VERSION-} ]]; then
 	shopt -s expand_aliases
-elif [[ "$ZSH_VERSION" ]]; then
+elif [[ -n ${ZSH_VERSION-} ]]; then
 	setopt aliases
 fi
 
@@ -104,8 +104,16 @@ alias source_cache_update='
 	fi
 '
 
-# shellcheck disable=SC2142
-alias script_is_sourced='{ [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; }'
+	# shellcheck disable=SC2142
+	alias script_is_sourced='{
+		if [[ -n "${BASH_VERSION-}" ]]; then
+			[[ "${BASH_SOURCE[0]}" != "${0}" ]]
+		elif [[ -n ${ZSH_VERSION-} ]]; then
+			[[ "${ZSH_EVAL_CONTEXT-}" = toplevel ]]
+		else
+			false
+		fi
+	}'
 
 # shellcheck disable=SC2139,SC2154
 alias check_is_sourced='
@@ -117,7 +125,7 @@ fi
 source_cache_update
 '
 
-if [[ -z "$KSH_VERSION" ]]; then
+if [[ -z ${KSH_VERSION-} ]]; then
 	# ksh cannot reliably run aliases immediately after defining them.
 	check_is_sourced
 fi
@@ -147,7 +155,7 @@ alias glob_args='
 '
 
 function check_is_sourced_func {
-	if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$ZSH_EVAL_CONTEXT" = toplevel ]]; then
+	if ! [[ "${BASH_SOURCE[0]:-}" != "${0}" ]] || [[ "${ZSH_EVAL_CONTEXT-}" = toplevel ]]; then
 		echo "You aren't sourcing ${0}. Make sure you are to have its libs available to you."
 		exit 1
 	fi

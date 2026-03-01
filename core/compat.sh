@@ -27,7 +27,7 @@ function trap_return_add {
 	typeset OldTrap Command NewCommand="$1" Trap=EXIT
 	shift || return 9
 
-	if [[ -v BASH_VERSION ]]; then
+	if [[ -n "${BASH_VERSION-}" ]]; then
 		Trap=RETURN
 		if [[ $- = *T* ]]; then
 			warn "

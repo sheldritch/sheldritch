@@ -34,7 +34,7 @@ alias @func_info='declare About="" _ARGS_PARSE_USAGE=""
 declare -a Usage=() Options=() Legend=()
 '
 
-alias @func_passthrough='declare FUNC_PASSTHROUGH=$((FUNC_PASSTHROUGH + 1))'
+alias @func_passthrough='declare FUNC_PASSTHROUGH=$(( ${FUNC_PASSTHROUGH:-0} + 1 ))'
 
 function _args_set {
 	stdin "${2:-true}" read -d '' -r "$1" || true
@@ -521,7 +521,7 @@ function _args_parse_builder {
 
 	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
 	# zsh has string/array casting issues
-	[[ -v ZSH_VERSION ]] && Usage=("${Usage[@]}")
+	[[ -n "${ZSH_VERSION-}" ]] && Usage=("${Usage[@]}")
 
 	# one parser for each usage line
 	declare -a Parsers
@@ -665,7 +665,7 @@ function _args_build_usage_parsers {
 			fi
 			if [[ -z $Literal && -z $Variadic ]]; then
 				# TODO: remove = here, and add variable setting into arg parsing function?
-				if [[ -v ZSH_VERSION ]]; then
+				if [[ -n "${ZSH_VERSION-}" ]]; then
 					declare Names="${Name//[[^[:upper:][:digit:]]_]/= }"
 					_ARGS_VARS+=($Names'=' )
 				else
@@ -1659,14 +1659,14 @@ function arg_bool {
 	done
 }
 
-if [[ -v ZSH_VERSION ]]; then
+if [[ -n "${ZSH_VERSION-}" ]]; then
 	eval '
 	function args_quoted {
 		REPLY="${@:q}"
 		echo "$REPLY"
 	}
 	'
-elif [[ -v BASH_VERSION ]]; then
+elif [[ -n "${BASH_VERSION-}" ]]; then
 	eval '
 	function args_quoted {
 		REPLY="${@@Q}"
@@ -1810,7 +1810,7 @@ function DPR_print_args {
 	if [[ -z "$File" ]]; then
 		if [[ "$BASH_VERSION" ]]; then
 			File="${BASH_SOURCE[1]}" # [1] is the context that called this function.
-		elif [[ "$ZSH_VERSION" ]]; then
+		elif [[ -n ${ZSH_VERSION-} ]]; then
 			# shellcheck disable=SC1087
 			File="$(echo "$funcfiletrace[1]" | sed 's/:[0-9]*$//')"
 		else

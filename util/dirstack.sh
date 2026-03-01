@@ -47,7 +47,7 @@ function dirstack_replace {
 
 	if [[ "$Index" == 0 ]]; then
 		cd "$Dir"
-	elif ! [[ -v ZSH_VERSION ]]; then
+	elif ! [[ -n "${ZSH_VERSION-}" ]]; then
 		DIRSTACK[Index]="$Dir"
 	else
 		declare -a Stack=()

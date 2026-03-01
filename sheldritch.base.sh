@@ -11,7 +11,7 @@ if [[ -n "${SHELDRITCH_SUBSHELL:-}" ]]; then
 	# There is an alias version in check_is_sourced in lib.sh that ksh
 	# can fall back on, though
 	source_cache_update
-	if [[ -z "${SHELDRITCH_CLEAN:-}" && "$1" != "--force" ]]; then
+	if [[ -z "${SHELDRITCH_CLEAN:-}" && "${1-}" != "--force" ]]; then
 		return
 	fi
 fi
@@ -21,9 +21,9 @@ fi
 #
 
 # Ensure the aliases created by this script are available
-if [[ -v BASH_VERSION ]]; then
+if [[ -n "${BASH_VERSION-}" ]]; then
 	shopt -s expand_aliases
-elif [[ -v ZSH_VERSION ]]; then
+elif [[ -n "${ZSH_VERSION-}" ]]; then
 	setopt aliases
 fi
 
@@ -91,7 +91,7 @@ fi 2>/dev/null
 
 
 function self_file {
-	if [[ -v KSH_VERSION ]]; then
+	if [[ -n "${KSH_VERSION-}" ]]; then
 		if [[ "${2:-0}" = 0 ]]; then
 			REPLY="$1"
 			echo "$1"
@@ -106,16 +106,16 @@ function self_file {
 		typeset Level="$((${1:-0} + 1))"
 	fi
 
-	if [[ -v BASH_VERSION ]]; then
+	if [[ -n "${BASH_VERSION-}" ]]; then
 		REPLY="${BASH_SOURCE[$Level]}"
-	elif [[ -v ZSH_VERSION ]]; then
+	elif [[ -n "${ZSH_VERSION-}" ]]; then
 		REPLY="${funcfiletrace[$Level]%%:*}"
 	fi
 	echo "$REPLY"
 }
 
 function self_dir {
-	if [[ -v KSH_VERSION ]]; then
+	if [[ -n "${KSH_VERSION-}" ]]; then
 		if [[ "${2:-0}" = 0 ]]; then
 			dirname "$1"
 			return
@@ -125,7 +125,7 @@ function self_dir {
 	>/dev/null self_file 1
 	dirname "$REPLY"
 }
-if [[ -v KSH_VERSION ]]; then
+if [[ -n "${KSH_VERSION-}" ]]; then
 	alias self_file='self_file "${.sh.file}"'
 	alias self_dir='self_dir "${.sh.file}"'
 fi
@@ -173,7 +173,7 @@ alias @func_use_parent='
 		esac
 	done
 
-	ParentLevel="$((ParentLevel + FUNC_PASSTHROUGH + 1))"
+	ParentLevel="$((ParentLevel + ${FUNC_PASSTHROUGH:-0} + 1))"
 
 	typeset Parent=''
 	if funcname -p $ParentLevel -q 2>/dev/null; then
@@ -190,7 +190,9 @@ function stacktrace {
 
 	typeset I=$((ParentLevel - 1)) Caller Line Func File
 
-	if Caller="$(caller $I)" 2>/dev/null; then
+	if command -v caller >/dev/null 2>/dev/null \
+		&& Caller="$(caller $I)" 2>/dev/null
+	then
 
 		read Line Func File < <(caller $I)
 		printf "%s:%s: %s:" "$File" "$Line" "$Func"
@@ -201,7 +203,7 @@ function stacktrace {
 			((++I))
 		done
 
-	elif ((${#funcstack[@]})); then
+	elif [[ -n ${ZSH_VERSION-} ]] && ((${#funcstack[@]})); then
 		while ((I < ${#funcstack[@]})); do
 			printf '\t%s\n' "${funcstack[I]}"
 			((++I))
@@ -213,7 +215,7 @@ function stacktrace {
 			((++I))
 		done
 
-	elif [[ -v KSH_VERSION ]]; then
+	elif [[ -n "${KSH_VERSION-}" ]]; then
 		printf >&2 '\t%s\n' "${.sh.fun}"
 	fi
 
@@ -223,7 +225,7 @@ function stacktrace {
 
 function _genfunc_log {
 	eval "$1"'() {
-		typeset Trace="${STACKTRACE:-$DEBUG}" Set Line Func File Last="$_" REPLY
+		typeset Trace="${STACKTRACE:-${DEBUG-}}" Set Line Func File Last="$_" REPLY
 		zsh_run setopt SH_WORD_SPLIT
 		Set="${-//[^x]/}"
 		${Set:+ set +$Set }
@@ -249,7 +251,7 @@ _genfunc_log _debug Debug
 # Echo debug line to stderr if debug turned on
 function debug {
 	typeset x
-	for x in "$DEBUG" "$TRACE"; do
+	for x in "${DEBUG-}" "${TRACE-}"; do
 		lowercase "$x" >/dev/null 2>&1
 		if [[ -n "$x" && "$REPLY" =~ ^(1|true)$ ]]; then
 			STACKTRACE=false _debug -p 1 "$@"

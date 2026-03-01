@@ -221,7 +221,7 @@ function json2vars {
 			else
 				__Field="$__Var"
 			fi
-			if [[ -v ZSH_VERSION ]]; then
+			if [[ -n "${ZSH_VERSION-}" ]]; then
 				eval $__Var='"$(jfield "$__Json" "$__Field")"' \
 					|| ((__Exit += __I))
 				((__I *= 2))
