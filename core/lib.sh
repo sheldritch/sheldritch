@@ -109,7 +109,10 @@ alias source_cache_update='
 		if [[ -n "${BASH_VERSION-}" ]]; then
 			[[ "${BASH_SOURCE[0]}" != "${0}" ]]
 		elif [[ -n ${ZSH_VERSION-} ]]; then
-			[[ "${ZSH_EVAL_CONTEXT-}" = toplevel ]]
+			# In zsh, executed scripts have `ZSH_EVAL_CONTEXT=toplevel`, while
+			# sourced files include a `:file` suffix (e.g. `cmdarg:file` or
+			# `toplevel:file`).
+			[[ "${ZSH_EVAL_CONTEXT-}" = *:file ]] || [[ "${ZSH_EVAL_CONTEXT-}" = file ]]
 		else
 			false
 		fi
@@ -119,7 +122,7 @@ alias source_cache_update='
 alias check_is_sourced='
 if ! script_is_sourced; then
 	# TODO: this might need to be computed at alias compile time???
-	echo "You aren not sourcing ${0}. Make sure you are to have its libs available to you."
+	echo "You are not sourcing ${0}. Make sure you are to have its libs available to you."
 	exit 1
 fi
 source_cache_update
@@ -155,10 +158,13 @@ alias glob_args='
 '
 
 function check_is_sourced_func {
-	if ! [[ "${BASH_SOURCE[0]:-}" != "${0}" ]] || [[ "${ZSH_EVAL_CONTEXT-}" = toplevel ]]; then
-		echo "You aren't sourcing ${0}. Make sure you are to have its libs available to you."
-		exit 1
+	if [[ -n "${BASH_VERSION-}" ]]; then
+		[[ "${BASH_SOURCE[0]:-}" != "${0}" ]] && return 0
+	elif [[ -n "${ZSH_VERSION-}" ]]; then
+		[[ "${ZSH_EVAL_CONTEXT-}" = *:file ]] || [[ "${ZSH_EVAL_CONTEXT-}" = file ]] && return 0
 	fi
+	echo "You are not sourcing ${0}. Make sure you are to have its libs available to you."
+	exit 1
 }
 
 # TODO: consider renaming to bin_path_search or PATH_search

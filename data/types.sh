@@ -56,6 +56,200 @@ function funcs {
 	fi
 }
 
+function func_source_file {
+	@func_info
+	About='Print the source file that most recently defined FUNCTION.'
+	Usage='FUNCTION'
+	zsh_run setopt KSH_ARRAYS
+	args_parse
+
+	local Path
+	if ! is_function "$Function"; then
+		error "function '$Function' not found"
+		return 1
+	fi
+
+	if [[ -n "$BASH_VERSION" ]]; then
+		Path="$(shopt -s extdebug; declare -F "$Function" | awk '{print $3}')"
+		if [[ -n "$Path" ]]; then
+			REPLY "$Path"
+			return
+		fi
+	elif [[ -n ${ZSH_VERSION-} ]]; then
+		zmodload zsh/parameter >/dev/null 2>&1 || :
+		Path="${functions_source[$Function]}"
+		if [[ -n "$Path" ]]; then
+			REPLY "$Path"
+			return
+		fi
+	fi
+
+	warn "falling back to Sheldritch's SHELDRITCH_SOURCES array."
+
+	if ((${#SHELDRITCH_SOURCES[@]} == 0)); then
+		error "no sourced files are cached"
+		return 1
+	fi
+
+	local I Name
+	zsh_run setopt KSH_ARRAYS
+	for ((I = ${#SHELDRITCH_SOURCES[@]} - 1; I >= 0; I--)); do
+		Path="${SHELDRITCH_SOURCES[I]}"
+		[[ -r "$Path" ]] || continue
+		while IFS= read -r Name; do
+			if [[ "$Name" = "$Function" ]]; then
+				REPLY "$Path"
+				return
+			fi
+		done < <(funcs_in_file "$Path")
+	done
+
+	error "function '$Function' is defined, but no defining source file was found in source cache"
+	return 1
+}
+
+function funcs_in_file {
+	@func_info
+	About='List function names that appear in FILE.'
+	Usage='FILE'
+	zsh_run setopt KSH_ARRAYS
+	args_parse
+
+	if ! [[ -f "$File" ]]; then
+		error "file '$File' not found"
+		return 1
+	fi
+
+	local Flavor='sh' Shebang=''
+	case "$File" in
+		*.bash) Flavor='bash' ;;
+		*.zsh) Flavor='zsh' ;;
+		*.ksh) Flavor='ksh' ;;
+		*.sh)
+			IFS= read -r Shebang < "$File" 2>/dev/null || :
+			case "$Shebang" in
+				'#!'*bash*|*'/bash'*) Flavor='bash' ;;
+				'#!'*zsh*|*'/zsh'*)   Flavor='zsh'  ;;
+				'#!'*ksh*|*'/ksh'*)   Flavor='ksh'  ;;
+			esac
+			;;
+	esac
+
+		awk -v shell_flavor="$Flavor" '
+			function trim(s) {
+				gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
+				return s
+			}
+
+			function is_comment(line) { return line ~ /^[[:space:]]*#/ }
+			function is_blank(line)   { return line ~ /^[[:space:]]*$/ }
+
+			function strip_function_prefix(line) {
+				sub(/^[[:space:]]*function[[:space:]]+/, "", line)
+				return line
+			}
+
+			function handle_func_name(name) {
+				# Ignore dynamic names and empties.
+				if (name == "" || name == "()" || name ~ /\$/) {
+					return
+				}
+				if (!seen[name]++) {
+					print name
+				}
+			}
+
+			function handle_func_list(raw_names, n, i) {
+				raw_names = trim(raw_names)
+				if (raw_names == "") {
+					return
+				}
+				# zsh allows multiple names after `function`; other shells do not.
+				if (shell_flavor != "zsh" && raw_names ~ /[[:space:]]/) {
+					return
+				}
+
+				n = split(raw_names, parts, /[[:space:]]+/)
+				for (i = 1; i <= n; i++) {
+					handle_func_name(parts[i])
+				}
+			}
+
+			# Main body
+			{
+				line = $0
+
+				# Ignore full-line comments to avoid false positives like `#foo() {`.
+				if (is_comment(line)) {
+					next
+				}
+
+				if (pending_header != "") {
+					# We saw a header-only line (e.g. `name()`), waiting for body opener.
+					if (is_blank(line)) {
+						next
+					}
+					if (line ~ /^[[:space:]]*[{(]/) {
+						handle_func_list(pending_header)
+					}
+					pending_header = ""
+				}
+
+				if (line ~ /^[[:space:]]*function[[:space:]]+/) {
+					rest = strip_function_prefix(line)
+
+					# Match order (most specific first):
+					# 1) function foo () { ... }
+					# 2) function foo { ... }
+					# 3) function foo ()          (body later)
+					# 4) function foo             (zsh multi-name, body later)
+
+					if (rest ~ /\(\)[[:space:]]*[{(]/) {
+						sub(/\(\)[[:space:]]*[{(].*$/, "", rest)
+						handle_func_list(rest)
+						next
+					}
+
+					if (rest ~ /[[:space:]]*\{/) {
+						sub(/[[:space:]]*\{.*$/, "", rest)
+						handle_func_list(rest)
+						next
+					}
+
+					if (rest ~ /\(\)[[:space:]]*$/) {
+						sub(/\(\)[[:space:]]*$/, "", rest)
+						pending_header = rest
+						next
+					}
+
+					if (rest ~ /^[[:space:]]*[^[:space:]#]+([[:space:]]+[^[:space:]#]+)*[[:space:]]*$/) {
+						pending_header = rest
+						next
+					}
+				}
+
+				# Bare forms without the `function` keyword.
+				# `name () {` or `name () (`
+				if (line ~ /^[[:space:]]*[^[:space:](]+[[:space:]]*\(\)[[:space:]]*[{(]/) {
+					name = line
+					sub(/^[[:space:]]*/, "", name)
+					sub(/[[:space:]]*\(\)[[:space:]]*[{(].*$/, "", name)
+					handle_func_list(name)
+					next
+				}
+
+				# `name ()` (body opener may be on later line)
+				if (line ~ /^[[:space:]]*[^[:space:](]+[[:space:]]*\(\)[[:space:]]*$/) {
+					name = line
+					sub(/^[[:space:]]*/, "", name)
+					sub(/[[:space:]]*\(\)[[:space:]]*$/, "", name)
+					pending_header = name
+					next
+				}
+		}
+		' "$File"
+	}
+
 # WARNING!
 # `funcname` should not use any other helper functions to avoid recursion
 # except where explicitly commented
