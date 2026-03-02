@@ -517,6 +517,7 @@ function _args_build_assoc_array {
 }
 
 function _args_parse_builder {
+	var_is_declared Usage || return 0
 	((${#Usage[@]} > 0)) || return 0
 
 	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
@@ -562,6 +563,7 @@ function _args_parse_builder {
 function _args_build_usage_parsers {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 
+	var_is_declared Usage || return 0
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
 	local Format='' Name='' Line='' TokenPos='' GlobEnabled=''
@@ -1456,6 +1458,7 @@ function _args_build_parser_legend {
 }
 
 function usage_has {
+	var_is_declared Usage || return 1
 	local Token
 	for Token; do
 		contains "$Token" ${Usage[_ARGS_USAGE_NUM]} || return 1
@@ -1464,6 +1467,7 @@ function usage_has {
 }
 
 function usage_has_glob {
+	var_is_declared Usage || return 1
 	local Token
 	for Token; do
 		contains_glob "$Token" ${Usage[_ARGS_USAGE_NUM]} || return 1
@@ -1744,7 +1748,10 @@ function print_doc {
 		echo
 	fi
 
-	if __has Usage; then
+	if var_is_declared Usage; then
+		local Line=''
+		((${#Usage[@]})) || Usage=("$Usage")
+
 		echo "Usage:"
 		for Line in "${Usage[@]}"; do
 			if [[ "$Line" = \#* ]]; then
@@ -1753,9 +1760,6 @@ function print_doc {
 			fi
 			printf '\t%s%s\n' "$Parent ${Options[1]:+[options] }" "$Line"
 		done
-	elif is_function usage &&
-		awk "/${Parent:+"$Parent *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
-		usage
 	else
 		# TODO: This should not show up if Usage is explicitly set to empty (representing a function with no arguments)
 		echo >&2 "No Usage line provided. However, here are the options:"
@@ -1763,11 +1767,6 @@ function print_doc {
 
 	if __has Options; then
 		print_options "${Options[@]}" || return 9
-
-	elif is_function options; then
-		options
-	else
-		{ funcname -p 1 -q && DPR_print_args -f "$(funcname -p 1)" || DPR_print_args; } 2>&1
 	fi
 
 	${_ArgsSet:+set -$_ArgsSet}
