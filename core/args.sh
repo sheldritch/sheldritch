@@ -478,8 +478,8 @@ function _args_build_validation {
 					Name="$OldName"
 				fi
 
-				if [[ -n "$Type" ]] && ! is_type "$Type"; then
-					error -p 1 "FUNCTION BUG: ${Tag:-$Name}: default must match option type '$Type'."
+				if [[ -n "$Type" ]] && ! is_type "$Type" "$Default"; then
+					error -p 3 "FUNCTION BUG: ${Tag:-$Name}: default value '$Default' must match option type '$Type'."
 					return 9
 				fi
 

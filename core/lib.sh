@@ -104,7 +104,7 @@ alias source_cache_update='
 	fi
 '
 
-	# shellcheck disable=SC2142
+# shellcheck disable=SC2142
 alias script_is_sourced='{
 	if [[ -n "${BASH_VERSION-}" ]]; then
 		[[ "${BASH_SOURCE[0]}" != "${0}" ]]

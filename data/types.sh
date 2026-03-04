@@ -6,17 +6,30 @@ check_is_sourced
 summon sheldritch/core/args.sh
 
 function is_type {
-	local Val='' Null=''
+	local TypeName='' Val='' OrNull=''
 	if [[ "$1" = --or-null ]]; then
 		shift
-		Null=1
+		OrNull=1
 	fi
 
+	if (($# < 2)); then
+		error -p 1 'is_type: missing values to check type of. Usage: is_type TYPE VALUES...'
+	fi
+
+	TypeName="${1-}"
+	case "$TypeName" in
+		bool | boolean | int | integer | decimal ) ;;
+		string | str ) [[ -n "$OrNull" ]] || return 0;;
+		* )
+			error -p 1 "is_type: unknown type '$TypeName'"
+			return 9 ;;
+	esac
+
 	for Val in "${@:2}"; do
-		if [[ -n "$Null" && -z "$Val" ]]; then
+		if [[ -n "$OrNull" && -z "$Val" ]]; then
 			continue
 		fi
-		case "$1" in
+		case "$TypeName" in
 			bool | boolean )
 				[[ "$Val" == true || "$Val" == false ]] || return 2
 				;;
@@ -26,10 +39,10 @@ function is_type {
 				;;
 
 			decimal )
-				Type=decimal
-				Test="[[ \"\$$Name\" =~ [+-]?[0-9]+([.,][0-9]+)? ]]"
-				Error='Flag "$__Flag" must be a decimal.'
+				[[ "$Val" =~ ^[+-]?[0-9]+([.,][0-9]+)?$ ]] || return 2
 				;;
+
+			string | str ) ;;
 		esac
 
 	done
@@ -50,7 +63,8 @@ function funcs {
 	' && return
 	if [[ -n "${ZSH_VERSION-}" ]]; then
 		# shellcheck disable=SC2296
-		print -l ${(ok)functions}
+		# Under `setopt KSH_ARRAYS`, `${(k)functions}` expands oddly; force array expansion.
+		print -l ${(ok)functions[@]}
 	else
 		declare -F | awk '{print $3}'
 	fi
@@ -94,7 +108,7 @@ function func_source_file {
 	local I Name
 	zsh_run setopt KSH_ARRAYS
 	for ((I = ${#SHELDRITCH_SOURCES[@]} - 1; I >= 0; I--)); do
-		Path="${SHELDRITCH_SOURCES[I]}"
+		Path="${SHELDRITCH_SOURCES[$I]}"
 		[[ -r "$Path" ]] || continue
 		while IFS= read -r Name; do
 			if [[ "$Name" = "$Function" ]]; then
@@ -489,8 +503,9 @@ function join_by {
 }
 
 
-function _array_weight_compare
-(( ${1%% *} < ${2%% *} ))
+function _array_weight_compare {
+	(( ${1%% *} < ${2%% *} ))
+}
 
 # function array_sort_weight {
 # 	declare -a Weights REPLY_ARRAY
@@ -499,10 +514,12 @@ function _array_weight_compare
 # 	'"$1"'=("${REPLY_ARRAY[@]}")'
 # }
 
-function _array_compare_int
-(( $1 < $2 ))
-function _array_compare_string
-[[ $1 < $2 ]]
+function _array_compare_int {
+	(( ${1:-0} < ${2:-0} ))
+}
+function _array_compare_string {
+	[[ "$1" < "$2" ]]
+}
 
 # (C) CC BY-SA 4.0
 # modified from https://stackoverflow.com/a/30576368
