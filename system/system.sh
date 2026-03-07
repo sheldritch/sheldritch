@@ -40,7 +40,12 @@ export MSYS=winsymlinks:nativestrict
 OS_WSL=/proc/sys/fs/binfmt_misc/WSLInterop
 if [[ -f "$OS_WSL" ]] && grep -sq enabled "$OS_WSL"; then
 	OS_WSL=1
-	__browser="cmd.exe /c start"
+
+	__browser=/tmp/$USER/sheldritch/BROWSER
+	echo >"$__browser" '#!/bin/bash
+	(cd /mnt/c || cd /c && cmd.exe /c start "${1//&/^&}")'
+	chmod u+x "$__browser"
+
 	if [[ "$BROWSER" && "$BROWSER" != "$__browser" ]]; then
 		echo >&2 "Warning: setting BROWSER as '$__browser' for WSL. To quash this warning, unset BROWSER or set it as '$__browser' yourself."
 	fi
@@ -63,7 +68,7 @@ function url_open {
 
 	if grep -sq enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
 		(cd /mnt/c || cd /c && cmd.exe /c start "${link//&/^&}")
-	elif command -v xdg-open ; then
+	elif command -v xdg-open; then
 		xdg-open "$link"
 	else
 		echo >&2 "Error: no link opener available. Please do so manually."
