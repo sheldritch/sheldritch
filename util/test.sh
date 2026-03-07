@@ -58,15 +58,27 @@ function expect_return {
 
 	Usage: expect_return EXIT_CODE COMMAND...
 	" && return
-	local STACKTRACE=1 exit Match
-	Match="$1"
+	local STACKTRACE=1 ActualExit ExpectedExit
+	ExpectedExit="$1"
 	shift
 
-	"$@" && :
-	exit=$?
+	# Use an `if` guard so shells that trap on failed commands (e.g. zsh TRAPERR)
+	# don't treat an expected non-zero exit as a test failure.
+	if "$@"; then
+		ActualExit=0
+	else
+		ActualExit=$?
+	fi
 
-	if [[ $exit -ne "$Match" ]]; then
-		error "Expected exit code $Match, but got $exit instead -- $(args_quoted "$@")"
+	case "$ExpectedExit" in
+		'' | *[^[:digit:]]* )
+			error "Expected exit code must be an integer, got '$ExpectedExit' -- $(args_quoted "$@")"
+			return 2
+			;;
+	esac
+
+	if (( ActualExit != ExpectedExit )); then
+		error "Expected exit code $ExpectedExit, but got $ActualExit instead -- $(args_quoted "$@")"
 		return 2
 	fi
 }
@@ -85,4 +97,3 @@ function expect_array_eq {
 		return 2
 	fi
 }
-

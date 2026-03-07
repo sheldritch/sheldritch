@@ -552,20 +552,20 @@ array_sort() {
 			;;
 	esac
 
-	local stack=( 0 $(($#-1)) ) start end i pivot smaller larger
+	local stack=( 0 $((ArgCount - 1)) ) start end i pivot smaller larger
 	REPLY_ARRAY=("$@")
 	while ((${#stack[@]})); do
 		start=${stack[0]}
 	end=${stack[1]}
 	stack=( "${stack[@]:2}" )
 	smaller=() larger=()
-	pivot=${REPLY_ARRAY[start]}
+	pivot=${REPLY_ARRAY[$start]}
 	# Note: iterative, NOT recursive! :)
 	for ((i=start+1;i<=end;++i)); do
-		if "$CompareFn" "${REPLY_ARRAY[i]}" "$pivot"; then
-			smaller+=( "${REPLY_ARRAY[i]}" )
+		if "$CompareFn" "${REPLY_ARRAY[$i]}" "$pivot"; then
+			smaller+=( "${REPLY_ARRAY[$i]}" )
 		else
-			larger+=( "${REPLY_ARRAY[i]}" )
+			larger+=( "${REPLY_ARRAY[$i]}" )
 		fi
 	done
 	REPLY_ARRAY=( "${REPLY_ARRAY[@]: 0: start}" "${smaller[@]}" "$pivot" "${larger[@]}" "${REPLY_ARRAY[@]: end + 1}" )
@@ -660,8 +660,8 @@ function _for_permutations_next {
 
 	for (( ; i < ${#Array[@]}; i++ )) ; do
 		Array=("${Copy[@]}")
-		temp="${Array[i]}"
-		Array[i]="${Array[$1]}"
+		temp="${Array[$i]}"
+		Array[$i]="${Array[$1]}"
 		Array[$1]="$temp"
 		_for_permutations_next $(($1 + 1)) || return 1
 	done
@@ -682,34 +682,40 @@ function eq {
 
 # Returns the key for a given key value pair
 function key {
-	local delimiter='='
-	if [[ "$1" = '-d' ]]; then
-		delimiter="$2"
-		shift
-		shift
+	local Delimiter='='
+	if [[ "${1-}" = '-d' ]]; then
+		Delimiter="$2"
+		(($# > 1)) && shift 2 || return 9
+		[[ -n "$Delimiter" ]] || return 9
 	fi
 
-	local pair="$([[ $# -eq 0 ]] && cat || echo $1)"
-	printf '%s\n' "${pair%%=*}"
+	local Pair
+	if (($#)); then
+		Pair="$1"
+	else
+		Pair="$(cat)"
+	fi
+	printf '%s\n' "${Pair%%"$Delimiter"*}"
 }
 
 # Returns the value for a given key value pair
 function value {
-	local delimiter='='
-	if [[ "$1" = '-d' ]]; then
-		delimiter="$2"
+	local Delimiter='='
+	if [[ "${1-}" = '-d' ]]; then
+		Delimiter="$2"
 		(($# > 1)) && shift 2 || return 9
+		[[ -n "$Delimiter" ]] || return 9
 	fi
 
-	local value pair
+	local Value Pair
 	if (($#)); then
-		pair="$1"
+		Pair="$1"
 	else
-		pair="$(cat)"
+		Pair="$(cat)"
 	fi
-	[[ "$pair" = *"$delimiter"* ]] || return 2
-	[[ "$pair" =~ "$delimiter"(.*)$ ]] || return 2
-	printf '%s\n' "${pair##*"$delimiter"}"
+	[[ "$Pair" = *"$Delimiter"* ]] || return 2
+	[[ "$Pair" =~ "$Delimiter"(.*)$ ]] || return 2
+	printf '%s\n' "${Pair##*"$Delimiter"}"
 }
 
 function ternary {
