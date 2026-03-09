@@ -3,12 +3,13 @@
 alias test_init='
 EXIT=0
 trap "STACKTRACE=1; error FAILED; EXIT=1" ERR
-trap "[[ \"\$EXIT\" != \$? ]] && error \"
-
-
-
-WARNING!!!!!! EXIT set as error, but not exiting with said error code!
-\"
+trap "
+Code=\$?
+trap - EXIT
+if (( \${EXIT:-0} != 0 )); then
+	exit \"\$EXIT\"
+fi
+exit \"\$Code\"
 " EXIT
 '
 
