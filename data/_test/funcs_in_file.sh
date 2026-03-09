@@ -127,6 +127,45 @@ EOF
 	assert_funcs_in_file "$Path" _kk1 _kk2 _kk3
 )
 
+# Standard input should be accepted when FILE is '-' and should still honor
+# shebang-based flavor detection.
+(
+	Names=()
+	while IFS= read -r Name; do
+		[[ -z "$Name" ]] && continue
+		Names+=("$Name")
+	done <<EOF
+$(funcs_in_file - <<'EOF_STDIN'
+#!/usr/bin/env zsh
+function _stdin_a _stdin_b { :; }
+_stdin_c() { :; }
+EOF_STDIN
+)
+EOF
+	expect_array_eq Names _stdin_a _stdin_b _stdin_c
+)
+
+# Embedded awk-style function declarations should not be treated as shell
+# functions.
+(
+	Path="$TmpDir/embedded_awk.sh"
+	cat >"$Path" <<'EOF'
+_real_shell() { :; }
+awk '
+	function trim(s) {
+		return s
+	}
+	function Date(str, regex) {
+		return str
+	}
+'
+function _also_real {
+	:
+}
+EOF
+	assert_funcs_in_file "$Path" _real_shell _also_real
+)
+
 # Comments and trailing text should be ignored.
 (
 	Path="$TmpDir/comments.sh"

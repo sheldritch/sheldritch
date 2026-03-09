@@ -124,32 +124,25 @@ function func_source_file {
 
 function funcs_in_file {
 	@func_info
-	About='List function names that appear in FILE.'
+	About='List function names that appear in FILE, or from standard input when FILE is -.'
 	Usage='FILE'
 	zsh_run setopt KSH_ARRAYS
 	args_parse
 
-	if ! [[ -f "$File" ]]; then
+	if [[ "$File" != '-' ]] && ! [[ -f "$File" ]]; then
 		error "file '$File' not found"
 		return 1
 	fi
 
-	local Flavor='sh' Shebang=''
+	local Flavor='sh' AllowShebangOverride=0
 	case "$File" in
 		*.bash) Flavor='bash' ;;
 		*.zsh) Flavor='zsh' ;;
 		*.ksh) Flavor='ksh' ;;
-		*.sh)
-			IFS= read -r Shebang < "$File" 2>/dev/null || :
-			case "$Shebang" in
-				'#!'*bash*|*'/bash'*) Flavor='bash' ;;
-				'#!'*zsh*|*'/zsh'*)   Flavor='zsh'  ;;
-				'#!'*ksh*|*'/ksh'*)   Flavor='ksh'  ;;
-			esac
-			;;
+		*.sh|-) AllowShebangOverride=1 ;;
 	esac
 
-		awk -v shell_flavor="$Flavor" '
+		awk -v shell_flavor="$Flavor" -v allow_shebang_override="$AllowShebangOverride" '
 			function trim(s) {
 				gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
 				return s
@@ -164,8 +157,8 @@ function funcs_in_file {
 			}
 
 			function handle_func_name(name) {
-				# Ignore dynamic names and empties.
-				if (name == "" || name == "()" || name ~ /\$/) {
+				# Ignore dynamic names, non-shell signatures, and empties.
+				if (name == "" || name == "()" || name ~ /[$()]/) {
 					return
 				}
 				if (!seen[name]++) {
@@ -192,6 +185,16 @@ function funcs_in_file {
 			# Main body
 			{
 				line = $0
+
+				if (allow_shebang_override && NR == 1) {
+					if (line ~ /^#!.*bash/) {
+						shell_flavor = "bash"
+					} else if (line ~ /^#!.*zsh/) {
+						shell_flavor = "zsh"
+					} else if (line ~ /^#!.*ksh/) {
+						shell_flavor = "ksh"
+					}
+				}
 
 				# Ignore full-line comments to avoid false positives like `#foo() {`.
 				if (is_comment(line)) {
@@ -552,7 +555,7 @@ array_sort() {
 			;;
 	esac
 
-	local stack=( 0 $((ArgCount - 1)) ) start end i pivot smaller larger
+	local stack=( 0 $(($# - 1)) ) start end i pivot smaller larger
 	REPLY_ARRAY=("$@")
 	while ((${#stack[@]})); do
 		start=${stack[0]}

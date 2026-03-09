@@ -14,15 +14,25 @@ source "${__FILE%_test.sh}sheldritch.base.sh"
 
 bash_run shopt -s globstar
 ksh_run set -o globstar
-echo "Coverage:"
-echo "The following functions do not have tests:"
-for f in $(grep -r '^function [^_]' |
-	grep -v passthrough |
-	cut -f 2 -d ' ' |
-	sort -u
-); do
-	grep -q "$f " **/_test/**/* **/_test*.sh || echo "$f"
-done
+
+if ! { summon sheldritch/data/types.sh && funcs_in_file "$__FILE"; } >/dev/null 2>&1; then
+	error "skipping function coverage: failed to summon/run funcs_in_file for ${THIS_SHELL:-this shell}"
+else
+
+	echo "Coverage:"
+	echo "The following functions do not have tests:"
+	while IFS= read -r f; do
+		# Ignore empty lines (e.g. if the parser ever emits blanks).
+		[[ -n "$f" ]] || continue
+		grep -F -q "$f " **/_test/**/* **/_test*.sh || echo "$f"
+	done < <(grep -r '^function [^_]' |
+		grep -v passthrough |
+		cut -f 2 -d ' ' |
+		# Handle `function foo()` style declarations.
+		sed 's/()$//' |
+		sort -u
+	)
+fi
 
 echo "Running tests:"
 (
