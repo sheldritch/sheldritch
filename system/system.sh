@@ -82,3 +82,37 @@ function wsl_open {
 	(cd /mnt/c || cd /c && cmd.exe /c start "${Path//&/^&}")
 }
 
+# from https://stackoverflow.com/a/60279429
+function fake_tty {
+  # Create a temporary file for storing the status code
+  Tmp=$(mktemp)
+
+  # Ensure it worked or fail with status 99
+  [ "$Tmp" ] || return 99
+
+  # Produce a script that runs the command provided to faketty as
+  # arguments and stores the status code in the temporary file
+  Cmd="$(printf '%q ' "$@")"'; echo $? > '$Tmp
+
+  # Run the script through /bin/sh with fake tty
+  if [ "$(uname)" = "Darwin" ]; then
+    # MacOS
+    script -Fq /dev/null /bin/sh -c "$Cmd"
+  else
+    script -qfc "/bin/sh -c $(printf "%q " "$Cmd")" /dev/null
+  fi
+
+  # Ensure that the status code was written to the temporary file or
+  # fail with status 99
+  [ -s $Tmp ] || return 99
+
+  # Collect the status code from the temporary file
+  Err=$(cat $Tmp)
+
+  # Remove the temporary file
+  rm -f $Tmp
+
+  # Return the status code
+  return $Err
+}
+

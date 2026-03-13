@@ -392,3 +392,8 @@ function glob_array {
 		[[ "$Path" = $MatchPrefix$Glob ]] && REPLY+=("$PATH")
 	done
 }
+
+# TODO: Improve this function with https://superuser.com/questions/380772/removing-ansi-color-codes-from-text-stream
+function ansi2txt {
+	 perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g'
+}
