@@ -142,130 +142,130 @@ function funcs_in_file {
 		*.sh|-) AllowShebangOverride=1 ;;
 	esac
 
-		awk -v shell_flavor="$Flavor" -v allow_shebang_override="$AllowShebangOverride" '
-			function trim(s) {
-				gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
-				return s
-			}
-
-			function is_comment(line) { return line ~ /^[[:space:]]*#/ }
-			function is_blank(line)   { return line ~ /^[[:space:]]*$/ }
-
-			function strip_function_prefix(line) {
-				sub(/^[[:space:]]*function[[:space:]]+/, "", line)
-				return line
-			}
-
-			function handle_func_name(name) {
-				# Ignore dynamic names, non-shell signatures, and empties.
-				if (name == "" || name == "()" || name ~ /[$()]/) {
-					return
-				}
-				if (!seen[name]++) {
-					print name
-				}
-			}
-
-			function handle_func_list(raw_names, n, i) {
-				raw_names = trim(raw_names)
-				if (raw_names == "") {
-					return
-				}
-				# zsh allows multiple names after `function`; other shells do not.
-				if (shell_flavor != "zsh" && raw_names ~ /[[:space:]]/) {
-					return
-				}
-
-				n = split(raw_names, parts, /[[:space:]]+/)
-				for (i = 1; i <= n; i++) {
-					handle_func_name(parts[i])
-				}
-			}
-
-			# Main body
-			{
-				line = $0
-
-				if (allow_shebang_override && NR == 1) {
-					if (line ~ /^#!.*bash/) {
-						shell_flavor = "bash"
-					} else if (line ~ /^#!.*zsh/) {
-						shell_flavor = "zsh"
-					} else if (line ~ /^#!.*ksh/) {
-						shell_flavor = "ksh"
-					}
-				}
-
-				# Ignore full-line comments to avoid false positives like `#foo() {`.
-				if (is_comment(line)) {
-					next
-				}
-
-				if (pending_header != "") {
-					# We saw a header-only line (e.g. `name()`), waiting for body opener.
-					if (is_blank(line)) {
-						next
-					}
-					if (line ~ /^[[:space:]]*[{(]/) {
-						handle_func_list(pending_header)
-					}
-					pending_header = ""
-				}
-
-				if (line ~ /^[[:space:]]*function[[:space:]]+/) {
-					rest = strip_function_prefix(line)
-
-					# Match order (most specific first):
-					# 1) function foo () { ... }
-					# 2) function foo { ... }
-					# 3) function foo ()          (body later)
-					# 4) function foo             (zsh multi-name, body later)
-
-					if (rest ~ /\(\)[[:space:]]*[{(]/) {
-						sub(/\(\)[[:space:]]*[{(].*$/, "", rest)
-						handle_func_list(rest)
-						next
-					}
-
-					if (rest ~ /[[:space:]]*\{/) {
-						sub(/[[:space:]]*\{.*$/, "", rest)
-						handle_func_list(rest)
-						next
-					}
-
-					if (rest ~ /\(\)[[:space:]]*$/) {
-						sub(/\(\)[[:space:]]*$/, "", rest)
-						pending_header = rest
-						next
-					}
-
-					if (rest ~ /^[[:space:]]*[^[:space:]#]+([[:space:]]+[^[:space:]#]+)*[[:space:]]*$/) {
-						pending_header = rest
-						next
-					}
-				}
-
-				# Bare forms without the `function` keyword.
-				# `name () {` or `name () (`
-				if (line ~ /^[[:space:]]*[^[:space:](]+[[:space:]]*\(\)[[:space:]]*[{(]/) {
-					name = line
-					sub(/^[[:space:]]*/, "", name)
-					sub(/[[:space:]]*\(\)[[:space:]]*[{(].*$/, "", name)
-					handle_func_list(name)
-					next
-				}
-
-				# `name ()` (body opener may be on later line)
-				if (line ~ /^[[:space:]]*[^[:space:](]+[[:space:]]*\(\)[[:space:]]*$/) {
-					name = line
-					sub(/^[[:space:]]*/, "", name)
-					sub(/[[:space:]]*\(\)[[:space:]]*$/, "", name)
-					pending_header = name
-					next
-				}
+	awk -v shell_flavor="$Flavor" -v allow_shebang_override="$AllowShebangOverride" '
+		function trim(s) {
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
+			return s
 		}
-		' "$File"
+
+		function is_comment(line) { return line ~ /^[[:space:]]*#/ }
+		function is_blank(line)   { return line ~ /^[[:space:]]*$/ }
+
+		function strip_function_prefix(line) {
+			sub(/^[[:space:]]*function[[:space:]]+/, "", line)
+			return line
+		}
+
+		function handle_func_name(name) {
+			# Ignore dynamic names, non-shell signatures, and empties.
+			if (name == "" || name == "()" || name ~ /[$()]/) {
+				return
+			}
+			if (!seen[name]++) {
+				print name
+			}
+		}
+
+		function handle_func_list(raw_names, n, i) {
+			raw_names = trim(raw_names)
+			if (raw_names == "") {
+				return
+			}
+			# zsh allows multiple names after `function`; other shells do not.
+			if (shell_flavor != "zsh" && raw_names ~ /[[:space:]]/) {
+				return
+			}
+
+			n = split(raw_names, parts, /[[:space:]]+/)
+			for (i = 1; i <= n; i++) {
+				handle_func_name(parts[i])
+			}
+		}
+
+		# Main body
+		{
+			line = $0
+
+			if (allow_shebang_override && NR == 1) {
+				if (line ~ /^#!.*bash/) {
+					shell_flavor = "bash"
+				} else if (line ~ /^#!.*zsh/) {
+					shell_flavor = "zsh"
+				} else if (line ~ /^#!.*ksh/) {
+					shell_flavor = "ksh"
+				}
+			}
+
+			# Ignore full-line comments to avoid false positives like `#foo() {`.
+			if (is_comment(line)) {
+				next
+			}
+
+			if (pending_header != "") {
+				# We saw a header-only line (e.g. `name()`), waiting for body opener.
+				if (is_blank(line)) {
+					next
+				}
+				if (line ~ /^[[:space:]]*[{(]/) {
+					handle_func_list(pending_header)
+				}
+				pending_header = ""
+			}
+
+			if (line ~ /^[[:space:]]*function[[:space:]]+/) {
+				rest = strip_function_prefix(line)
+
+				# Match order (most specific first):
+				# 1) function foo () { ... }
+				# 2) function foo { ... }
+				# 3) function foo ()          (body later)
+				# 4) function foo             (zsh multi-name, body later)
+
+				if (rest ~ /\(\)[[:space:]]*[{(]/) {
+					sub(/\(\)[[:space:]]*[{(].*$/, "", rest)
+					handle_func_list(rest)
+					next
+				}
+
+				if (rest ~ /[[:space:]]*\{/) {
+					sub(/[[:space:]]*\{.*$/, "", rest)
+					handle_func_list(rest)
+					next
+				}
+
+				if (rest ~ /\(\)[[:space:]]*$/) {
+					sub(/\(\)[[:space:]]*$/, "", rest)
+					pending_header = rest
+					next
+				}
+
+				if (rest ~ /^[[:space:]]*[^[:space:]#]+([[:space:]]+[^[:space:]#]+)*[[:space:]]*$/) {
+					pending_header = rest
+					next
+				}
+			}
+
+			# Bare forms without the `function` keyword.
+			# `name () {` or `name () (`
+			if (line ~ /^[[:space:]]*[^[:space:](]+[[:space:]]*\(\)[[:space:]]*[{(]/) {
+				name = line
+				sub(/^[[:space:]]*/, "", name)
+				sub(/[[:space:]]*\(\)[[:space:]]*[{(].*$/, "", name)
+				handle_func_list(name)
+				next
+			}
+
+			# `name ()` (body opener may be on later line)
+			if (line ~ /^[[:space:]]*[^[:space:](]+[[:space:]]*\(\)[[:space:]]*$/) {
+				name = line
+				sub(/^[[:space:]]*/, "", name)
+				sub(/[[:space:]]*\(\)[[:space:]]*$/, "", name)
+				pending_header = name
+				next
+			}
 	}
+	' "$File"
+}
 
 # WARNING!
 # `funcname` should not use any other helper functions to avoid recursion
