@@ -383,7 +383,17 @@ function _args_build_parser_opts {
 
 function _args_build_validation {
 	# read predicate requirements from docstring
-	local DocString="${1%%.*}" Predicate='' Test='' Error=''
+	local DocString Predicate='' Test='' Error=''
+
+	# TODO: Probably need to swap to a proper parser, setting an initial bounds like this is pretty naïve.
+	if [[ "$1" != *.* ]]; then
+		DocString="$1"
+	else
+		# grab until the first unquoted and unescaped period
+		rematch "$1" "([^.\"']*|'[^']*'"'|"[^"]*"|\\\.)+' >/dev/null
+		DocString="$REPLY"
+	fi
+
 	Validation=''
 	while true; do
 		Predicate="${DocString%%,*}"
