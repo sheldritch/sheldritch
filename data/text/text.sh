@@ -405,3 +405,40 @@ function glob_array {
 function ansi2txt {
 	 perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g'
 }
+
+function sort_column_reverse {
+	@func_info
+	@opts_skip_unknown
+	About='
+	A simple wrapper around sort, letting you specify negative columns, where -1 is the last column.
+
+	Only supports a single key with no character/option.
+	Only works on standard input'
+	Usage='[SORT_ARGUMENTS...]'
+	Options=(
+		-t --field-separator=SEP "Required. The field separator or delimiter to determine columns."
+		-k --key=KEYDEF          "Integer, required. The field to sort by."
+	)
+	args_parse
+
+	if ((Key > -1)); then
+		sort -t "$FieldSeparator" -k "$Key" "${SortArguments[@]}"
+		return
+	fi
+
+	(
+	set -o pipefail
+
+	# Put field to sort by in front of line, then remove before giving back to user
+	# use --files0-from to throw error if file passed in.
+	awk -F "$FieldSeparator" -v key="$Key" '{
+			if (NF + key < 0) {
+				print "Error: sort_column_reverse: Given field "key" out of range!" | "cat 1>&2"
+				exit 1
+			}
+			print $(NF + 1 + key) FS $0
+		}' \
+		| sort -t "$FieldSeparator" -k 1,1 --files0-from=<(echo -n '/dev/stdin') "${SortArguments[@]}" \
+		| cut -d "$FieldSeparator" -f 2-
+	)
+}
