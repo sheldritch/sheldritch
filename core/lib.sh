@@ -104,31 +104,41 @@ alias source_cache_update='
 	fi
 '
 
-	# shellcheck disable=SC2142
-	alias script_is_sourced='{
-		if [[ -n ${BASH_VERSION-} ]]; then
-			[[ "${BASH_SOURCE[0]}" != "${0}" ]]
-		elif [[ -n ${ZSH_VERSION-} ]]; then
-			[[ "${ZSH_EVAL_CONTEXT-}" = toplevel ]]
-		else
-			false
-		fi
-	}'
+# shellcheck disable=SC2142
+alias script_is_sourced='{
+	if [[ -n "${BASH_VERSION-}" ]]; then
+		[[ "${BASH_SOURCE[0]}" != "${0}" ]]
+
+	elif [[ -n ${ZSH_VERSION-} ]]; then
+		# In zsh, executed scripts have `ZSH_EVAL_CONTEXT=toplevel`, while
+		# sourced files include a `:file` suffix (e.g. `cmdarg:file` or
+		# `toplevel:file`).
+		[[ "${ZSH_EVAL_CONTEXT-}" = *:file ]] || [[ "${ZSH_EVAL_CONTEXT-}" = file ]]
+
+	elif [[ -n ${KSH_VERSION-} ]]; then
+		# In ksh, when a file is sourced, $0 remains the shell (e.g. "ksh"),
+		# while .sh.file is the sourced path. When executed, $0 matches .sh.file.
+		[[ "${.sh.file-}" != "${0-}" ]]
+
+	else
+		false
+	fi
+}'
 
 # shellcheck disable=SC2139,SC2154
 alias check_is_sourced='
 if ! script_is_sourced; then
 	# TODO: this might need to be computed at alias compile time???
-	echo "You aren not sourcing ${0}. Make sure you are to have its libs available to you."
+	echo "You are not sourcing ${0}. Make sure you are to have its libs available to you."
 	exit 1
 fi
 source_cache_update
 '
 
-	if [[ -z ${KSH_VERSION-} ]]; then
-		# ksh cannot reliably run aliases immediately after defining them.
-		check_is_sourced
-	fi
+if [[ -z ${KSH_VERSION-} ]]; then
+	# ksh cannot reliably run aliases immediately after defining them.
+	check_is_sourced
+fi
 
 if [[ -z "$SHELDRITCH" ]]; then
 	echo >&2 "Error: sheldritch lib.sh: SHELDRITCH must be set to its directory"
@@ -153,13 +163,6 @@ alias glob_args='
 	[[ -n "${_IFS_OLD+x}" ]] || unset IFS
     unset _IFS_OLD
 '
-
-	function check_is_sourced_func {
-		if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "${ZSH_EVAL_CONTEXT-}" = toplevel ]]; then
-			echo "You aren't sourcing ${0}. Make sure you are to have its libs available to you."
-			exit 1
-		fi
-	}
 
 # TODO: consider renaming to bin_path_search or PATH_search
 function path_search {

@@ -21,9 +21,9 @@ fi
 #
 
 # Ensure the aliases created by this script are available
-if [[ -v BASH_VERSION ]]; then
+if [[ -n "${BASH_VERSION-}" ]]; then
 	shopt -s expand_aliases
-elif [[ -v ZSH_VERSION ]]; then
+elif [[ -n "${ZSH_VERSION-}" ]]; then
 	setopt aliases
 fi
 
@@ -91,7 +91,7 @@ fi 2>/dev/null
 
 
 function self_file {
-	if [[ -v KSH_VERSION ]]; then
+	if [[ -n "${KSH_VERSION-}" ]]; then
 		if [[ "${2:-0}" = 0 ]]; then
 			REPLY="$1"
 			echo "$1"
@@ -106,17 +106,16 @@ function self_file {
 		typeset Level="$((${1:-0} + 1))"
 	fi
 
-	if [[ -v BASH_VERSION ]]; then
-		REPLY="${BASH_SOURCE[$Level]-}"
-	elif [[ -v ZSH_VERSION ]]; then
-		REPLY="${funcfiletrace[$Level]-}"
-		REPLY="${REPLY%%:*}"
+	if [[ -n "${BASH_VERSION-}" ]]; then
+		REPLY="${BASH_SOURCE[$Level]}"
+	elif [[ -n "${ZSH_VERSION-}" ]]; then
+		REPLY="${funcfiletrace[$Level]%%:*}"
 	fi
 	echo "$REPLY"
 }
 
 function self_dir {
-	if [[ -v KSH_VERSION ]]; then
+	if [[ -n "${KSH_VERSION-}" ]]; then
 		if [[ "${2:-0}" = 0 ]]; then
 			dirname "$1"
 			return
@@ -126,7 +125,7 @@ function self_dir {
 	>/dev/null self_file 1
 	dirname "$REPLY"
 }
-if [[ -v KSH_VERSION ]]; then
+if [[ -n "${KSH_VERSION-}" ]]; then
 	alias self_file='self_file "${.sh.file}"'
 	alias self_dir='self_dir "${.sh.file}"'
 fi
@@ -174,7 +173,7 @@ alias @func_use_parent='
 		esac
 	done
 
-		ParentLevel="$((ParentLevel + ${FUNC_PASSTHROUGH:-0} + 1))"
+	ParentLevel="$((ParentLevel + ${FUNC_PASSTHROUGH:-0} + 1))"
 
 	typeset Parent=''
 	if funcname -p $ParentLevel -q 2>/dev/null; then
@@ -216,7 +215,7 @@ function stacktrace {
 			((++I))
 		done
 
-	elif [[ -v KSH_VERSION ]]; then
+	elif [[ -n "${KSH_VERSION-}" ]]; then
 		printf >&2 '\t%s\n' "${.sh.fun}"
 	fi
 
@@ -224,12 +223,12 @@ function stacktrace {
 	${Set:+ set -$Set }
 }
 
-	function _genfunc_log {
-		eval "$1"'() {
-			typeset Trace="${STACKTRACE:-${DEBUG-}}" Set Line Func File Last="$_" REPLY
-			zsh_run setopt SH_WORD_SPLIT
-			Set="${-//[^x]/}"
-			${Set:+ set +$Set }
+function _genfunc_log {
+	eval "$1"'() {
+		typeset Trace="${STACKTRACE:-${DEBUG-}}" Set Line Func File Last="$_" REPLY
+		zsh_run setopt SH_WORD_SPLIT
+		Set="${-//[^x]/}"
+		${Set:+ set +$Set }
 
 		@func_use_parent
 		Line='"$2"'": ${Parent:+$Parent: }$*"

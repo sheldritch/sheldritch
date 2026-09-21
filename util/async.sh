@@ -23,40 +23,35 @@ function flock {
 	local Bin
 	if Bin="$(which flock 2>/dev/null)"; then
 		"$Bin" "$@"
-	else
-
-		if [[ $# -lt 2 || "$1" != *[^0-9]* || "$1" == -* ]]; then
-			error -p 1 "flock: only supported usages are:
-			flock FILE COMMAND
-			flock FILE -c 'COMMAND'
-
-			Note: You are using Sheldritch's poor person's flock fallback
-			You should probably install a real flock alternative.
-			"
-			return 9
-		fi
-
-		local Path Lock
-		Path="$(realpath -m "$1")" || return
-		shift
-		Lock="$ASYNC_TMP/flock/$Path/LOCK"
-
-		while true; do
-			if ! [[ -d "$Lock" ]]; then
-				if [[ "$(mkdir -v -p "$Lock")" ]]; then
-					(
-					trap 'rmdir "$Lock"' EXIT
-					if [[ "$1" = "-c" ]]; then
-						set -- sh "$@"
-					fi
-					"$@"
-					return
-					)
-					break
-				fi
-			fi
-		done
+		return
 	fi
+
+	if [[ $# -lt 2 || "$1" != *[^0-9]* || "$1" == -* ]]; then
+		error -p 1 "flock: only supported usages are:
+		flock FILE COMMAND
+		flock FILE -c 'COMMAND'
+
+		Note: You are using Sheldritch's poor person's flock fallback
+		You should probably install a real flock alternative.
+		"
+		return 9
+	fi
+
+	local Path Lock
+	Path="$(realpath -m "$1")" || return
+	shift
+	Lock="$ASYNC_TMP/flock/$Path/LOCK"
+
+	while [[ -d "$Lock" ]] || ! [[ "$(mkdir -v -p "$Lock")" ]]; do
+		sleep 0.000001
+	done
+	(
+	trap 'rmdir "$Lock"' EXIT
+	if [[ "$1" = "-c" ]]; then
+		set -- sh "$@"
+	fi
+	"$@"
+	)
 }
 
 # modified from https://unix.stackexchange.com/a/216475
@@ -135,6 +130,8 @@ function _async_batch_args {
 	)
 	Options+=(
 		-n -t --threads=THREADS "The max number of commands to run in parallel"
+		-s --stagger=SECONDS "Decimal. During the initial run, wait the given
+			number of seconds in between each execution."
 
 		-v --for --variable=VARIABLE "The variable name to assign to the given element"
 		# TODO: I don't think this works with shared queue IDs?
@@ -144,7 +141,7 @@ function _async_batch_args {
 			Note that this only indexes the parameters of this command, not every
 			item in the queue."
 
-		-f --file=COMMAND_FILE       "read commands to run out of the given file"
+		-f --file=COMMAND_FILE "read commands to run out of the given file"
 
 		-e --exit "Exit as soon as possible after any command execution fails"
 		-q --queue --semaphore=QUEUE_ID "Use an existing semaphore queue, specified by its ID."
@@ -195,6 +192,8 @@ function async_batch {
 	for ASYNC_BATCH_ELEMENT in "$@"; do
 		((ASYNC_BATCH_INDEX++))
 
+		# Variable prep
+
 		local Vars=''
 		if [[ -n "$Variable" ]]; then
 
@@ -225,7 +224,13 @@ function async_batch {
 
 		fi
 
+		# Ready to do stuff
+
 		debug "variables are $Vars"
+
+		if [[ "$Staggered" && "$ASYNC_BATCH_INDEX" < "$Threads" ]]; then
+			sleep "$Staggered"
+		fi
 
 		if [[ -z "$ASYNC_BATCH_SEM" ]]; then
 			# no queue, just run

@@ -6,17 +6,30 @@ check_is_sourced
 summon sheldritch/core/args.sh
 
 function is_type {
-	local Val='' Null=''
+	local TypeName='' Val='' OrNull=''
 	if [[ "$1" = --or-null ]]; then
 		shift
-		Null=1
+		OrNull=1
 	fi
 
+	if (($# < 2)); then
+		error -p 1 'is_type: missing values to check type of. Usage: is_type TYPE VALUES...'
+	fi
+
+	TypeName="${1-}"
+	case "$TypeName" in
+		bool | boolean | int | integer | decimal ) ;;
+		string | str ) [[ -n "$OrNull" ]] || return 0;;
+		* )
+			error -p 1 "is_type: unknown type '$TypeName'"
+			return 9 ;;
+	esac
+
 	for Val in "${@:2}"; do
-		if [[ -n "$Null" && -z "$Val" ]]; then
+		if [[ -n "$OrNull" && -z "$Val" ]]; then
 			continue
 		fi
-		case "$1" in
+		case "$TypeName" in
 			bool | boolean )
 				[[ "$Val" == true || "$Val" == false ]] || return 2
 				;;
@@ -26,10 +39,10 @@ function is_type {
 				;;
 
 			decimal )
-				Type=decimal
-				Test="[[ \"\$$Name\" =~ [+-]?[0-9]+([.,][0-9]+)? ]]"
-				Error='Flag "$__Flag" must be a decimal.'
+				[[ "$Val" =~ ^[+-]?[0-9]+([.,][0-9]+)?$ ]] || return 2
 				;;
+
+			string | str ) ;;
 		esac
 
 	done
@@ -48,9 +61,10 @@ function funcs {
 	Print all declared functions.
 	Usage: funcs
 	' && return
-	if [[ -n ${ZSH_VERSION-} ]]; then
+	if [[ -n "${ZSH_VERSION-}" ]]; then
 		# shellcheck disable=SC2296
-		print -l ${(ok)functions}
+		# Under `setopt KSH_ARRAYS`, `${(k)functions}` expands oddly; force array expansion.
+		print -l ${(ok)functions[@]}
 	else
 		declare -F | awk '{print $3}'
 	fi
@@ -94,7 +108,7 @@ function func_source_file {
 	local I Name
 	zsh_run setopt KSH_ARRAYS
 	for ((I = ${#SHELDRITCH_SOURCES[@]} - 1; I >= 0; I--)); do
-		Path="${SHELDRITCH_SOURCES[I]}"
+		Path="${SHELDRITCH_SOURCES[$I]}"
 		[[ -r "$Path" ]] || continue
 		while IFS= read -r Name; do
 			if [[ "$Name" = "$Function" ]]; then
@@ -110,121 +124,146 @@ function func_source_file {
 
 function funcs_in_file {
 	@func_info
-	About='List function names that appear in FILE.'
+	About='List function names that appear in FILE, or from standard input when FILE is -.'
 	Usage='FILE'
 	zsh_run setopt KSH_ARRAYS
 	args_parse
 
-	if ! [[ -f "$File" ]]; then
+	if [[ "$File" != '-' ]] && ! [[ -f "$File" ]]; then
 		error "file '$File' not found"
 		return 1
 	fi
 
-	local Flavor='sh' Shebang=''
+	local Flavor='sh' AllowShebangOverride=0
 	case "$File" in
 		*.bash) Flavor='bash' ;;
 		*.zsh) Flavor='zsh' ;;
 		*.ksh) Flavor='ksh' ;;
-		*.sh)
-			IFS= read -r Shebang < "$File" 2>/dev/null || :
-			case "$Shebang" in
-				'#!'*bash*|*'/bash'*) Flavor='bash' ;;
-				'#!'*zsh*|*'/zsh'*) Flavor='zsh' ;;
-				'#!'*ksh*|*'/ksh'*) Flavor='ksh' ;;
-			esac
-			;;
+		*.sh|-) AllowShebangOverride=1 ;;
 	esac
 
-	awk -v flavor="$Flavor" '
-		function emit_names(names, n, i, part) {
-			# Precondition: `names` is the part of the header we interpret as the
-			# function name(s) (may be a list in zsh).
-			gsub(/^[[:space:]]+|[[:space:]]+$/, "", names)
-			if (names == "") {
+	awk -v shell_flavor="$Flavor" -v allow_shebang_override="$AllowShebangOverride" '
+		function trim(s) {
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
+			return s
+		}
+
+		function is_comment(line) { return line ~ /^[[:space:]]*#/ }
+		function is_blank(line)   { return line ~ /^[[:space:]]*$/ }
+
+		function strip_function_prefix(line) {
+			sub(/^[[:space:]]*function[[:space:]]+/, "", line)
+			return line
+		}
+
+		function handle_func_name(name) {
+			# Ignore dynamic names, non-shell signatures, and empties.
+			if (name == "" || name == "()" || name ~ /[$()]/) {
 				return
 			}
-
-			# zsh allows multiple names after `function`; other shells do not.
-			if (flavor != "zsh" && names ~ /[[:space:]]/) {
-				return
-			}
-
-			n = split(names, parts, /[[:space:]]+/)
-			for (i = 1; i <= n; i++) {
-				part = parts[i]
-
-				# Exclude `$foo`-style dynamic names (not a literal function name in bash;
-				# for zsh, `$name() { ... }` is an expansion, not a literal name).
-				if (part ~ /\$/) {
-					continue
-				}
-
-				if (part != "" && part != "()" && !seen[part]++) {
-					print part
-				}
+			if (!seen[name]++) {
+				print name
 			}
 		}
 
+		function handle_func_list(raw_names, n, i) {
+			raw_names = trim(raw_names)
+			if (raw_names == "") {
+				return
+			}
+			# zsh allows multiple names after `function`; other shells do not.
+			if (shell_flavor != "zsh" && raw_names ~ /[[:space:]]/) {
+				return
+			}
+
+			n = split(raw_names, parts, /[[:space:]]+/)
+			for (i = 1; i <= n; i++) {
+				handle_func_name(parts[i])
+			}
+		}
+
+		# Main body
 		{
 			line = $0
 
-			# Pre-processing: ignore full-line comments.
-			# This avoids false positives like `#foo() { ... }`.
-			if (line ~ /^[[:space:]]*#/) {
+			if (allow_shebang_override && NR == 1) {
+				if (line ~ /^#!.*bash/) {
+					shell_flavor = "bash"
+				} else if (line ~ /^#!.*zsh/) {
+					shell_flavor = "zsh"
+				} else if (line ~ /^#!.*ksh/) {
+					shell_flavor = "ksh"
+				}
+			}
+
+			# Ignore full-line comments to avoid false positives like `#foo() {`.
+			if (is_comment(line)) {
 				next
 			}
 
-			if (pending != "") {
+			if (pending_header != "") {
 				# We saw a header-only line (e.g. `name()`), waiting for body opener.
-				if (line ~ /^[[:space:]]*$/) {
+				if (is_blank(line)) {
 					next
 				}
 				if (line ~ /^[[:space:]]*[{(]/) {
-					emit_names(pending)
+					handle_func_list(pending_header)
 				}
-				pending = ""
+				pending_header = ""
 			}
 
 			if (line ~ /^[[:space:]]*function[[:space:]]+/) {
-				rest = line
-				sub(/^[[:space:]]*function[[:space:]]+/, "", rest)
+				rest = strip_function_prefix(line)
 
-				# `function name () {` or `function one two () (`
+				# Match order (most specific first):
+				# 1) function foo () { ... }
+				# 2) function foo { ... }
+				# 3) function foo ()          (body later)
+				# 4) function foo             (zsh multi-name, body later)
+
 				if (rest ~ /\(\)[[:space:]]*[{(]/) {
 					sub(/\(\)[[:space:]]*[{(].*$/, "", rest)
-					emit_names(rest)
+					handle_func_list(rest)
 					next
 				}
-				# `function name {`
+
 				if (rest ~ /[[:space:]]*\{/) {
 					sub(/[[:space:]]*\{.*$/, "", rest)
-					emit_names(rest)
+					handle_func_list(rest)
 					next
 				}
-				# `function name ()` (body opener may be on later line)
+
 				if (rest ~ /\(\)[[:space:]]*$/) {
 					sub(/\(\)[[:space:]]*$/, "", rest)
-					pending = rest
+					pending_header = rest
 					next
 				}
-				# `function name` (zsh form; body opener may be on later line)
+
 				if (rest ~ /^[[:space:]]*[^[:space:]#]+([[:space:]]+[^[:space:]#]+)*[[:space:]]*$/) {
-					pending = rest
+					pending_header = rest
 					next
 				}
 			}
 
+			# Bare forms without the `function` keyword.
 			# `name () {` or `name () (`
-			if (match(line, /^[[:space:]]*([^[:space:](]+)[[:space:]]*\(\)[[:space:]]*[{(]/, m)) {
-				emit_names(m[1])
+			if (line ~ /^[[:space:]]*[^[:space:](]+[[:space:]]*\(\)[[:space:]]*[{(]/) {
+				name = line
+				sub(/^[[:space:]]*/, "", name)
+				sub(/[[:space:]]*\(\)[[:space:]]*[{(].*$/, "", name)
+				handle_func_list(name)
 				next
 			}
+
 			# `name ()` (body opener may be on later line)
-			if (match(line, /^[[:space:]]*([^[:space:](]+)[[:space:]]*\(\)[[:space:]]*$/, m)) {
-				pending = m[1]
+			if (line ~ /^[[:space:]]*[^[:space:](]+[[:space:]]*\(\)[[:space:]]*$/) {
+				name = line
+				sub(/^[[:space:]]*/, "", name)
+				sub(/[[:space:]]*\(\)[[:space:]]*$/, "", name)
+				pending_header = name
 				next
 			}
-		}
+	}
 	' "$File"
 }
 
@@ -467,8 +506,9 @@ function join_by {
 }
 
 
-function _array_weight_compare
-(( ${1%% *} < ${2%% *} ))
+function _array_weight_compare {
+	(( ${1%% *} < ${2%% *} ))
+}
 
 # function array_sort_weight {
 # 	declare -a Weights REPLY_ARRAY
@@ -477,10 +517,12 @@ function _array_weight_compare
 # 	'"$1"'=("${REPLY_ARRAY[@]}")'
 # }
 
-function _array_compare_int
-(( $1 < $2 ))
-function _array_compare_string
-[[ $1 < $2 ]]
+function _array_compare_int {
+	(( ${1:-0} < ${2:-0} ))
+}
+function _array_compare_string {
+	[[ "$1" < "$2" ]]
+}
 
 # (C) CC BY-SA 4.0
 # modified from https://stackoverflow.com/a/30576368
@@ -513,20 +555,20 @@ array_sort() {
 			;;
 	esac
 
-	local stack=( 0 $(($#-1)) ) start end i pivot smaller larger
+	local stack=( 0 $(($# - 1)) ) start end i pivot smaller larger
 	REPLY_ARRAY=("$@")
 	while ((${#stack[@]})); do
 		start=${stack[0]}
 	end=${stack[1]}
 	stack=( "${stack[@]:2}" )
 	smaller=() larger=()
-	pivot=${REPLY_ARRAY[start]}
+	pivot=${REPLY_ARRAY[$start]}
 	# Note: iterative, NOT recursive! :)
 	for ((i=start+1;i<=end;++i)); do
-		if "$CompareFn" "${REPLY_ARRAY[i]}" "$pivot"; then
-			smaller+=( "${REPLY_ARRAY[i]}" )
+		if "$CompareFn" "${REPLY_ARRAY[$i]}" "$pivot"; then
+			smaller+=( "${REPLY_ARRAY[$i]}" )
 		else
-			larger+=( "${REPLY_ARRAY[i]}" )
+			larger+=( "${REPLY_ARRAY[$i]}" )
 		fi
 	done
 	REPLY_ARRAY=( "${REPLY_ARRAY[@]: 0: start}" "${smaller[@]}" "$pivot" "${larger[@]}" "${REPLY_ARRAY[@]: end + 1}" )
@@ -621,8 +663,8 @@ function _for_permutations_next {
 
 	for (( ; i < ${#Array[@]}; i++ )) ; do
 		Array=("${Copy[@]}")
-		temp="${Array[i]}"
-		Array[i]="${Array[$1]}"
+		temp="${Array[$i]}"
+		Array[$i]="${Array[$1]}"
 		Array[$1]="$temp"
 		_for_permutations_next $(($1 + 1)) || return 1
 	done
@@ -643,34 +685,40 @@ function eq {
 
 # Returns the key for a given key value pair
 function key {
-	local delimiter='='
-	if [[ "$1" = '-d' ]]; then
-		delimiter="$2"
-		shift
-		shift
+	local Delimiter='='
+	if [[ "${1-}" = '-d' ]]; then
+		Delimiter="$2"
+		(($# > 1)) && shift 2 || return 9
+		[[ -n "$Delimiter" ]] || return 9
 	fi
 
-	local pair="$([[ $# -eq 0 ]] && cat || echo $1)"
-	printf '%s\n' "${pair%%=*}"
+	local Pair
+	if (($#)); then
+		Pair="$1"
+	else
+		Pair="$(cat)"
+	fi
+	printf '%s\n' "${Pair%%"$Delimiter"*}"
 }
 
 # Returns the value for a given key value pair
 function value {
-	local delimiter='='
-	if [[ "$1" = '-d' ]]; then
-		delimiter="$2"
+	local Delimiter='='
+	if [[ "${1-}" = '-d' ]]; then
+		Delimiter="$2"
 		(($# > 1)) && shift 2 || return 9
+		[[ -n "$Delimiter" ]] || return 9
 	fi
 
-	local value pair
+	local Value Pair
 	if (($#)); then
-		pair="$1"
+		Pair="$1"
 	else
-		pair="$(cat)"
+		Pair="$(cat)"
 	fi
-	[[ "$pair" = *"$delimiter"* ]] || return 2
-	[[ "$pair" =~ "$delimiter"(.*)$ ]] || return 2
-	printf '%s\n' "${pair##*"$delimiter"}"
+	[[ "$Pair" = *"$Delimiter"* ]] || return 2
+	[[ "$Pair" =~ "$Delimiter"(.*)$ ]] || return 2
+	printf '%s\n' "${Pair##*"$Delimiter"}"
 }
 
 function ternary {
@@ -678,7 +726,7 @@ function ternary {
 	eval "$1" && echo "$2" || echo "$3"
 }
 function iif { ternary "$@"; }
-if [[ -v ZSH_VERSION ]]; then
+if [[ -n "${ZSH_VERSION-}" ]]; then
 	alias '?:=ternary'
 else
 	function ?: { @func_passthrough; ternary "$@"; }

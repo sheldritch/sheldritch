@@ -18,7 +18,7 @@ function deindent {
 
 	if [[ "$*" =~ $'\n'($'\t'| )+ ]]; then
 		rematch >/dev/null
-		if [[ -v ZSH_VERSION ]]; then
+		if [[ -n "${ZSH_VERSION-}" ]]; then
 			REPLY=${*//"$REPLY"/$'\n'}
 		else
 			REPLY="${*//"$REPLY"/$'\n'}"
@@ -391,4 +391,9 @@ function glob_array {
 		# shellcheck disable=SC2053
 		[[ "$Path" = $MatchPrefix$Glob ]] && REPLY+=("$PATH")
 	done
+}
+
+# TODO: Improve this function with https://superuser.com/questions/380772/removing-ansi-color-codes-from-text-stream
+function ansi2txt {
+	 perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g'
 }

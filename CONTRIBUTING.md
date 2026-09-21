@@ -17,6 +17,10 @@ over-optimised code for performance over readability, maintainability, etc.
 - Write code and variable names in US English and documentation in Australian
     English (except where directly referencing variable/function names).
 - Wrap markdown files to a reasonable extent.
+- Shell variables should use PascalCase unless global or overriding external
+    env vars; this avoids conflicting with zsh reserved variables.
+- Variables in other languages (awk, python, raku etc) should follow whatever
+    convention is most common for that language.
 
 ### Formatting & Spacing
 - In arithmetic tests with non‑alnum either side, keep spaces inside brackets:

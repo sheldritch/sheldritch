@@ -383,7 +383,17 @@ function _args_build_parser_opts {
 
 function _args_build_validation {
 	# read predicate requirements from docstring
-	local DocString="${1%%.*}" Predicate='' Test='' Error=''
+	local DocString Predicate='' Test='' Error=''
+
+	# TODO: Probably need to swap to a proper parser, setting an initial bounds like this is pretty naïve.
+	if [[ "$1" != *.* ]]; then
+		DocString="$1"
+	else
+		# grab until the first unquoted and unescaped period
+		rematch "$1" "([^.\"']*|'[^']*'"'|"[^"]*"|\\\.)+' >/dev/null
+		DocString="$REPLY"
+	fi
+
 	Validation=''
 	while true; do
 		Predicate="${DocString%%,*}"
@@ -478,8 +488,8 @@ function _args_build_validation {
 					Name="$OldName"
 				fi
 
-				if [[ -n "$Type" ]] && ! is_type "$Type"; then
-					error -p 1 "FUNCTION BUG: ${Tag:-$Name}: default must match option type '$Type'."
+				if [[ -n "$Type" ]] && ! is_type "$Type" "$Default"; then
+					error -p 3 "FUNCTION BUG: ${Tag:-$Name}: default value '$Default' must match option type '$Type'."
 					return 9
 				fi
 
@@ -522,7 +532,7 @@ function _args_parse_builder {
 
 	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
 	# zsh has string/array casting issues
-	[[ -v ZSH_VERSION ]] && Usage=("${Usage[@]}")
+	[[ -n "${ZSH_VERSION-}" ]] && Usage=("${Usage[@]}")
 
 	# one parser for each usage line
 	declare -a Parsers
@@ -667,7 +677,7 @@ function _args_build_usage_parsers {
 			fi
 			if [[ -z $Literal && -z $Variadic ]]; then
 				# TODO: remove = here, and add variable setting into arg parsing function?
-				if [[ -v ZSH_VERSION ]]; then
+				if [[ -n "${ZSH_VERSION-}" ]]; then
 					declare Names="${Name//[[^[:upper:][:digit:]]_]/= }"
 					_ARGS_VARS+=($Names'=' )
 				else
@@ -1665,14 +1675,14 @@ function arg_bool {
 	done
 }
 
-if [[ -v ZSH_VERSION ]]; then
+if [[ -n "${ZSH_VERSION-}" ]]; then
 	eval '
 	function args_quoted {
 		REPLY="${@:q}"
 		echo "$REPLY"
 	}
 	'
-elif [[ -v BASH_VERSION ]]; then
+elif [[ -n "${BASH_VERSION-}" ]]; then
 	eval '
 	function args_quoted {
 		REPLY="${@@Q}"
@@ -1751,21 +1761,17 @@ function print_doc {
 	fi
 
 	if var_is_declared Usage; then
+		local Line=''
+		((${#Usage[@]})) || Usage=("$Usage")
+
 		echo "Usage:"
-		if ((${#Usage[@]})); then
-			for Line in "${Usage[@]}"; do
-				if [[ "$Line" = \#* ]]; then
-					printf '\t%s\n' "$Line"
-					continue
-				fi
-				printf '\t%s%s\n' "$Parent ${Options[1]:+[options] }" "$Line"
-			done
-		else
-			printf '\t%s%s\n' "$Parent" "${Options[1]:+ [options]}"
-		fi
-	elif is_function usage &&
-		awk "/${Parent:+"$Parent *() *{ *"}$/,/^}/" "$(self_file)" | grep -q 'usage()'; then
-		usage
+		for Line in "${Usage[@]}"; do
+			if [[ "$Line" = \#* ]]; then
+				printf '\t%s\n' "$Line"
+				continue
+			fi
+			printf '\t%s%s\n' "$Parent ${Options[1]:+[options] }" "$Line"
+		done
 	else
 		# TODO: This should not show up if Usage is explicitly set to empty (representing a function with no arguments)
 		echo >&2 "No Usage line provided. However, here are the options:"
@@ -1773,11 +1779,6 @@ function print_doc {
 
 	if __has Options; then
 		print_options "${Options[@]}" || return 9
-
-	elif is_function options; then
-		options
-	else
-		{ funcname -p 1 -q && DPR_print_args -f "$(funcname -p 1)" || DPR_print_args; } 2>&1
 	fi
 
 	${_ArgsSet:+set -$_ArgsSet}

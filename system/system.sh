@@ -40,7 +40,12 @@ export MSYS=winsymlinks:nativestrict
 OS_WSL=/proc/sys/fs/binfmt_misc/WSLInterop
 if [[ -f "$OS_WSL" ]] && grep -sq enabled "$OS_WSL"; then
 	OS_WSL=1
-	__browser="cmd.exe /c start"
+
+	__browser=/tmp/$USER/sheldritch/BROWSER
+	echo >"$__browser" '#!/bin/bash
+	(cd /mnt/c || cd /c && cmd.exe /c start "${1//&/^&}")'
+	chmod u+x "$__browser"
+
 	if [[ "$BROWSER" && "$BROWSER" != "$__browser" ]]; then
 		echo >&2 "Warning: setting BROWSER as '$__browser' for WSL. To quash this warning, unset BROWSER or set it as '$__browser' yourself."
 	fi
@@ -63,7 +68,7 @@ function url_open {
 
 	if grep -sq enabled /proc/sys/fs/binfmt_misc/WSLInterop; then
 		(cd /mnt/c || cd /c && cmd.exe /c start "${link//&/^&}")
-	elif command -v xdg-open ; then
+	elif command -v xdg-open; then
 		xdg-open "$link"
 	else
 		echo >&2 "Error: no link opener available. Please do so manually."
@@ -75,5 +80,39 @@ function wsl_open {
 	Path="${Path#file://}"
 	[[ -e "$Path" ]] && Path="$(wslpath -w "$Path")"
 	(cd /mnt/c || cd /c && cmd.exe /c start "${Path//&/^&}")
+}
+
+# from https://stackoverflow.com/a/60279429
+function fake_tty {
+  # Create a temporary file for storing the status code
+  Tmp=$(mktemp)
+
+  # Ensure it worked or fail with status 99
+  [ "$Tmp" ] || return 99
+
+  # Produce a script that runs the command provided to faketty as
+  # arguments and stores the status code in the temporary file
+  Cmd="$(printf '%q ' "$@")"'; echo $? > '$Tmp
+
+  # Run the script through /bin/sh with fake tty
+  if [ "$(uname)" = "Darwin" ]; then
+    # MacOS
+    script -Fq /dev/null /bin/sh -c "$Cmd"
+  else
+    script -qfc "/bin/sh -c $(printf "%q " "$Cmd")" /dev/null
+  fi
+
+  # Ensure that the status code was written to the temporary file or
+  # fail with status 99
+  [ -s $Tmp ] || return 99
+
+  # Collect the status code from the temporary file
+  Err=$(cat $Tmp)
+
+  # Remove the temporary file
+  rm -f $Tmp
+
+  # Return the status code
+  return $Err
 }
 
