@@ -78,24 +78,40 @@ function func_source_file {
 function funcs_in_file {
 	@func_info
 	About='List function names that appear in FILE, or from standard input when FILE is -.'
-	Usage='FILE'
+	Usage='FILES...'
+	Options=(
+
+		-e --regexp=PATTERN     "Regex to match function names by"
+		-F --fixed-strings      "Interpret PATTERN as a fixed string, not a regular expression."
+
+		-n --line-number        "include the line number where the function is found"
+		-h --no-filename        "suppress prefixing file names on each line. This is default if one file or '-' given."
+		-H --with-filename      "Prefix file names on each line. This is default if multiple FILES given."
+
+		-m --max-count=NUMBER   "Stop once NUMBER functions have been found"
+	)
 	zsh_run setopt KSH_ARRAYS
 	args_parse
 
-	if [[ "$File" != '-' ]] && ! [[ -f "$File" ]]; then
-		error "file '$File' not found"
-		return 1
+	local Error=0
+	# Set vars for awk
+	FixedStrings="$(bool2int "$FixedStrings")"
+	LineNumber="$(bool2int "$LineNumber")"
+	if isTrue "$NoFilename"; then
+		WithFilename=0
+	elif isTrue "$WithFilename"; then
+		WithFilename=1
+	else
+		WithFilename=$((${#Files[@]} > 1))
 	fi
 
-	local Flavor='sh' AllowShebangOverride=0
-	case "$File" in
-		*.bash) Flavor='bash' ;;
-		*.zsh) Flavor='zsh' ;;
-		*.ksh) Flavor='ksh' ;;
-		*.sh|-) AllowShebangOverride=1 ;;
-	esac
-
-	awk -v shell_flavor="$Flavor" -v allow_shebang_override="$AllowShebangOverride" '
+	awk \
+		-v regexp="$Regexp" \
+		-v fixed_strings="$FixedStrings" \
+		-v max_count="$MaxCount" \
+		-v line_numbers="$LineNumber" \
+		-v with_filename="$WithFilename" \
+		'
 		function trim(s) {
 			gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
 			return s
@@ -114,8 +130,22 @@ function funcs_in_file {
 			if (name == "" || name == "()" || name ~ /[$()]/) {
 				return
 			}
+			if (regexp) {
+				if (with_filename) {
+					if (name != regex) { return }
+				} else {
+					if (name !~ regex) { return }
+				}
+			}
 			if (!seen[name]++) {
-				print name
+				print \
+					(with_filename ? FILENAME":" : "") \
+					(line_numbers  ? FNR":"      : "") \
+					name
+			}
+
+			if (max_count && ++count >= max_count) {
+				exit
 			}
 		}
 
@@ -135,19 +165,21 @@ function funcs_in_file {
 			}
 		}
 
+		FNR == 1 {
+			shell_flavor = ( \
+				FILENAME ~ /\.bash$/ ? "bash" : \
+				FILENAME ~ /\.zsh$/  ? "zsh"  : \
+				FILENAME ~ /\.ksh$/  ? "ksh"  : \
+				$0 ~ /^#!.*bash/ ? "bash" : \
+				$0 ~ /^#!.*zsh/  ? "zsh"  : \
+				line ~ /^#!.*ksh/  ? "ksh"  : \
+				"sh" \
+			)
+		}
+
 		# Main body
 		{
 			line = $0
-
-			if (allow_shebang_override && NR == 1) {
-				if (line ~ /^#!.*bash/) {
-					shell_flavor = "bash"
-				} else if (line ~ /^#!.*zsh/) {
-					shell_flavor = "zsh"
-				} else if (line ~ /^#!.*ksh/) {
-					shell_flavor = "ksh"
-				}
-			}
 
 			# Ignore full-line comments to avoid false positives like `#foo() {`.
 			if (is_comment(line)) {
@@ -217,7 +249,7 @@ function funcs_in_file {
 				next
 			}
 	}
-	' "$File"
+	' "${Files[@]}"
 }
 
 # WARNING!
