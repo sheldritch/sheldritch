@@ -5,6 +5,7 @@ check_is_sourced
 
 summon sheldritch/core/args
 
+# print true iff the given function is a defined function
 function is_function {
 	declare -p ${BASH_VERSION:+-F} -f "$1" >/dev/null 2>&1
 }
@@ -252,6 +253,9 @@ function funcs_in_file {
 	' "${Files[@]}"
 }
 
+# Print the name of the currently executing function.
+# Use the -p N flag, where N is the Nth parent function up the call chain.
+#
 # WARNING!
 # `funcname` should not use any other helper functions to avoid recursion
 # except where explicitly commented

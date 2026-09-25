@@ -6,10 +6,9 @@ check_is_sourced
 function file_first {
 	# dependencyless func
 
-	if [[ "$#" -eq 1 && "$1" = --help ]]; then
-		deindent "For the given list of files, print the first that exists in the filesystem."
-		return 0
-	fi
+	@help '
+	For the given list of files, print the first that exists in the filesystem."
+	' && return 0
 
 	typeset File=''
 	REPLY=
@@ -67,6 +66,10 @@ function temp_file {
 }
 
 function fopen {
+	@help '
+	Open a file into a non-specific file descriptor
+	' && return 0
+
 
 	local _sem="16" # Leave small fds for safety
 	while [ -e /dev/fd/$_sem ]; do
@@ -79,6 +82,9 @@ function fopen {
 }
 
 function su_write {
+	@help '
+	Write a file as super user.
+	' && return 0
 	if [ $# -ne 1 ]; then
 		error "requires one file name as argument"
 		return 1
@@ -87,6 +93,9 @@ function su_write {
 }
 
 function su_append {
+	@help '
+	Append to a file as super user.
+	' && return 0
 	if [ $# -ne 1 ]; then
 		error "requires one file name as argument"
 		return 1

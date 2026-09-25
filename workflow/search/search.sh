@@ -1,10 +1,11 @@
+#!/bin/bash
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.sh" || return 1
 check_is_sourced
 
-# Use FZF to search a JSON array for a particular field match
 function fzf_json {
 	@func_info
+	About='Use FZF to search a JSON array for a particular field match'
 	Usage=(
 		'# allows - or no argument to read stdin'
 		"[JSON...]"

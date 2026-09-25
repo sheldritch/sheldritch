@@ -5,6 +5,7 @@ check_is_sourced
 
 summon sheldritch/core/args
 
+# Return true if the first argument is equal to any of the remaining arguments
 function contains {
 	local Match="$1"
 	shift
@@ -17,6 +18,7 @@ function contains {
 	return 1
 }
 
+# Return true iff the first argument matches any of the remaining arguments as a glob.
 function contains_glob {
 	local Match="$1"
 	shift
@@ -81,11 +83,13 @@ function item {
 	return 1 # If ya wanted tuh succeed ya shoulda done it earlia!!
 }
 
+# Join ELEMENTS into a string, with each element seperated by DELIMITER
+# Usage: join_by DELIMITER ELEMENTS...
 function join_by {
-	local d=${1-} f=${2-}
+	local Delimiter="${1-}" First="${2-}"
 	(($# > 1)) || return 0
 	shift 2
-	printf %s "$f" "${@/#/$d}"
+	printf %s "$First" "${@/#/$Delimiter}"
 }
 
 
@@ -222,6 +226,7 @@ function array_for {
 # TODO
 #function array_filter {
 
+# Run the given function once for every permutation of the given array.
 function for_permutations {
 	@func_info
 	Usage='FUNCTION ARRAY...'

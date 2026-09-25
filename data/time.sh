@@ -5,7 +5,12 @@ check_is_sourced
 
 summon sheldritch/core/args
 
-function now { echo "$(date +%s.%N)"; }
+function now {
+	@help '
+	Print the current time as a decimal, with nanosecond "precision"
+	' && return
+	echo "$(date +%s.%N)"
+ }
 
 function table_date_comp {
 	@func_info

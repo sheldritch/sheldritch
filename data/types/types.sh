@@ -52,6 +52,10 @@ function is_type {
 # Booleans
 #
 
+# Return true iff every given argument is the string 'true'
+# Fails if no arguments are given.
+#
+# Prints a loud error and returns 9 if values other than 'true', 'false, or '' are given.
 isTrue() {
 	if [[ $# -eq 0 ]]; then
 		return 2
@@ -79,6 +83,8 @@ anyTrue() {
 	done
 }
 
+# Return true iff every given argument is the string 'null'
+# Fails if no arguments are given.
 isNull() {
 	if [[ $# -eq 0 ]]; then
 		return 2
@@ -88,6 +94,7 @@ isNull() {
 	done
 }
 
+# Convert a string yes/no-like string to either "true", "false" or "null".
 yesNoToBool() {
 	lowercase "$1" >/dev/null
 	case "$REPLY" in
@@ -131,6 +138,7 @@ function range_intersects {
 # Misc
 #
 
+# Return true if all arguments are equal
 function eq {
 	local i
 	for ((i = 2; i <= $#; i++)); do
@@ -140,6 +148,7 @@ function eq {
 }
 
 # Returns the key for a given key value pair
+# Usage: key [-d DELIMITER] KEY_VALUE_PAIR
 function key {
 	local Delimiter='='
 	if [[ "${1-}" = '-d' ]]; then
@@ -189,6 +198,7 @@ else
 fi
 
 function ifdef {
+	@help 'if $1 is non-empty, echo $2, otherwise echo $3' && return
 	if [[ $# -gt 3 ]]; then
 		error -p 2 "wrong argument count to ifdef (:+)"
 		return 9

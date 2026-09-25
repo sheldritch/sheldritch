@@ -130,15 +130,17 @@ function jtype {
 
 # Iterate over given JSON values
 # eg for i in $(json_keys "$json"); do
-#    	elem="$(jqj "$json" .[$i])"'
+#    	Elem="$(jqj "$json" .[$i])"'
 #    	...
 function json_keys {
 	local json length
 	@help 'Iterate over given JSON values
 		For example:
+		```bash
 		for i in $(json_keys "$json"); do
-			elem="$(jqj "$json" ".[$i]")"
+			Elem="$(jqj "$json" ".[$i]")"
 			...
+		```
 	' && return
 
 	json="$(args_or_stdin "$@")"
@@ -309,6 +311,20 @@ alias jstream=json_stream
 #
 # Maybe could have a json_stream version which first prints each variable name, then a newline, and then each value, nul-separated.
 function json_read {
+	@help '
+	Read a single JSON element from standard input.
+
+	Given any JSON element other than an object, a only a single argument is permitted. Store the JSON element in that variable.
+
+	Given a JSON object, for each argument extract the matching field and save it to a variable.
+
+	Usage: json_read [VARIABLE_NAME[=KEY_NAME]]...
+
+	Example:
+	while json_read fieldA fieldB fieldC=another_name; do
+		...
+	done < <(json_stream "$Json")
+	' && return
 	local __item
 	while [[ -z "$__item" ]]; do
 		read -r __item || {
@@ -370,17 +386,19 @@ function jq_build() {
 
 }
 
-# Pops an attribute/index from JSON and create a matching variable.
-#
-# Check if the given JSON contains attributes matching the args passed in.
-# If the value exists, create a variable matching the atribute key with that values.
-# If the argument is an integer, treat the JSON as an array, and create a
-# variable arrN (where N is the int)
-#
-# Does not set or modify dynamic variables if no attribute is found, unless -f is set. outputVar is always set.
 function json_pop {
 
 	@func_info
+	About='
+	Pops an attribute/index from JSON and create a matching variable.
+
+	Check if the given JSON contains attributes matching the args passed in.
+	If the value exists, create a variable matching the atribute key with that values.
+	If the argument is an integer, treat the JSON as an array, and create a
+	variable arrN (where N is the int)
+
+	Does not set or modify dynamic variables if no attribute is found, unless -f is set. outputVar is always set.
+	'
 	Usage='-j json keys...'
 	Options=(
 		-j --json "Required. The input JSON structure to pop content from"

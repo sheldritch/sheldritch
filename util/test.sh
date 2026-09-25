@@ -85,7 +85,11 @@ function expect_return {
 }
 
 function expect_array_eq {
-	@help 'Usage: expect_array_eq ARRAY ELEMENTS...' && return
+	@help '
+	Given an array variable name, compare its elements with ELEMENTS
+	Usage: expect_array_eq ARRAY ELEMENTS...
+	' && return
+
 	local STACKTRACE=1
 	local actual expected
 	actual="$(eval args_quoted "\"\${$1[@]}\"")"

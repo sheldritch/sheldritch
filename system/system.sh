@@ -55,6 +55,9 @@ else
 fi
 
 function url_open {
+	@help '
+	Attempt to open the given URL in a browser, or gracefully fail such that the user can still open the link themselves.
+	' && return 0
 	link="$1"
 	if [[ "$XDG_SESSION_TYPE" = tty ]]; then
 		echo >&2 "Open the following link in your browser:"
@@ -76,12 +79,16 @@ function url_open {
 }
 
 function wsl_open {
+	@help '
+	Open a file from within WSL
+	' && return 0
 	typeset Path="$1"
 	Path="${Path#file://}"
 	[[ -e "$Path" ]] && Path="$(wslpath -w "$Path")"
 	(cd /mnt/c || cd /c && cmd.exe /c start "${Path//&/^&}")
 }
 
+# Execute the arguments as a command, as if it was running from a terminal.
 # from https://stackoverflow.com/a/60279429
 function fake_tty {
   # Create a temporary file for storing the status code

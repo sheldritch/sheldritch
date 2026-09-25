@@ -44,7 +44,7 @@ function transmute {
 	About='mutate the essential being of a sheldritch tome
 	(Find a file in one of your library directories and open it in your editor)
 
-	Also works with a unique file name, e.g. "tool_edit ldap.sh"
+	Also works with a unique file name, e.g. "transmute ldap.sh"
 	'
 	Usage=(
 		PATHS...

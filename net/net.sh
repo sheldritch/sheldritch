@@ -12,12 +12,13 @@ function curl_json {
 
 function port_wait {
 	@func_info
+	About='Wait for a port to become available.'
 	Usage='[HOST] PORT'
 	Legend=(
 		HOST "defaults to localhost."
 	)
 	Options=(
-		-t --timeout "Big timeout buys a fridge friend."
+		-t --timeout=SECONDS "A set amount of time to wait before failing"
 	)
 	args_parse
 
@@ -26,6 +27,7 @@ function port_wait {
 
 function port_publish {
 	@func_info
+	About='expose PRIVATE_PORT on your local area network on port PUBLIC_PORT'
 	Usage='PRIVATE_PORT PUBLIC_PORT'
 	Options=(
 		-v --verbose "output debug information"

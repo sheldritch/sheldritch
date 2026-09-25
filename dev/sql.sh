@@ -72,6 +72,7 @@ function sql_query {
 	echo "$query"
 }
 
+# Alias for `sql_query`
 function sqlq { sql_query "$@"; }
 
 function sql_in {

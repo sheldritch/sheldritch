@@ -22,7 +22,7 @@ function repo_list {
 	@func_info
 	About='Print directories from all repos
 
-	Searches directories in the : separated REPOS environment variable.
+	Searches directories in the :-separated REPOS environment variable.
 	'
 	opts_parse
 

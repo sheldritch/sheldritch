@@ -122,6 +122,9 @@ function lines_multi {
 }
 
 function tgrep {
+	@help
+	'Grep but it always keeps the first line of content.
+	' && return 0
 	local input
 	input="$(cat)" || return $?
 
@@ -129,6 +132,9 @@ function tgrep {
 	echo "$input" | sed 1d | grep "$@"
 }
 
+# A regex find and replace, optimised for short strings in the pure shell.
+# Usage: replace STRING [PATTERN REPLACEMENT]...
+#
 # This function is very optimised for short, frequent runs
 # so excuse the weird structure
 function replace {
@@ -233,6 +239,7 @@ function case_pascal {
 }
 
 
+# URL-encode a string
 function url_encode {
 	if [[ -t 1 ]]; then
 		@func_info
@@ -328,6 +335,7 @@ function url_encode {
 	REPLY="${Encoded}" #+or echo the result (EASIER)... or both... :p
 }
 
+# Decode a URL-encoded string.
 function url_decode {
 	python3 -c "import sys, urllib.parse as ul; print (ul.quote('$*'))"
 }

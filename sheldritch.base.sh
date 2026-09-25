@@ -90,6 +90,7 @@ if [[ -z "${SHELDRITCH_HAS_ASSOC_ARRAYS+ }" ]]; then
 fi 2>/dev/null
 
 
+# print the currently executing file
 function self_file {
 	if [[ -n "${KSH_VERSION-}" ]]; then
 		if [[ "${2:-0}" = 0 ]]; then
@@ -114,6 +115,7 @@ function self_file {
 	echo "$REPLY"
 }
 
+# print the currently executing file's directory
 function self_dir {
 	if [[ -n "${KSH_VERSION-}" ]]; then
 		if [[ "${2:-0}" = 0 ]]; then
@@ -284,4 +286,5 @@ alias stderr='>&2'
 # so you can do $(comment: <write your comment here!>)
 alias comment:='true COMMENT:'
 
+# set the most recent error code
 function ecode { return "$1"; }
