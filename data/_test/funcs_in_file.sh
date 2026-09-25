@@ -199,4 +199,4 @@ EOF
 )
 
 # Missing file should return an error message.
-expect_error "file '.*/does_not_exist.sh' not found" funcs_in_file "$TmpDir/does_not_exist.sh"
+expect_error ".*No such file or directory.*" funcs_in_file "$TmpDir/does_not_exist.sh"

@@ -511,7 +511,9 @@ function summon {
 	for Arg in "$@"; do
 		# find the absolute path to the library
 		if ! Tome="$(tome_find "${Arg%%\**}")"; then
-			error -p 1 "Tome '$Tome' could not be found."
+			error -p 1 "
+			Tome '${Arg%%\**}' could not be found.
+			Check that the path matches a valid one in your library dirs."
 			continue
 		fi
 

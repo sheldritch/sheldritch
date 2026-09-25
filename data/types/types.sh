@@ -102,6 +102,14 @@ yesNoToBool() {
 	esac
 }
 
+bool2int() {
+	case "$1" in
+		true ) echo 1;;
+		false ) echo 0;;
+		* ) return 9;;
+	esac
+}
+
 #
 # Numbers
 #
@@ -234,3 +242,5 @@ function filter_if {
 		eval "${3:-cat}"
 	fi
 }
+
+summon sheldritch/data/types/'*'
