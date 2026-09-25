@@ -24,7 +24,7 @@ Here are the variables that Sheldritch's @func_info uses:
     - You don't need to explicitly list --help, help output is completely
       handled for you.
     - which flags are parsed and how errors are handled can be modified with
-      <#Marks> (described below).
+      <#Jinxes> (described below).
 - Legend -- Defines and explains the contents of TOKENS that appear in Usage
   strings.
     - takes a key-value array of TOKEN_NAME "and a string explaining its use"
@@ -104,24 +104,24 @@ Quoted Tokens [NOT YET IMPLEMENTED] -- eg '|' "'QUOTED_ARG'"
 - Usage strings with an exact number of arguments (i.e. without any optional or
   variadic arguments) are prioritiesed
 
-# Marks (Annotations)
+# Jinxes (Annotations)
 
-Marks are little flags before some code to tweak its behaviour on a meta level.
+Jinxes are little flags before some code to tweak its behaviour on a meta level.
 
 - @func_info -- indicates that the function argument parsing is handled by
   Sheldritch args.sh
 
-- @func_use_parent -- Incompatible with @func_info and other marks. Accept the
-    -p/--parent flag, identifying the Nth parent function calling the current
-    function. The current function is 0, the function calling it is 1, its
-    calling function is 2 and so on. This mark sets the ParentLevel variable,
-    to what -p was set to, and the Parent variable, which is the name of the
-    function that -p refers to.
+- @func_use_parent -- Incompatible with @func_info and other jinxes. Accepts
+   the -p/--parent flag, identifying the Nth parent function calling the
+   current function. The current function is 0, the function calling it is 1,
+   its calling function is 2 and so on. This jinx sets the ParentLevel
+   variable, to what -p was set to, and the Parent variable, which is the name
+   of the function that -p refers to.
 
 - @func_passthrough -- For any child functions using @func_info, execute as if
-  that function's name is the name of its parent. If function `foo` call
-  @func_passthrough, and then function `bar`, `bar`'s help output and error
-  messages will say `foo` instead of `bar`.
+   that function's name is the name of its parent. If function `foo` call
+   @func_passthrough, and then function `bar`, `bar`'s help output and error
+   messages will say `foo` instead of `bar`.
     - This is a powerful way to leverage all of the options and argument parsing
       of another function, without having to rewrite out all of the options and
       arguments that that function provides.
@@ -160,7 +160,7 @@ Marks are little flags before some code to tweak its behaviour on a meta level.
 - @args_no_cache -- Disable caching all of the args metadata and code which is
   generated on a function's first run.
     - Since Sheldritch's arg parsing is optimised for many function runs, using
-      this mark is a massive performance hit, and is only really useful for
+      this jinx is a massive performance hit, and is only really useful for
       debugging or running tests.
 
 - @args_double_underscore -- start every variable created by @func_info with

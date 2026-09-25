@@ -39,19 +39,19 @@ alias @func_passthrough='declare FUNC_PASSTHROUGH=$(( ${FUNC_PASSTHROUGH:-0} + 1
 function _args_set {
 	stdin "${2:-true}" read -d '' -r "$1" || true
 }
-function args_mark {
+function args_jinx {
 	@help '
-	Create a mark for the given global variable
-	Usage: alias_funcs MARK_NAME GLOBAL_VARIABLE_NAME
+	Create a jinx for the given global variable
+	Usage: alias_funcs JINX_NAME GLOBAL_VARIABLE_NAME
 	' && return
 	alias "@$1=declare $2 && _args_set $2"
 }
-args_mark opts_before_args _OPTS_PARSE_FIRST
-args_mark opts_keep_break _OPTS_KEEP_BREAK
-args_mark opts_skip_unknown _OPTS_SKIP_UNKNOWN
-args_mark args_no_cache _ARGS_NO_CACHE
-args_mark args_double_underscore _ARGS_DOUBLE_UNDERSCORE
-args_mark usage_match_first _USAGE_MATCH_FIRST
+args_jinx opts_before_args       _OPTS_PARSE_FIRST
+args_jinx opts_keep_break        _OPTS_KEEP_BREAK
+args_jinx opts_skip_unknown      _OPTS_SKIP_UNKNOWN
+args_jinx args_no_cache          _ARGS_NO_CACHE
+args_jinx args_double_underscore _ARGS_DOUBLE_UNDERSCORE
+args_jinx usage_match_first      _USAGE_MATCH_FIRST
 alias @func_internal='[[ -z "$TRACE_INTERNAL" ]] && set_temp +x'
 
 alias _has_func='declare >/dev/null 2>&1 -p ${BASH_VERSION:+-F} -f'

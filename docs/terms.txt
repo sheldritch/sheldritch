@@ -1,0 +1,28 @@
+# A list of words that we might use later for certain constructs within Sheldritch:
+pact
+haunt
+omen
+pox
+mark
+charm
+blight
+bane
+abase
+scourge
+blemish
+toxin
+poison
+portent
+stigma
+imp
+rune
+stain
+ruin
+spell
+talisman
+
+## Good but already similar
+glyph -- character, symbol
+sigil -- $ in perl $var
+hex -- already hexadecimal
+curse -- curses terminal library
