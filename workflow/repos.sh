@@ -5,7 +5,7 @@
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-summon sheldritch/util/complete.sh
+summon sheldritch/util/complete
 
 # Directories storing repos
 if [[ -z "${REPOS:-}" ]]; then

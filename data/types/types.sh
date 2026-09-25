@@ -3,7 +3,7 @@
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-summon sheldritch/core/args.sh
+summon sheldritch/core/args
 
 function is_type {
 	local TypeName='' Val='' OrNull=''

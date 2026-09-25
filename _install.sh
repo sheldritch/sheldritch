@@ -68,7 +68,7 @@ add_envar ~/.${Shell}_profile
 grep -Eq 'source "\$SHELDRITCH' ~/.${Shell}rc || echo 'source "$SHELDRITCH/sheldritch.full.sh"' >> ~/.${Shell}rc
 
 
-summon sheldritch/system/install.sh
+summon sheldritch/system/install
 install_basic -c jq jq
 
 echo >&2 "Installations complete."

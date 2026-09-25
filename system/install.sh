@@ -4,7 +4,7 @@
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-summon sheldritch/core/args.sh
+summon sheldritch/core/args
 summon sheldritch/system/
 
 function _tool_install {

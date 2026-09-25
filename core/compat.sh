@@ -134,7 +134,7 @@ alias _help_rematch='
 	fi'
 alias _help_recapture='
 	if [[ "$#" -eq 1 && "$1" = --help ]]; then
-		echo "rematch: Return a capture group from the last tested regex pattern"
+		echo "recapture: Return a capture group from the last tested regex pattern"
 		echo "Usage: CAPTURE_GROUP"
 		echo "Usage: { 1-9 }"
 		return 0
@@ -185,3 +185,11 @@ function stdin {
 $string
 SHELDRITCH_STDIN_COMPAT
 }
+
+# Source the appropriate shell file, preventing infinite loops
+if [[ -z "$SHELDRITCH_COMPAT_EXEC" ]]; then
+	self_file >/dev/null
+	if [[ -f "${REPLY%.sh}".$THIS_SHELL ]]; then
+		SHELDRITCH_COMPAT_EXEC=1 source "${REPLY%.sh}".$THIS_SHELL
+	fi
+fi

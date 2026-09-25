@@ -1,8 +1,8 @@
 #!/bin/bash
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
-summon sheldritch/data/types.sh
-summon sheldritch/util/test.sh
+summon sheldritch/data/types
+summon sheldritch/util/test
 
 test_init
 

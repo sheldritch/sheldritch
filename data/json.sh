@@ -8,7 +8,7 @@
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-summon sheldritch/core/args.sh
+summon sheldritch/core/args
 
 if ! command -v jq >/dev/null; then
 	echo >&2 "Error: sheldritch/util/json.sh: jq not installed."

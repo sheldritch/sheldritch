@@ -1467,6 +1467,9 @@ function _args_build_parser_legend {
 	done
 }
 
+# For each given TOKEN, check if the selected usage string has that token.
+# Useful for performing behaviour based on the selected usage string.
+# Usage: `usage_has TOKENS`
 function usage_has {
 	var_is_declared Usage || return 1
 	local Token
@@ -1476,6 +1479,8 @@ function usage_has {
 	return 0
 }
 
+# Same as `usage_has`, but TOKENS may contain globs.
+# Usage: `usage_has_glob TOKENS`
 function usage_has_glob {
 	var_is_declared Usage || return 1
 	local Token
@@ -1626,6 +1631,7 @@ zsh_run setopt GLOB
 # Arg parsing utils
 #
 
+# Output arguments, or if none are provided, the contents of stdin.
 function args_or_stdin {
 	local Args
 	if [[ $# -eq 0 ]]; then

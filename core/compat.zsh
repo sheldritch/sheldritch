@@ -5,10 +5,11 @@ check_is_sourced
 
 [[ "$THIS_SHELL" = zsh ]] || return 0
 
-self_file >/dev/null
-# directly source
-# If added to SHELDRITCH_SOURCES, re-syncing may clobber bash overrides
-source "${REPLY%.zsh}".sh
+# Safely source the base shell file, preventing infinite loops
+if [[ -z "$SHELDRITCH_COMPAT_EXEC" ]]; then
+	self_file >/dev/null
+	SHELDRITCH_COMPAT_EXEC=1 source "${REPLY%.zsh}".sh
+fi
 
 alias extglob='setopt KSH_GLOB'
 

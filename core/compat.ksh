@@ -5,7 +5,11 @@ check_is_sourced
 
 [[ "$THIS_SHELL" = ksh ]] || return 0
 
-summon sheldritch/core/compat.sh
+# Safely source the base shell file, preventing infinite loops
+if [[ -z "$SHELDRITCH_COMPAT_EXEC" ]]; then
+	self_file >/dev/null
+	SHELDRITCH_COMPAT_EXEC=1 source "${REPLY%.ksh}".sh
+fi
 
 alias extglob=':'
 alias local=typeset

@@ -6,7 +6,7 @@
 check_is_sourced
 
 summon sheldritch/data/text
-summon sheldritch/util/complete.sh
+summon sheldritch/util/complete
 
 # TODO: this file is broken
 

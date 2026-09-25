@@ -2,8 +2,8 @@
 #
 [[ -n ${SHELDRITCH_SUBSHELL:-} ]] ||
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
-summon sheldritch/data/json.sh
-summon sheldritch/util/test.sh
+summon sheldritch/data/json
+summon sheldritch/util/test
 
 test_init
 trap "STACKTRACE=1; error FAILED" ERR

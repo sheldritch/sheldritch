@@ -5,9 +5,9 @@
 	source "$SHELDRITCH/sheldritch.base.sh" || return 1
 check_is_sourced
 
-summon sheldritch/core/args.sh
-summon sheldritch/core/compat.sh
-summon sheldritch/data/types.sh
+summon sheldritch/core/args
+summon sheldritch/core/compat
+summon sheldritch/data/types
 
 function deindent {
 	@func_info

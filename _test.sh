@@ -15,7 +15,7 @@ source "${__FILE%_test.sh}sheldritch.base.sh"
 bash_run shopt -s globstar
 ksh_run set -o globstar
 
-if ! { summon sheldritch/data/types.sh && funcs_in_file "$__FILE"; } >/dev/null 2>&1; then
+if ! { summon sheldritch/data/types && funcs_in_file "$__FILE"; } >/dev/null 2>&1; then
 	error "skipping function coverage: failed to summon/run funcs_in_file for ${THIS_SHELL:-this shell}"
 else
 
