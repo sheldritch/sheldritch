@@ -3,7 +3,7 @@
 ## Style
 
 For general best practices when using Sheldritch, see the [corresponding
-documentation](docs/best-practices.md).
+documentation](/docs/best-practices.md).
 
 Unless required, (e.g. variable case), Sheldritch avoids prescribing style or
 specific shell settings. The following directives only apply to code within
@@ -16,7 +16,7 @@ over-optimised code for performance over readability, maintainability, etc.
 ### General
 - Write code and variable names in US English and documentation in Australian
     English (except where directly referencing variable/function names).
-- Wrap markdown files to a reasonable extent.
+- Wrap text lines  markdown files to a reasonable extent.
 - Shell variables should use PascalCase unless global or overriding external
     env vars; this avoids conflicting with zsh reserved variables.
 - Variables in other languages (awk, python, raku etc) should follow whatever
@@ -35,7 +35,7 @@ over-optimised code for performance over readability, maintainability, etc.
 - Use the `@func_info` framework for non-trivial functions, unless following
     the [performance instructions below](#performance).
 - Use `@func_info`/`opts_parse`/`args_parse` for new functions; populate
-    `Usage`, `Options`, `Legend`, and let `print_doc` serve `--help`.
+    `Usage`, `Options`, `Legend`, and let `print_doc` handle `--help`.
 
 ### Imports & Modules
 - While libraries using Sheldritch will frequently source `sheldritch.sh` for
