@@ -44,6 +44,9 @@ if [[ -z "${SHELDRITCH_SOURCES[*]+ }" ]]; then
 	SHELDRITCH_SOURCES=()
 fi
 
+# Given an absolute path, return true iff the path has previously been sourced via `source_once`.
+function source_is_cached { :; }
+
 # If supported, create SHELDRITCH_SOURCES_LOOKUP associative array for performance
 if [[ -n "${SHELDRITCH_HAS_ASSOC_ARRAYS:-}" ]]; then
 	# Fallback: O(n) member check on array
@@ -173,13 +176,31 @@ function path_search {
 			;;
 		-d | --delimiter ) Delim="$2"
 			if [[ -z "$Delim" ]]; then
-				echo >&2 "Error: xdg_search: no delimiter passed to -d"
+				echo >&2 "Error: path_search: no delimiter passed to -d"
 				return 1
 			fi
 			shift 2 || return 1
 			;;
 		-1 | --first ) First=1
 			shift
+			;;
+
+		--help | -h )
+			@help '
+			path_search: for each path in PATHS, search the
+			directories in PATH_STRING and print any matches.
+			Usage: path_search [option] PATH_STRING PATHS...
+			Legend:
+				PATH_STRING: a colon-separated list of paths.
+			Options:
+				-0 --zero
+					output zero-delimited matches
+				-d --delimiter=DELIMITER
+					specify the delimiter used in output
+				-1 --first
+					Only print the first match (with no
+					delimiter)
+			' && return
 	esac
 
 	Path="$1"
@@ -203,6 +224,10 @@ function find_bin {
 }
 
 function path_add {
+	@help "
+	Idempotently add each given path to the start of PATH
+	Usage: path_add PATHS
+	" && return
 	for Path in "$@"; do
 		if ! [[ "$PATH" = *"$Path"* ]]; then
 			export PATH="$Path:$PATH"
@@ -210,8 +235,21 @@ function path_add {
 	done
 }
 
+function path_add_end {
+	@help "
+	Idempotently add each given path to the end of PATH
+	Usage: path_add_end PATHS
+	" && return
+	for Path in "$@"; do
+		if ! [[ "$PATH" = *"$Path"* ]]; then
+			export PATH="$Path:$PATH"
+		fi
+	done
+}
+
+
+# Re-source all cached paths in their original source order.
 function sources_sync {
-	# Re-source all cached paths in their original source order.
 	typeset Key Fail=0
 	for Key in "${SHELDRITCH_SOURCES[@]}"; do
 		source "$Key" || Fail=1
@@ -219,6 +257,7 @@ function sources_sync {
 	return $Fail
 }
 
+# Source the given file if it has not already sourced via source_once
 function source_once {
 	typeset Path='' Exit=''
 
@@ -258,10 +297,15 @@ function source_once {
 	return $Exit
 }
 
+#
 # TODO: If we use .local/lib, there might be stuff in .local/share we also want to use
 # We need to be careful about assuming that .local/lib is the best place for stuff, if
 # .local/share is already being used but ./lib is not.
-function lib_find {
+function tome_find {
+	@help '
+	Print the absolute path for a given tome.
+	Usage: tome_find TOME
+	' && return
 
 	if [[ "$1" = sheldritch/* && -d "$SHELDRITCH" ]]; then
 		# Fast-path: resolve sheldritch/* directly from $SHELDRITCH.
@@ -303,7 +347,7 @@ function lib_paths {
 	printf '%s\n' "$REPLY"
 }
 
-function lib_use {
+function tome_use {
 	typeset Help='' Force='' Parent=0
 	while [[ $# -ne 0 ]]; do
 		case "$1" in
@@ -327,14 +371,12 @@ function lib_use {
 	typeset SHELDRITCH_CLEAN="$Force"
 
 	if [[ "$Help" = true ]]; then
-		echo >&2 "lib_use -- imports the library/file by absolute paths (or relative to working dir)"
-		echo >&2 "Usage: lib_use [--force] <lib>/<file>.sh"
-		echo >&2 "       lib_use [--force] <lib>"
-		echo >&2 "       lib_use [--force] <lib>/*"
+		echo >&2 "tome_use -- imports a tome by absolute paths (or relative to working dir)"
+		echo >&2 "Usage: tome_use [--force] PATH_TO_TOME"
 		return 0
 	fi
 
-	typeset Arg Lib Globs='' Prefix='' Extglob=''
+	typeset Arg Tome Globs='' Prefix='' Extglob=''
 	for Arg in "$@"; do
 
 		# Fetch any wildcards (globs) if they exist
@@ -363,68 +405,68 @@ function lib_use {
 		fi
 
 
-		# Ensure globstar is enabled so "**" expands (restore at end of lib_use).
+		# Ensure globstar is enabled so "**" expands (restore at end of tome_use).
 		typeset Globstar=''
 		bash_run shopt -pq globstar || { Globstar="shopt -u globstar" && shopt -s globstar; }
 		ksh_run [[ -o globstar ]] || { Globstar="set +o globstar" && set -o globstar; }
 
 		Prefix="${Arg%%\**}"
-		for Lib in "$Prefix"$Globs; do
+		for Tome in "$Prefix"$Globs; do
 			[[ $Extglob ]] && unset GLOBIGNORE && Extglob=""
 
 			Prefix="${Arg%%\**}"
-			if [[ "${Lib#$Prefix}" = */_* ]]; then
-				_trace "Ignoring lib '$Lib' due to underscore"
+			if [[ "${Tome#$Prefix}" = */_* ]]; then
+				_trace "Ignoring tome '$Tome' due to underscore"
 				continue
 			fi
 
 			# NOTE: if foo/* was specified, don't import contents of subfolders
-			if [[ -d "$Lib" && -z "$Globs" ]]; then
-				_trace "Importing module '$Lib'"
+			if [[ -d "$Tome" && -z "$Globs" ]]; then
+				_trace "Importing module '$Tome'"
 				# If a directory is given, import its "default" file (dir/dir.{sh,...}).
-				if [[ "$Lib" != *\\* ]]; then
-					Lib="${Lib%/}"
-					Lib="$Lib/${Lib##*/}"
+				if [[ "$Tome" != *\\* ]]; then
+					Tome="${Tome%/}"
+					Tome="$Tome/${Tome##*/}"
 				else
-					Lib="$Lib/$(basename "$Lib")"
+					Tome="$Tome/$(basename "$Tome")"
 				fi
 			fi
 
-			if ! [[ -e "$Lib" ]]; then
+			if ! [[ -e "$Tome" ]]; then
 				# Select the best matching implementation for the current shell.
-				file_first "$Lib".{${THIS_SHELL},sh,ksh,bash,fish,zsh,*} >/dev/null
-				Lib="${REPLY:-$Lib}"
+				file_first "$Tome".{${THIS_SHELL},sh,ksh,bash,fish,zsh,*} >/dev/null
+				Tome="${REPLY:-$Tome}"
 			fi
 
 			# Without associative arrays, source_is_cached is O(n); avoid checking twice.
-			if [[ "$Force" != true && -n "${SHELDRITCH_HAS_ASSOC_ARRAYS:-}" ]] && source_is_cached "$Lib"; then
+			if [[ "$Force" != true && -n "${SHELDRITCH_HAS_ASSOC_ARRAYS:-}" ]] && source_is_cached "$Tome"; then
 				continue
 			fi
 
-			if [[ -x "$Lib" ]]; then
-				_trace "Importing executable lib '$Lib'"
+			if [[ -x "$Tome" ]]; then
+				_trace "Importing executable tome '$Tome'"
 				# shellcheck disable=SC2139
-				alias "$(basename "$Lib")=$Lib"
-			elif [[ "$Lib" =~ \.(bash|fish|ksh|sh|zsh)$ ]]; then
+				alias "$(basename "$Tome")=$Tome"
+			elif [[ "$Tome" =~ \.(bash|fish|ksh|sh|zsh)$ ]]; then
 
-				if [[ "$THIS_SHELL" = ksh && "$Lib" =~ \.(bash|fish|zsh)$ ]]; then
-					if [[ "$Lib" != "$SHELDRITCH"* ]]; then
-						warn "not sourcing '$Lib' due to ksh syntax checking."
+				if [[ "$THIS_SHELL" = ksh && "$Tome" =~ \.(bash|fish|zsh)$ ]]; then
+					if [[ "$Tome" != "$SHELDRITCH"* ]]; then
+						warn "not sourcing '$Tome' due to ksh syntax checking."
 					fi
 					continue
 				fi
 
 				if [[ "$SHELDRITCH_CLEAN" = true ]]; then
 					# Force means "source even if already cached".
-					_trace "Force source lib '$Lib'"
-					source "$Lib"
+					_trace "Force source tome '$Tome'"
+					source "$Tome"
 				else
-					source_once "$Lib"
+					source_once "$Tome"
 				fi
-				[[ $? = 0 ]] || error -p $((Parent + 1)) "failed sourcing lib '$Lib'"
+				[[ $? = 0 ]] || error -p $((Parent + 1)) "failed sourcing tome '$Tome'"
 
 			elif [[ -z "$Globs" ]]; then
-				error "Library '$Lib' could not be interpreted."
+				error "Tome '$Tome' could not be interpreted."
 			fi
 
 		done
@@ -434,7 +476,7 @@ function lib_use {
 	$Globstar
 }
 
-# imports the given library/file (relative to the library dir)
+# imports the given tome/file (relative to the library dir)
 function summon {
 	typeset Help='' Force=''
 	while [[ $# -ne 0 ]]; do
@@ -455,11 +497,12 @@ function summon {
 	zsh_run setopt GLOB globsubst
 
 	if [[ "$Help" = true ]]; then
-		echo >&2 "summon -- imports the library/file (relative to the library dir)"
-		echo >&2 "Usage: summon [--force] <lib>"
-		echo >&2 "       summon [--force] <lib>/<file>.sh"
-		echo >&2 "       summon [--force] <lib>/*"
-		echo >&2 "       summon [--force] <lib>/**"
+		echo >&2 "summon -- imports the given tome/file (relative to the library dir)"
+		echo >&2 '    see `docs/libs.md` for more information.'
+		echo >&2 "Usage: summon [--force] LIB/PATH_TO_TOME    COMMAND..."
+		echo >&2 "       summon [--force] LIB/PATH_TO_FILE.sh COMMAND..."
+		echo >&2 "       summon [--force] LIB/[PATH/]*        COMMAND..."
+		echo >&2 "       summon [--force] LIB/[PATH/]**       COMMAND..."
 		return 0
 	fi
 
@@ -467,8 +510,8 @@ function summon {
 	typeset Globs=''
 	for Arg in "$@"; do
 		# find the absolute path to the library
-		if ! Lib="$(lib_find "${Arg%%\**}")"; then
-			error -p 1 "Library '$Lib' could not be found."
+		if ! Tome="$(tome_find "${Arg%%\**}")"; then
+			error -p 1 "Tome '$Tome' could not be found."
 			continue
 		fi
 
@@ -479,12 +522,12 @@ function summon {
 			Globs="*${Arg#*\*}"
 		fi
 		# Build a new argument list without needing a subshell.
-		set -- "$@" "$Lib$Globs"
+		set -- "$@" "$Tome$Globs"
 		shift
 	done
 
 	# perform import
-	lib_use "$@"
+	tome_use "$@"
 }
 
 function conjure {
@@ -508,10 +551,10 @@ function conjure {
 
 	if [[ "$Help" = true ]]; then
 		echo >&2 "conjure -- invoke a function a single time, without altering the regular environment (relative to the library dir)"
-		echo >&2 "Usage: conjure [--force] <lib> COMMAND..."
-		echo >&2 "       conjure [--force] <lib>/<file>.sh COMMAND..."
-		echo >&2 "       conjure [--force] <lib>/* COMMAND..."
-		echo >&2 "       conjure [--force] <lib>/** COMMAND..."
+		echo >&2 "Usage: conjure [--force] LIB COMMAND..."
+		echo >&2 "       conjure [--force] LIB/FILE.sh COMMAND..."
+		echo >&2 "       conjure [--force] LIB/* COMMAND..."
+		echo >&2 "       conjure [--force] LIB/** COMMAND..."
 		return 0
 	fi
 

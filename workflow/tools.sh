@@ -11,7 +11,7 @@ summon sheldritch/util/complete
 # TODO: this file is broken
 
 # this should be easy to abstract generally
-function lib_list {
+function tome_list {
 	(
 	IFS=:
 	for Dir in ${REPOS:-}; do
@@ -20,28 +20,28 @@ function lib_list {
 	) | sort -u
 }
 
-function _complete_sheldritch_lib {
+function _complete_sheldritch_tome {
 	bash_run compopt -o nospace
-	COMPREPLY=($(compgen -W "$(lib_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))
+	COMPREPLY=($(compgen -W "$(tome_list ${COMP_WORDS[COMP_CWORD]})" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
-complete -F _complete_sheldritch_lib summon
+complete -F _complete_sheldritch_tome summon
 
 function be_summoned_by {
 	@func_info
-	About='The opposite of the summon command. You are compelled to the location of a library (be it a file or directory).
-	(change working directory (via "cd") to the location of the given library.)
+	About='The opposite of the summon command. You are compelled to the location of a tome (be it a file or directory).
+	(change working directory (via "cd") to the location of its associated library.)
 	'
-	Usage='LIBRARY_PATH'
+	Usage='TOME_PATH'
 	opts_parse
-	cd "$(lib_find "$1")"
+	cd "$(tome_find "$1")"
 }
 function bsb { @func_passthrough; be_summoned_by "$@"; }
-complete -F _complete_sheldritch_lib be_summoned_by
+complete -F _complete_sheldritch_tome be_summoned_by
 
 function transmute {
 	@func_info
-	About='mutate the essential being of a sheldritch library
+	About='mutate the essential being of a sheldritch tome
 	(Find a file in one of your library directories and open it in your editor)
 
 	Also works with a unique file name, e.g. "tool_edit ldap.sh"
@@ -56,7 +56,7 @@ function transmute {
 	)
 	args_parse
 
-	array_map Paths lib_find || return 1
+	array_map Paths tome_find || return 1
 
 	zsh_run setopt KSH_ARRAYS
 
@@ -76,7 +76,7 @@ function transmute {
 
 	$EDITOR "${Paths[@]}" || exit 2
 	) || return $?
-	lib_use --force "${Paths[@]}"
+	tome_use --force "${Paths[@]}"
 	for __Path in "${Paths[@]}"; do
 		source "$__Path"
 	done
@@ -139,4 +139,4 @@ function transmute {
 	$EDITOR "${args[@]}" "$@" "${files[@]}"
 	)
 }
-complete -F _complete_sheldritch_lib transmute
+complete -F _complete_sheldritch_tome transmute
