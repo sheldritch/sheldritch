@@ -51,7 +51,7 @@ usually a non issue. File A can summon File B, which can summon File A, and you
 don't get stuck in an infinite loop.
 
 The only exception to this is if File B refers to something defined in File
-A outside of a file definition:
+A outside of a function definition:
 
 File A:
 ```bash

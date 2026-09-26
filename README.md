@@ -116,7 +116,7 @@ function _cp_file {
 }
 ```
 
-You can read more in the docs at </docs/args.md>.
+You can read more in the docs at <docs/args.md>.
 
 ## Security
 
