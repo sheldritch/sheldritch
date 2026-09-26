@@ -1,9 +1,15 @@
+![Sheldritch — a cross-shell Bash/Zsh development framework](docs/assets/banner.png)
+
 # Sheldritch -- shell framework imbued with forbidden magic
 Sheldritch (pronounced S̸h̸e̴l̴d̷r̴i̸t̸c̴h̷) is a development environment for the shell,
-with a library and importer system, argument parsing, cross-shell compatibility
-commands and a slew of different utilities.
+with a library and importer system, declarative argument parsing and
+validation, self-documentation and --help, cross-shell compatibility helpers
+and a slew of different utilities. Currently supports bash and zsh.
 
 ## Installation
+
+### Docker
+`docker run -it ghcr.io/sheldritch/sheldritch`
 
 ### Sheldon
 
@@ -28,7 +34,7 @@ Clone to the directory you want it and run `./_install.sh`.
 
 Sheldritch's library system lets you declare dependencies for your scripts. It
 keeps track of what's already been sourced (imported) so it can prevent library
-scripts from running multle times, and also prevent dependency loops.
+scripts from running multiple times, and also prevent dependency loops.
 
 This means your scripts start up much faster -- you aren't executing code
 multiple times, while only sourcing the exact files you need.
