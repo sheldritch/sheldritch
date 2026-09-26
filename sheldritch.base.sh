@@ -101,7 +101,7 @@ function self_file {
 		return 1
 	fi
 
-	if [[ "$Level" = -* ]]; then
+	if [[ "${1-}" = -* ]]; then
 		typeset Level="$1"
 	else
 		typeset Level="$((${1:-0} + 1))"
