@@ -100,6 +100,7 @@ function cp {
 		_cp_file "$Source" "$Destination"
 		return $?
 	fi
+    # if usage_has DESTINATION
 	Directory="${Directory:-$Destination}"
 
 	if [[ "$NoTarget" == true ]]; then
@@ -122,7 +123,7 @@ function _cp_file {
 }
 ```
 
-You can read more in the docs at <docs/args.md>.
+You can read more [in the docs](docs/args.md).
 
 ## Security
 
