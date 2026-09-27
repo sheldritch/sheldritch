@@ -2,8 +2,8 @@
 #
 # utils for argument parsing
 #
-# This includes the @func_info framework, the recommended way for structuring
-# bash functions
+# This includes the @func_info framework, the recommended way for
+# structuring bash functions
 #
 
 # shellcheck disable=SC2139,SC1091,SC2086,SC2016,SC2125,SC2030,SC2031,SC2206
@@ -24,6 +24,29 @@ function __main {
 
 #
 # arg parsing frameworks
+#
+
+# _args_build_parser ()
+#  -> _args_build_parser_opts
+#         _args_build_validation
+#
+#  -> _args_build_parser_usage
+#      -> _args_build_parser_usage_lines
+#          -> _args_token_talker
+#          -> _args_usage_record_run
+#          -> _args_compound_split
+#          -> _args_parse_compound
+#          -> _args_usage_record_run;
+#          -> _args_check_usage_conflicts
+#      -> _args_parse_dynamic
+#          -> _args_parse_usage_token
+#
+#  -> _args_build_parser_legend
+#      -> _args_build_validation
+#  -> _args_build_varcache
+#
+# _args_regex_parser ()
+#  -> _args_token2regex "$Token";
 #
 
 # NOTE: This file make heavy use of dynamically-scoped variables, to prevent the need of copying
@@ -135,6 +158,7 @@ function _args_build_parser {
 
 	# TODO: for ksh compatibility, we'd need to change all dynamic variables to optionally be global
 	# if using ksh, e.g. _ARGS_BUILDER
+	# OR, pass around with Arg="$Arg" command
 	local Builder='' GlobEnabled=''
 	[[ -o noglob ]] || GlobEnabled=1
 	set -o noglob
@@ -143,7 +167,7 @@ function _args_build_parser {
 	_args_build_parser_opts &&
 
 	if [[ -n "${_ARGS_PARSE_USAGE:-}" ]]; then
-		_args_parse_builder || return 9
+		_args_build_parser_usage || return 9
 	fi &&
 
 	_args_build_parser_legend &&
@@ -526,7 +550,17 @@ function _args_build_assoc_array {
 	Builder+="$Opts"
 }
 
-function _args_parse_builder {
+# Produce code to store positional arguments into variables,
+# based on the Usage construct.
+#
+# This function focuses on the outer shell, it calls
+# `_args_build_parser_usage_lines` to build the variable
+# extraction for each individual usage line.
+#
+# TODO: See if we can statically select the correct Usage in some
+# scenarios as an optimisation technique.
+# This would mean determining usage line priority up front
+function _args_build_parser_usage {
 	var_is_declared Usage || return 0
 	((${#Usage[@]} > 0)) || return 0
 
@@ -539,12 +573,13 @@ function _args_parse_builder {
 	# Parsers["${#Usage[@]}" - 1]=' ' # reserve space???
 	# Parsers["${#Usage[@]}" - 1]=''
 
-	_args_build_usage_parsers || return
+	_args_build_parser_usage_lines || return
 
 	Builder+='
 	__Pos=0
 
 	declare -a _ARGS_BOUNDS=() _ARGS_COMPOUND=()
+	# select which usage line to use
 	if ! _args_parse_dynamic; then
 		error -p 1 "Arguments did not match any usage strings. $(args_quoted "$@")"
 		print_doc -p 1
@@ -566,11 +601,13 @@ function _args_parse_builder {
 	Builder+=$'esac'
 }
 
-#  MAIN GOALS OF THIS FUNCTION
-#  - determine if we can sort argument parsing now or defer to later
-#  - determine if we can distinguish the right usage for all user inputs
-#  - prioritise which usage line should be selected first
-function _args_build_usage_parsers {
+# Produces parser code for each individual usage line. Also produces
+# function metadata used as heuristics, e.g. for validation and
+# prioritisation:
+# _ARGS_FORMATS -- a detokenised representation of the usage line
+# structure
+# _ARGS_FORMAT_INFO -- individual metrics about each usage line.
+function _args_build_parser_usage_lines {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 
 	var_is_declared Usage || return 0
@@ -591,7 +628,7 @@ function _args_build_usage_parsers {
 	# Flags for the token talker to telepath to
 	# PreviouslyGreedy: A... literal B... breaks if either A or B contains literal
 	#     One side needs a A.. to indicate it will not contain `literal`
-	local Match Optional Variadic Literal Depth Compound PreviouslyGreedy
+	local Match Optional Variadic Literal Flag Depth Compound PreviouslyGreedy
 	local -a SplitCompound=()
 
 	local LineBuilder='' TokenPos=0
@@ -1052,6 +1089,14 @@ function _args_check_usage_conflicts {
 				${Usage[$i]}
 				${Usage[$j]}
 				Either distinguish them with flags or other literals, or use 'opts_parse' and manually parse positional args yourself.")"
+				debug "
+				Computed formats:
+				$i -- ${Usage[$i]}:
+				${_ARGS_FORMATS[$i]}
+
+				$j -- ${Usage[$j]}:
+				${_ARGS_FORMATS[$j]}"
+
 				return 9
 			fi
 		done
@@ -1193,8 +1238,8 @@ function _args_parse_usage_token {
 				((Min += ArgPos))
 
 				if [[ "$Greedy" && $Token != *[^[:upper:][:digit:]_]* ]]; then
-					# Greedy with no separators -- will gobble up all args until the end (if
-					# possible)
+					# Greedy with no separators -- will gobble up
+					# all args until the end (if possible)
 					Run="${#_ARGS[@]}"
 				else
 					Priorities[$TokenPos]=40
@@ -1219,6 +1264,8 @@ function _args_parse_usage_token {
 				return 1
 				;;
 
+			# square bracket run containing multiple tokens,
+			# e.g [A B]
 			\[*[^]] | [^]]*\] )
 
 				# Collect all arguments into a single token
