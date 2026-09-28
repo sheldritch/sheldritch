@@ -159,6 +159,10 @@ deref() {
 function lowercase { REPLY "$(stdin "$1" tr '[:upper:]' '[:lower:]')"; }
 function uppercase { REPLY "$(stdin "$1" tr '[:lower:]' '[:upper:]')"; }
 
+function var_is_set {
+	eval '[[ ${'"$1"'+ } ]]'
+}
+
 function vars_with_prefix {
 	REPLY=''
 	REPLY "$(for arg in "$@"; do

@@ -33,6 +33,7 @@ function __main {
 #  -> _args_build_parser_usage
 #      -> _args_build_parser_usage_lines
 #          -> _args_token_talker
+#              -> _args_compound_split
 #          -> _args_usage_record_run
 #          -> _args_compound_split
 #          -> _args_parse_compound
@@ -86,14 +87,14 @@ alias opts_parse='
 	# NOTE: _ARGS contains "$@"
 	declare -a ${KSH_VERSION:+-g} _ARGS=("$@") _ARGS_FORMATS=() _ARGS_FORMAT_INFO=() \
 		_ARGS_VARS=() _ARGS_ARRAYS=() _ARGS_OPTS=() _ARGS_OPTS_BOOL=() \
-		_ARGS_CHECKS=()
+		_ARGS_CHECKS=() _ARGS_CACHED_OPTS=()
 	[[ -n "${_ARGS_CACHE:-}" ]] || declare -g _ARGS_CACHE=1
 
 	# Comment out this line if you want to disable turning off SET flags
 	_ArgsSet="${-//[^xu]/}"
 	[[ -n "$_ArgsSet" ]] && set +$_ArgsSet
 
-	_trace "$PS4$(funcname || echo "$0") $(args_quoted "$@")"
+	_trace "$PS4$(funcname 2>/dev/null || echo "$0") $(args_quoted "$@")"
 
 	_args_build_parser
 	_ARGS_${__Source}_VARS
@@ -231,6 +232,13 @@ function _args_build_varcache {
 	done
 	Builder+=')'
 
+	Builder+='
+		_ARGS_CACHED_OPTS=('
+	for x in "${_ARGS_CACHED_OPTS[@]}"; do
+		Builder+=$'\n"'"$x"\"
+	done
+	Builder+=')'
+
 	eval "function _ARGS_${__Source}_VARS { $Builder; }"
 }
 
@@ -249,7 +257,7 @@ function _args_build_parser_opts {
 	Builder+='
 	zsh_run setopt KSH_ARRAYS
 	declare __Flag='' __Val='' __Pos=0 __Temp=0
-	declare -a __PosArgs=()
+	declare -a __PosArgs=() __CompoundVars=() __Compound=() __OptsCache=()
 
 	while ((__Pos < "${#_ARGS[@]}")); do
 
@@ -276,6 +284,7 @@ function _args_build_parser_opts {
 
 	Builder+=$'case "$__Flag" in\n'
 	local Validation='' # used to build validation for each arg
+	declare -a SplitCompound=() # used to handle compound flag values
 
 	# --Name=Tag
 	local Type='' Name='' Tag='' Opt=0 IsArray
@@ -343,6 +352,24 @@ function _args_build_parser_opts {
 
 				;;
 			*)
+				if [[ "$Tag" = *[^[:alnum:]_]* ]]; then
+					# compound tag
+					declare -a Vars=($Name)
+					_args_compound_split "$Token"
+					args_quoted "${SplitCompound[@]}" >/dev/null
+					Builder+='
+					__Compound=('"$REPLY"')
+					__Arg="${_ARGS[__Pos]}"
+					_args_parse_compound "$__Arg"
+					'
+					local i
+					for ((i = 0; i < "${#Vars[@]}"; i++)); do
+						Builder+="
+						${Vars[i]}=("'"${__CompoundVars['$i']}")'
+					done
+
+				fi
+
 				_ARGS_OPTS+=("$Name=")
 				Builder+='
 				if [[ -z "${__Val+x}" ]]; then
@@ -401,6 +428,12 @@ function _args_build_parser_opts {
 	done
 
 	_ARGS=("${__PosArgs[@]}" "${_ARGS[@]: __Pos: ${#_ARGS[@]} - __Pos}")
+
+	_args_name_to_variable "$FlagName"
+	for __Flag in "${_ARGS_CACHED_OPTS[@]}"; do
+		deref $__Flag >/dev/null
+		__OptsCache+=("$REPLY")
+	done
 	__Flag=''
 	'
 }
@@ -581,7 +614,9 @@ function _args_build_parser_usage {
 	declare -a _ARGS_BOUNDS=() _ARGS_COMPOUND=()
 	# select which usage line to use
 	if ! _args_parse_dynamic; then
-		error -p 1 "Arguments did not match any usage strings. $(args_quoted "$@")"
+		error -p 1 "
+		Arguments did not match any usage strings.
+		Given args: $(args_quoted "${_ARGS[@]}")"
 		print_doc -p 1
 		return 1
 	fi
@@ -631,7 +666,7 @@ function _args_build_parser_usage_lines {
 	local Match Optional Variadic Literal Flag Depth Compound PreviouslyGreedy
 	local -a SplitCompound=()
 
-	local LineBuilder='' TokenPos=0
+	local LineBuilder='' TokenPos=0 i=0
 
 	# TODO: might need a full pre-processing step, for the following:
 	#  - check if an optional run is treated as variadic or not (so we can make each arg an array)
@@ -657,7 +692,7 @@ function _args_build_parser_usage_lines {
 		for (( TokenPos = 0; TokenPos < ${#Tokens[@]}; TokenPos++ )); do
 			Token="${Tokens[TokenPos]}"
 
-			Match='' Optional='' Variadic='' Literal='' Compound=''
+			Match='' Optional='' Variadic='' Literal='' Compound='' Flag=''
 
 			if ! _args_token_talker "$Token"; then
 				return 9
@@ -732,8 +767,8 @@ function _args_build_parser_usage_lines {
 
 			if [[ $Compound ]]; then
 				declare -a Vars=($Name)
-				_args_compound_split "$Token"
 				args_quoted "${SplitCompound[@]}" >/dev/null
+				SplitCompound=()
 				LineBuilder+='
 				__Compound=('"$REPLY"')
 				for ((
@@ -795,17 +830,20 @@ function _args_usage_record_run {
 
 function _args_compound_split {
 	zsh_run setopt SH_WORD_SPLIT noglob KSH_ARRAYS
-	local Arg="${1%...}" Token='' Atom=''
+	local Arg="${1%...}" Token='' Atom='' BracketLevel=0 Depth=0
 	SplitCompound=()
+	Match=''
 	while [[ -n "$Arg" ]]; do
 		case "$Arg" in
 
 			'['* )
+				((++Depth))
 				SplitCompound+=('[')
 				Arg="${Arg:1}"
 				;;
 
 			']'* )
+				((--Depth))
 				SplitCompound+=(']')
 				Arg="${Arg:1}"
 				;;
@@ -814,11 +852,15 @@ function _args_compound_split {
 				Token="${Arg%%[^[:upper:][:digit:]_]*}"
 				SplitCompound+=("$Token")
 				Arg="${Arg#"$Token"}"
+
+				# ASSUMPTION: There cannot be two variables next to each other, e.g. A[=]B
+				((Depth == 0)) && Match+='*'
 				;;
 			* )
 				Atom="$Arg"
 				Token=''
 				while true; do
+					# TODO: Should this :digit: be removed?
 					Atom="${Arg%%[[:upper:][:digit:]_\[\]]*}"
 					[[ $Atom ]] || break
 					Token+="$Atom"
@@ -829,6 +871,7 @@ function _args_compound_split {
 					fi
 				done
 				SplitCompound+=("$Token")
+				((Depth == 0)) && Match+="$Token"
 				;;
 		esac
 	done
@@ -964,6 +1007,7 @@ function _args_token_talker {
 
 				elif [[ $Token = *'['* ]]; then
 					Compound=1
+					_args_compound_split "$Token"
 					_args_name_to_variable "$Token"
 					return
 				else
@@ -977,9 +1021,107 @@ function _args_token_talker {
 			return 9
 			;;
 
+		-* )
+			# flag checking can be complicated,
+			# e.g. -f VAL, --flag VAL, --flag=VAL are all equivalent.
+			# will have to parse the next token manually
+			Literal=1 # maybe remove?
+			local TokenTag='' FlagName='' FlagTag='' Opt=0 IsArray
+			Flag="${Token%%=*}"
+
+			# find flag in Options
+			while [[ "${Options[Opt]}" != "$Flag" && "${Options[Opt]}" != "$Flag"=* ]]; do
+				((++Opt))
+				if ((Opt >= "${#Options[@]}")); then
+					error -p 1 "
+					Usage Line: $Line
+					Flag '$Token' referenced, but is not defined in Options."
+					return 9
+				fi
+			done
+			# get primary flag name
+			while [[ "${Options[Opt + 1]}" = -* ]]; do
+				((++Opt))
+			done
+			FlagName="${Options[Opt]}"
+
+			# Get flag variable name/value
+			if [[ "$FlagName" = *=* ]]; then
+				FlagTag="${FlagName#*=}"
+				FlagName="${FlagName%%=*}"
+			fi
+
+			# Store the option in a cache at runtime, so its value can be
+			# accessed when deep in dynamic parsing
+			_args_name_to_variable "${FlagName#-}" # function handles possible leading '-'
+			if ! contains "$Name" "${_ARGS_CACHED_OPTS[@]}"; then
+				_ARGS_CACHED_OPTS+=("$Name")
+			fi
+
+			# check if flag is boolean
+			if [[ -z "$FlagTag" ]]; then
+				if [[ $Token = *=* ]]; then
+					# only true/false allowed
+					if [[ $Token = *=false || $Token = *=true ]]; then
+						Match="$FlagName=${Token#*=}"
+						return
+					fi
+
+					error -p 1 "
+					Usage Line: $Line
+					'$Token' expects value, but flag $Flag is boolean!"
+					return 9
+				fi
+				Match="$FlagName=true"
+				return 0
+			fi
+
+			# non-boolean values
+			if [[ $Token = *=* ]]; then
+				TokenTag="${Token#*=}"
+			else
+				# next token is value, eg --flag VALUE
+				((++TokenPos))
+				TokenTag="${Tokens[TokenPos]}"
+			fi
+			# set match
+			_args_compound_split "$TokenTag"
+			Match="$FlagName=$Match"
+
+			if [[ "$TokenTag" != "$FlagTag" ]]; then
+				# FlagTag always contains UPPER
+				# TokenTag containing UPPER must = FlagTag
+				if [[ $FlagTag = *[^[:upper:][:digit:]_]* ]]; then
+					echo >&2 "$FlagTag"
+					error -p 2 "
+					Usage Line: $Line
+					Compound flags are not currently supported in usage strings,
+					unless completely identical to their flag format.
+					i.e., '$TokenTag' must be '$FlagTag'."
+					return 9
+				elif [[ $TokenTag = *[[:upper:]_]* ]]; then
+					error -p 2 "
+					Usage Line: $Line
+					Flags with custom variable tags are not currently supported in Usage strings
+					(needs Legend parsing)
+					i.e., '$TokenTag' must be '$FlagTag'."
+					return 9
+				fi
+			fi
+
+			# # TODO: Compound variable support
+			# flag -f KEY=VALUE should support usage -f literal=VALUE
+			# local -a __CompoundVars=() __Compound=("${SplitCompound[@]}")
+			# _args_parse_compound "$TokenTag"
+			# # or maybe need:
+			# _args_name_to_variable "$TokenTag"
+			return
+			;;
+
 		*[[:upper:]_]* )
 			if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
 				Compound=1
+				_args_compound_split "$Token"
 			else
 				Match='*'
 			fi
@@ -988,24 +1130,17 @@ function _args_token_talker {
 			;;
 
 
-		-* )
-			# will have to parse the next token manually
-			# TODO: Don't forget to use _OPTS_BOOL to determine if it has an argument!
-			# (false might always be an argument, but thankfully that's literal so easy to
-			# handle)
-			# TODO: also, usage strings might check for a specific value `--flag=exact-match`, or
-			# just that they're set (--flag=FLAG)
-			Flag=1
-			Literal=1 # maybe remove?
-			return
-			;;
-
 		# anything only containing lowercase, digits or symbols are considered literal.
 		# (assuming control characters like [ ] or { } are parsed out earlier)
 		*[[:lower:]]* )
 			Literal=1
+			Match="$Token"
 			return
 			;;
+
+		* )
+			error -p 1 "FUNCTION BUG: Unknown Token '$Token'"
+			return 9
 
 	esac
 }
@@ -1110,6 +1245,7 @@ function _args_check_usage_conflicts {
 # setting.
 function _args_parse_dynamic {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
+	local USAGE_TOKEN_DEBUG=
 
 	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
 
@@ -1173,17 +1309,29 @@ function _args_parse_dynamic {
 		fi
 	done
 	[[ $GlobEnabled = 1 ]] && set +o noglob
+	[[ "$USAGE_TOKEN_DEBUG" ]] && echo >&2 "Arg bounds: $(args_quoted "${_ARGS_BOUNDS[@]}")"
 	((${#_ARGS_BOUNDS[@]}))
 }
 
-# recursive function for checking a given token matches, moving on to the next one,
-# and branching out when multiple matching formats are possible
+# recursive function for checking a given token matches the usage line.
+#
+# `_args_parse_usage_token X Y` is called internally to create new branches, when multiple matching formats need to be tested.
+#
+# Otherwise TokenPos and ArgPos are incremented to move forward in the
+# search, or a failure is returned if the given branch is found to be
+# unviable (e.g. with an invalid token match).
+#
 function _args_parse_usage_token {
 	zsh_run setopt KSH_ARRAYS
 	local TokenPos="$1" ArgPos="$2" Arg='' Token="$3" Exit=''
 	Token="${Token:-${Tokens[TokenPos]}}"
 
+	[[ "$USAGE_TOKEN_DEBUG" ]] && echo >&2 "Beginning usage token parsing"
+
 	while ((TokenPos < ${#Tokens[@]})); do
+		[[ "$USAGE_TOKEN_DEBUG" ]] &&
+			echo >&2 "${Tokens[@]:0:TokenPos} > ${Tokens[@]:TokenPos}" &&
+			echo >&2 "${_ARGS[@]:0:ArgPos} > ${_ARGS[@]:ArgPos}"
 
 		# TODO: For possible matches of a single usage string, Is there a case where both the following are true?
 		# 1: Match A has more tokens than Match B
@@ -1263,6 +1411,85 @@ function _args_parse_usage_token {
 				done
 				return 1
 				;;
+
+			-* )
+				# flag checking can be complicated,
+				# e.g. -f VAL, --flag VAL, --flag=VAL are all equivalent.
+				local TokenTag='' FlagName='' FlagTag='' Opt=0 Flag="${Token%%=*}"
+
+				# find flag in Options
+				while [[ "${Options[Opt]}" != "$Flag" && "${Options[Opt]}" != "$Flag"=* ]]; do
+					((++Opt))
+					if ((Opt >= "${#Options[@]}")); then
+						error -p 3 "
+						Usage Line: $Line
+						Flag '$Token' referenced, but is not defined in Options."
+						return 9
+					fi
+				done
+				# get primary flag name
+				while [[ "${Options[Opt + 1]}" = -* ]]; do
+					((++Opt))
+				done
+
+				FlagName="${Options[Opt]}"
+
+				# Get flag variable name/value
+				if [[ "$FlagName" = *=* ]]; then
+					FlagTag="${FlagName#*=}"
+					FlagName="${FlagName%%=*}"
+				fi
+				_args_name_to_variable "${FlagName#-}" # function handles possible leading '-'
+				local i FlagVal=''
+				for ((i = 0; i < ${#_ARGS_CACHED_OPTS[@]}; i++)); do
+					if [[ ${_ARGS_CACHED_OPTS[i]} == $Name ]]; then
+						FlagVal="${__OptsCache[i]}"
+					fi
+				done
+
+				# check if flag is boolean
+				if [[ -z "$FlagTag" ]]; then
+					if [[ $Token = *=false ]]; then
+						isTrue "$FlagVal" && return 1
+					else
+						isTrue "$FlagVal" || return 1
+					fi
+					((++TokenPos))
+					Token="${Tokens[TokenPos]}"
+					continue
+				fi
+
+				# non-boolean values
+				if [[ $Token = *=* ]]; then
+					TokenTag="${Token#*=}"
+				else
+					# next token is value, eg --flag VALUE
+					((++TokenPos))
+					TokenTag="${Tokens[TokenPos]}"
+					Bounds[$TokenPos]=$ArgPos
+				fi
+
+				# # TODO: Compound variable support
+				# flag -f KEY=VALUE should support usage -f literal=VALUE
+				# local -a __CompoundVars=() __Compound=("${SplitCompound[@]}")
+				# _args_parse_compound "$TokenTag"
+				# # or maybe need:
+				# _args_name_to_variable "$TokenTag"
+				# TODO: Remember, in KEY=value, =value is considered one literal.
+
+				# TODO: this check will need to change once we have compound testing
+				if [[ $TokenTag = *[[:upper:]_]* ]]; then
+					# TODO: Change this to check if the value is *set*, rather than *non-empty*
+					[[ "$FlagVal" ]] || return 1
+				else
+					[[ "$FlagVal" = "$TokenTag" ]] || return 1
+				fi
+
+				((++TokenPos))
+				Token="${Tokens[TokenPos]}"
+				continue
+				;;
+
 
 			# square bracket run containing multiple tokens,
 			# e.g [A B]

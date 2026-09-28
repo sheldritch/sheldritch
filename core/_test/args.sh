@@ -90,7 +90,7 @@ function test_usage {
 	echo "Passed: $(args_quoted "${Usage[@]}")"
 }
 function run {
-	declare -a Usage=("$@") Options=()
+	declare -a Usage=("$@") Options=("${__Options[@]}")
 	_trace "Testing permutation
 	USAGE: $(args_quoted "${Usage[@]}")
 	"
@@ -117,6 +117,7 @@ function test_token {
 }
 
 
+function main {
 
 @func_info
 
@@ -250,6 +251,17 @@ function check {
 }
 test_usage
 
+
+Usage=(
+	'A B literala'
+	'A B literalb'
+)
+set -- a b literalb
+parse_args
+eq "$A" a "$B" b
+echo 'passed double literal'
+
+
 # compound tokens
 test_token 'A[=B]'     a=b   A a B b
 test_token 'A[=B][+C]' a=b+c A a B b C c
@@ -321,7 +333,103 @@ function check {
 }
 expect_error 'Tokens are potentially ambiguous from ARRAY... to ANOTHER...' check
 
+#
+## Flag tests
+#
+
+
 # TODO: write and implement
 FORMAT="--flag R+"
 
+__Options=(-f --flag "flag tests")
+function check {
+	for flags in "-f flag" "--flag flag"; do
+		set -- $flags positional
+		parse_args
+		vars_eq Flag true Positional positional
+	done
+}
+Usage=('-f NOT_FLAG POSITIONAL')
+test_usage
+
+__Options=(-f --flag=FLAG "flag tests")
+
+function check {
+	for flags in "-f flag" "--flag flag" "--flag=flag"; do
+		set -- $flags positional
+		parse_args
+		vars_eq Flag flag Positional positional || { type _ARGS_check &&  return 1 ; }
+	done
+}
+Usage=('POSITIONAL')
+test_usage
+Usage=('-f FLAG POSITIONAL')
+test_usage
+Usage=('--flag FLAG POSITIONAL')
+test_usage
+Usage=('--flag=FLAG POSITIONAL')
+test_usage
+# requires value of --flag to be literal 'flag'
+Usage=('--flag=flag POSITIONAL')
+test_usage
+Usage=('-f flag POSITIONAL')
+test_usage
+Usage=('--flag flag POSITIONAL')
+test_usage
+
+# Temporary, until we support legend validation for flags in usage strings
+Options=(-f --flag=FLAG "flag tests")
+Usage=('-f NOT_FLAG POSITIONAL')
+set --
+parsing_fails '.*Flags with custom variable tags are not currently supported in Usage strings.*'
+echo 'passed must preserve flag value token'
+
+# Bad compound
+Options=(-f --flag=FLAG=BAG "flag tests")
+Usage=('-f FLAG=literal POSITIONAL')
+set --
+parsing_fails '.*Compound flags are not currently supported in usage strings,.*unless completely identical to their flag format..*'
+echo 'passed Compound flags partially unsupported'
+
+
+# Good compound
+Options=(-f --flag=A=B "Compound flag")
+Usage=(
+	'-f A=B'
+	'A B literalb'
+)
+__parse --flag=apple=banana
+echo 'passssed legal compound'
+
+# __Options=()
+DEBUG=1
+Usage=(
+	'-f flag POSITIONAL'
+	'-f not-flag POSITIONAL'
+	'--flag nor-flag POSITIONAL'
+)
+test_usage
+echo 'passed no false flag collisions'
+
+
+Options=(-f --flag=FLAG "flag tests")
+Usage=(
+	'-f FLAG POSITIONAL'
+	'--flag=FLAG POSITIONAL'
+)
+set --
+parsing_fails 'The following usage lines are ambiguous' 1 2 3
+echo 'detected true flag collisions'
+
+# Just flags
+Options=(-h "help" -y --yelp=CRY)
+Usage=(
+	'-h'
+	'--yelp CRY'
+)
+__parse -h
+__parse --yelp=boobar
+
 ecode "${Fail:-0}" || safe_quit
+}
+main "$@"
