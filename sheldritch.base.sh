@@ -112,7 +112,7 @@ function self_file {
 	elif [[ -n "${ZSH_VERSION-}" ]]; then
 		REPLY="${funcfiletrace[$Level]%%:*}"
 	fi
-	echo "$REPLY"
+	[[ "$REPLY" ]] && echo "$REPLY" || return 1
 }
 
 # print the currently executing file's directory
@@ -276,9 +276,9 @@ SHELDRITCH_TMP="${SHELDRITCH_TMP:-$(tmp_dir)/${USER:-$user}/sheldritch}"
 
 
 alias var_is_local='local >/dev/null 2>&1 -p'
-alias var_is_declared='declare >/dev/null 2>&1 -p'
+alias var_is_declared='typeset >/dev/null 2>&1 -p'
 
-alias safe_quit='{ declare E=$?; return "$E" 2>/dev/null || exit "$E"; }'
+alias safe_quit='{ typeset E=$?; return "$E" 2>/dev/null || self_file >/dev/null && exit "$E"; }'
 
 alias quiet='>/dev/null 2>/dev/null'
 alias stderr='>&2'
