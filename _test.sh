@@ -43,7 +43,10 @@ export SHELDRITCH
 command -v self_file
 
 for file in $(find */ -path '*/_test*.sh'); do
-	"$SHELL" "./$file" || FAIL=1
+	if ! "$SHELL" "./$file"; then
+		FAIL=1
+		echo >&2 "failed $file"
+	fi
 done
 
 [[ -z "${FAIL-}" ]] && log 'all tests passed'

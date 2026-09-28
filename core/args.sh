@@ -844,7 +844,7 @@ function _args_compound_split {
 				;;
 
 			']'* )
-				((--Depth))
+				((--Depth)) || :
 				SplitCompound+=(']')
 				Arg="${Arg:1}"
 				;;
@@ -1408,7 +1408,7 @@ function _args_parse_usage_token {
 				# From the longest match downward, test validity
 				while (( Run >= Min )); do
 					_args_parse_usage_token $((TokenPos + 1)) $Run && return
-					((--Run))
+					((--Run)) || :
 				done
 				return 1
 				;;
