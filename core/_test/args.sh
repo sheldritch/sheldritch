@@ -116,9 +116,6 @@ function test_token {
 
 }
 
-
-function main {
-
 @func_info
 
 set -e
@@ -380,14 +377,12 @@ test_usage
 # Temporary, until we support legend validation for flags in usage strings
 Options=(-f --flag=FLAG "flag tests")
 Usage=('-f NOT_FLAG POSITIONAL')
-set --
 parsing_fails '.*Flags with custom variable tags are not currently supported in Usage strings.*'
 echo 'passed must preserve flag value token'
 
 # Bad compound
 Options=(-f --flag=FLAG=BAG "flag tests")
 Usage=('-f FLAG=literal POSITIONAL')
-set --
 parsing_fails '.*Compound flags are not currently supported in usage strings,.*unless completely identical to their flag format..*'
 echo 'passed Compound flags partially unsupported'
 
@@ -399,7 +394,7 @@ Usage=(
 	'A B literalb'
 )
 __parse --flag=apple=banana
-echo 'passssed legal compound'
+echo 'passed legal compound'
 
 # __Options=()
 DEBUG=1
@@ -417,7 +412,6 @@ Usage=(
 	'-f FLAG POSITIONAL'
 	'--flag=FLAG POSITIONAL'
 )
-set --
 parsing_fails 'The following usage lines are ambiguous' 1 2 3
 echo 'detected true flag collisions'
 
@@ -430,6 +424,4 @@ Usage=(
 __parse -h
 __parse --yelp=boobar
 
-ecode "${Fail:-0}" || safe_quit
-}
-main "$@"
+ecode "${Fail:-0}"

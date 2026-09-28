@@ -110,6 +110,7 @@ alias opts_parse='
 	set -- "${_ARGS[@]}" # modified by parsing function
 
 	[[ -n "$_ArgsSet" ]] && set -$_ArgsSet
+	true # finish with success
 '
 
 alias args_parse='
