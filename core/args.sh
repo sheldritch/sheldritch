@@ -260,12 +260,12 @@ function _args_build_parser_opts {
 	declare __Flag='' __Val='' __Pos=0 __Temp=0
 	declare -a __PosArgs=() __CompoundVars=() __Compound=() __OptsCache=()
 
-	while ((__Pos < "${#_ARGS[@]}")); do
+	while ((__Pos < ${#_ARGS[@]})); do
 
 	if [[ "${_ARGS[__Pos]}" != -?* ]]; then
 		__Temp=$__Pos
 		[[ "${_OPTS_PARSE_FIRST:-}" = true ]] && break
-		while [[ "${_ARGS[__Pos]}" != -?* ]] && ((__Pos < "${#_ARGS[@]}")); do
+		while [[ "${_ARGS[__Pos]}" != -?* ]] && ((__Pos < ${#_ARGS[@]})); do
 			((++__Pos))
 		done
 		__PosArgs+=("${_ARGS[@]: __Temp: __Pos - __Temp}")
@@ -289,10 +289,15 @@ function _args_build_parser_opts {
 
 	# --Name=Tag
 	local Type='' Name='' Tag='' Opt=0 IsArray
-	while ((Opt < "${#Options[@]}")); do
+	# ignore zsh array with a single empty value
+	[[ -n ${Options[*]} ]] &&
+	while ((Opt < ${#Options[@]})); do
 		if ! [[ "${Options[Opt]}" = -* ]]; then
-			error -p 3 "argument flag format is messed up!"
-			error -p 3 "Rest of array is as follows: $(args_quoted "${_ARGS[@]}")"
+			error -p 3 "
+			argument flag format is messed up!
+			Options: ${Options[@]:0: $Opt} -here-> ${Options[@]:$Opt}
+			Rest of arguments are as follows: $(args_quoted "${_ARGS[@]}")
+			"
 			return 9
 		fi
 
@@ -364,7 +369,7 @@ function _args_build_parser_opts {
 					_args_parse_compound "$__Arg"
 					'
 					local i
-					for ((i = 0; i < "${#Vars[@]}"; i++)); do
+					for ((i = 0; i < ${#Vars[@]}; i++)); do
 						Builder+="
 						${Vars[i]}=("'"${__CompoundVars['$i']}")'
 					done
@@ -413,7 +418,7 @@ function _args_build_parser_opts {
 		;;
 	* )
 		# if no options spec was defined, assume flags are parsed elsewhere
-		(( "${#Options[@]}" )) || break
+		(( ${#Options[@]} )) || break
 
 		if [[ $_OPTS_SKIP_UNKNOWN = true ]]; then
 			__PosArgs+=("${_ARGS[__Pos]}")
@@ -428,7 +433,7 @@ function _args_build_parser_opts {
 	esac
 	done
 
-	_ARGS=("${__PosArgs[@]}" "${_ARGS[@]: __Pos: ${#_ARGS[@]} - __Pos}")
+	_ARGS=("${__PosArgs[@]}" "${_ARGS[@]: $__Pos: ${#_ARGS[@]} - $__Pos}")
 
 	_args_name_to_variable "$FlagName"
 	for __Flag in "${_ARGS_CACHED_OPTS[@]}"; do
@@ -781,7 +786,7 @@ function _args_build_parser_usage_lines {
 				__Arg="${_ARGS[__Pos]}"
 				_args_parse_compound "$__Arg"
 				'
-				for ((i = 0; i < "${#Vars[@]}"; i++)); do
+				for ((i = 0; i < ${#Vars[@]}; i++)); do
 					LineBuilder+="
 					${Vars[i]}${Variadic:+List+}=("'"${__CompoundVars['$i']}")'
 				done
@@ -799,7 +804,7 @@ function _args_build_parser_usage_lines {
 			elif [[ -z $Literal ]]; then
 				LineBuilder+='
 				__Pos="${_ARGS_BOUNDS['$TokenPos']}"
-				'$Name${Variadic:++}=${Variadic:+(}'"${_ARGS[@]: __Pos : ${_ARGS_BOUNDS['$TokenPos' + 1]} - __Pos }"'${Variadic:+)}'
+				'$Name${Variadic:++}=${Variadic:+(}'"${_ARGS[@]: $__Pos : ${_ARGS_BOUNDS['$TokenPos' + 1]} - $__Pos }"'${Variadic:+)}'
 				_args_check_dash '"$Name \"\$$Name\""$' || return 1\n'
 
 				if [[ $Variadic ]]; then
@@ -862,11 +867,11 @@ function _args_compound_split {
 				Token=''
 				while true; do
 					# TODO: Should this :digit: be removed?
-					Atom="${Arg%%[[:upper:][:digit:]_\[\]]*}"
-					[[ $Atom ]] || break
+					Atom="${Arg%%[\]\[[:upper:][:digit:]_]*}"
+					[[ "$Atom" ]] || break
 					Token+="$Atom"
 					Arg="${Arg#"$Atom"}"
-					if [[ $Atom = *\\ ]]; then
+					if [[ "$Atom" = *\\ ]]; then
 						Token+="${Arg:0:1}"
 						Arg="${Arg:1}"
 					fi
@@ -964,7 +969,7 @@ function _args_token_talker {
 
 			local Brackets="${Token//\\[][]/}" InitialDepth="$Depth" Delta='' s=0 OldGreedy="$PreviouslyGreedy"
 			Brackets="${Brackets//[^[\]]/}"
-			while ((TokenPos < "${#Tokens[@]}")); do
+			while ((TokenPos < ${#Tokens[@]})); do
 				for ((s = 0; s < ${#Brackets}; s++)); do
 					case ${Brackets: s:1} in
 						\[ ) ((++Depth));;
@@ -1001,12 +1006,12 @@ function _args_token_talker {
 
 				# TODO: check OldGreedy to see if it was updated this token, and replace
 				# PreviouslyGreedy with the full optional run
-				if [[ $Token = \[*\] ]]; then
+				if [[ "$Token" = \[*\] ]]; then
 					Optional=1
 					_args_token_talker "${Token:1:${#Token} - 2}"
 					return
 
-				elif [[ $Token = *'['* ]]; then
+				elif [[ "$Token" = *'['* ]]; then
 					Compound=1
 					_args_compound_split "$Token"
 					_args_name_to_variable "$Token"
@@ -1033,7 +1038,7 @@ function _args_token_talker {
 			# find flag in Options
 			while [[ "${Options[Opt]}" != "$Flag" && "${Options[Opt]}" != "$Flag"=* ]]; do
 				((++Opt))
-				if ((Opt >= "${#Options[@]}")); then
+				if ((Opt >= ${#Options[@]})); then
 					error -p 1 "
 					Usage Line: $Line
 					Flag '$Token' referenced, but is not defined in Options."
@@ -1061,9 +1066,9 @@ function _args_token_talker {
 
 			# check if flag is boolean
 			if [[ -z "$FlagTag" ]]; then
-				if [[ $Token = *=* ]]; then
+				if [[ "$Token" = *=* ]]; then
 					# only true/false allowed
-					if [[ $Token = *=false || $Token = *=true ]]; then
+					if [[ "$Token" = *=false || $Token = *=true ]]; then
 						Match="$FlagName=${Token#*=}"
 						return
 					fi
@@ -1078,7 +1083,7 @@ function _args_token_talker {
 			fi
 
 			# non-boolean values
-			if [[ $Token = *=* ]]; then
+			if [[ "$Token" = *=* ]]; then
 				TokenTag="${Token#*=}"
 			else
 				# next token is value, eg --flag VALUE
@@ -1092,15 +1097,14 @@ function _args_token_talker {
 			if [[ "$TokenTag" != "$FlagTag" ]]; then
 				# FlagTag always contains UPPER
 				# TokenTag containing UPPER must = FlagTag
-				if [[ $FlagTag = *[^[:upper:][:digit:]_]* ]]; then
-					echo >&2 "$FlagTag"
+				if [[ "$FlagTag" = *[^[:upper:][:digit:]_]* ]]; then
 					error -p 2 "
 					Usage Line: $Line
 					Compound flags are not currently supported in usage strings,
 					unless completely identical to their flag format.
 					i.e., '$TokenTag' must be '$FlagTag'."
 					return 9
-				elif [[ $TokenTag = *[[:upper:]_]* ]]; then
+				elif [[ "$TokenTag" = *[[:upper:]_]* ]]; then
 					error -p 2 "
 					Usage Line: $Line
 					Flags with custom variable tags are not currently supported in Usage strings
@@ -1120,7 +1124,7 @@ function _args_token_talker {
 			;;
 
 		*[[:upper:]_]* )
-			if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
+			if [[ "$Token" = *[^[:upper:][:digit:]_]* ]]; then
 				Compound=1
 				_args_compound_split "$Token"
 			else
@@ -1174,12 +1178,12 @@ function _args_regex_parser {
 	fi
 
 	local Check='' i=0 Builder=''
-	while ((i < "${#Token}")); do
+	while ((i < ${#Token})); do
 		Check="${Token: i: 3}"
-		if [[ $Check == [^\\]\(* ]]; then
+		if [[ "$Check" == [^\\]\(* ]]; then
 			((++CaptureGroup))
-		elif [[ $Check == [^\\]\)* ]]; then
-			if [[ $Check == *[^?] ]]; then
+		elif [[ "$Check" == [^\\]\)* ]]; then
+			if [[ "$Check" == *[^?] ]]; then
 
 				if ((Arg > $#)); then
 					error "INTERNAL ERROR: Given regex '$Token' has more capture groups than the provided Args! ${@:2}"
@@ -1248,7 +1252,7 @@ function _args_parse_dynamic {
 	zsh_run setopt KSH_ARRAYS SH_WORD_SPLIT
 	local USAGE_TOKEN_DEBUG=
 
-	[[ ${#Usage[@]} -lt 2 && -z "$Usage" ]] && return 0
+	[[ "${#Usage[@]}" -lt 2 && -z "$Usage" ]] && return 0
 
 	local Name='' Line='' TokenPos='' GlobEnabled='' i=0 ExactMatch=''
 	local ArityMin ArityMax OtherInfo
@@ -1309,7 +1313,7 @@ function _args_parse_dynamic {
 			fi
 		fi
 	done
-	[[ $GlobEnabled = 1 ]] && set +o noglob
+	[[ "$GlobEnabled" = 1 ]] && set +o noglob
 	[[ "$USAGE_TOKEN_DEBUG" ]] && echo >&2 "Arg bounds: $(args_quoted "${_ARGS_BOUNDS[@]}")"
 	((${#_ARGS_BOUNDS[@]}))
 }
@@ -1331,8 +1335,8 @@ function _args_parse_usage_token {
 
 	while ((TokenPos < ${#Tokens[@]})); do
 		[[ "$USAGE_TOKEN_DEBUG" ]] &&
-			echo >&2 "${Tokens[@]:0:TokenPos} > ${Tokens[@]:TokenPos}" &&
-			echo >&2 "${_ARGS[@]:0:ArgPos} > ${_ARGS[@]:ArgPos}"
+			echo >&2 "${Tokens[@]:0:$TokenPos} > ${Tokens[@]:$TokenPos}" &&
+			echo >&2 "${_ARGS[@]:0:$ArgPos} > ${_ARGS[@]:$ArgPos}"
 
 		# TODO: For possible matches of a single usage string, Is there a case where both the following are true?
 		# 1: Match A has more tokens than Match B
@@ -1395,7 +1399,7 @@ function _args_parse_usage_token {
 					_args_token2regex "$Token"
 					Match="$REPLY"
 
-					while ((Run < "${#_ARGS[@]}")) && [[ "${_ARGS[Run]}" =~ $Match ]]; do
+					while ((Run < ${#_ARGS[@]})) && [[ "${_ARGS[Run]}" =~ $Match ]]; do
 						# TODO: test off-by-one error
 						if (( ! Greedy && Run >= Min )); then
 							# Stop as soon as the next argument is valid
@@ -1421,7 +1425,7 @@ function _args_parse_usage_token {
 				# find flag in Options
 				while [[ "${Options[Opt]}" != "$Flag" && "${Options[Opt]}" != "$Flag"=* ]]; do
 					((++Opt))
-					if ((Opt >= "${#Options[@]}")); then
+					if ((Opt >= ${#Options[@]})); then
 						error -p 3 "
 						Usage Line: $Line
 						Flag '$Token' referenced, but is not defined in Options."
@@ -1443,14 +1447,14 @@ function _args_parse_usage_token {
 				_args_name_to_variable "${FlagName#-}" # function handles possible leading '-'
 				local i FlagVal=''
 				for ((i = 0; i < ${#_ARGS_CACHED_OPTS[@]}; i++)); do
-					if [[ ${_ARGS_CACHED_OPTS[i]} == $Name ]]; then
+					if [[ "${_ARGS_CACHED_OPTS[i]}" == $Name ]]; then
 						FlagVal="${__OptsCache[i]}"
 					fi
 				done
 
 				# check if flag is boolean
 				if [[ -z "$FlagTag" ]]; then
-					if [[ $Token = *=false ]]; then
+					if [[ "$Token" = *=false ]]; then
 						isTrue "$FlagVal" && return 1
 					else
 						isTrue "$FlagVal" || return 1
@@ -1461,7 +1465,7 @@ function _args_parse_usage_token {
 				fi
 
 				# non-boolean values
-				if [[ $Token = *=* ]]; then
+				if [[ "$Token" = *=* ]]; then
 					TokenTag="${Token#*=}"
 				else
 					# next token is value, eg --flag VALUE
@@ -1479,7 +1483,7 @@ function _args_parse_usage_token {
 				# TODO: Remember, in KEY=value, =value is considered one literal.
 
 				# TODO: this check will need to change once we have compound testing
-				if [[ $TokenTag = *[[:upper:]_]* ]]; then
+				if [[ "$TokenTag" = *[[:upper:]_]* ]]; then
 					# TODO: Change this to check if the value is *set*, rather than *non-empty*
 					[[ "$FlagVal" ]] || return 1
 				else
@@ -1510,7 +1514,7 @@ function _args_parse_usage_token {
 
 					if ((Depth)); then
 						((++OptionalEnd))
-						if ((OptionalEnd >= "${#Tokens[@]}")); then
+						if ((OptionalEnd >= ${#Tokens[@]})); then
 							error "FUNCTION BUG: Never matched a ] for [ starting at '$Token'. Current usage:
 							${Tokens[@]}"
 							sleep 3
@@ -1523,7 +1527,7 @@ function _args_parse_usage_token {
 					if ((TokenPos == OptionalEnd)); then
 						# Nice, a single token with exactly the number of
 						# brackets we need :relieved:
-						if [[ $Token != \[*\] ]]; then
+						if [[ "$Token" != \[*\] ]]; then
 							# ( will continue into variable matching below due to fallthrough)
 							break
 						fi
@@ -1562,7 +1566,7 @@ function _args_parse_usage_token {
 				;&
 
 			*[[:upper:]_]* )
-				if [[ $Token = *[^[:upper:][:digit:]_]* ]]; then
+				if [[ "$Token" = *[^[:upper:][:digit:]_]* ]]; then
 					# has separators
 					Priorities[$TokenPos]=50
 					_args_token2regex "$Token"
@@ -1680,7 +1684,7 @@ function _args_parse_compound {
 				Separator="${Separator//\a/\\}"
 
 				Temp="${Arg#${LastVar:+*}"$Separator"}"
-				[[ $LastVar ]] && Values[LastVar]="${Arg%%"$Separator"*}"
+				[[ "$LastVar" ]] && Values[LastVar]="${Arg%%"$Separator"*}"
 
 				if (( ${#Temp} == ${#Arg} )); then
 					# Separator not found. Fallback to best match or fail
@@ -1708,7 +1712,7 @@ function _args_parse_compound {
 		esac
 	done
 
-	if [[ $LastVar ]]; then
+	if [[ "$LastVar" ]]; then
 		Values[LastVar]="$Arg"
 	fi
 
@@ -1723,7 +1727,7 @@ function _args_build_parser_legend {
 	zsh_run setopt KSH_ARRAYS
 
 	local i=0 Type='' Name='' Validation=''
-	for ((i = 0; i < "${#Legend[@]}"; i += 2)); do
+	for ((i = 0; i < ${#Legend[@]}; i += 2)); do
 		Type=''
 		_args_name_to_variable "${Legend[i]}"
 		Builder+=$'\n__Val="$'$Name\"
@@ -1731,7 +1735,7 @@ function _args_build_parser_legend {
 		Builder+="$Validation"
 	done
 
-	for ((i = 0; i < "${#_ARGS_CHECKS[@]}"; i += 4)); do
+	for ((i = 0; i < ${#_ARGS_CHECKS[@]}; i += 4)); do
 		Builder+='
 		for __Val in "${'"${_ARGS_CHECKS[i + 1]}"'[@]}"; do
 			if ! '"${_ARGS_CHECKS[i + 2]}"'; then
@@ -1800,7 +1804,7 @@ function _arg_group_read {
 					return 9
 				fi
 			fi
-			if (("$__ArgGroupI" >= "${#'$1'List[@]}")); then
+			if (($__ArgGroupI >= ${#'$1'List[@]})); then
 				# break loop
 				__ArgGroup='' __ArgGroupI=''
 				return 1

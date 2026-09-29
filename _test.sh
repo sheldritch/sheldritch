@@ -43,7 +43,7 @@ export SHELDRITCH
 command -v self_file
 
 for file in $(find */ -path '*/_test*.sh'); do
-	if ! "$SHELL" "./$file"; then
+	if ! "$THIS_SHELL" "./$file"; then
 		FAIL=1
 		echo >&2 "failed $file"
 	fi

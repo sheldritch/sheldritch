@@ -48,10 +48,16 @@ over-optimised code for performance over readability, maintainability, etc.
     unguarded bashisms in shared code.
 - Be familiar with the compatibility helpers from `core/compat.*` and
     `system/system.sh` and use them where relevant.
+- Always quote variables inside tests (`[[ "$Var" ]]`), in case setopt
+    SH_WORD_SPLIT is set.
+- But DON'T quote inside  numerical evaluations, e.g. `(( "$Integer" ))`.
+    Quotes inside argument substitutions are okay: `(( $(lines "$text") ))`.
 - Ensure code supports arrays being zero-indexed or one-indexed for zsh. To do
     this, you can either call `zsh_run setopt ksh_arrays` inside a function, or
-    use array slices (e.g. `${Array[@]:0:1}`). Make sure you preserve the
+    use array slices (e.g. `${Array[@]:$Index:$Length}`). Make sure you preserve the
     original setting when returning control to the shell.
+  - Array Slices must use $-prefixed variables in array slices.
+      `${Array[@]:Index:Length}` is NOT allowed.
 - Use the `dict_` functions for associative arrays and SHELDRITCH_HAS_ASSOC_ARRAYS
 
 #### Bash
@@ -63,8 +69,13 @@ over-optimised code for performance over readability, maintainability, etc.
     - Any uses of globstar must be matched with a fallback `find`.
 
 #### Korn Shell (ksh)
-- As long as you have `core/compat.ksh` sourced, `local` and `declare` are aliased to `typeset`, so you can use each freely.
-- Always use typeset when defining arrays. Raw arrays (`Var=()`) are actually compound variables (i.e. structs).
+- Korn Shell is not currently supported, but we try and make at least some
+    effort so if somebody wants it someday, it's a slightly less horrifying
+    challenge.
+- As long as you have `core/compat.ksh` sourced, `local` and `declare` are
+    aliased to `typeset`, so you can use each freely.
+- Always use typeset when defining arrays. Raw arrays (`Var=()`) are actually
+    compound variables (i.e. structs).
 
 ### Logging & Errors
 - Use `log`, `warn`, `error`, and `debug` helpers
