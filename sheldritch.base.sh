@@ -124,7 +124,7 @@ function self_dir {
 		fi
 		return 1
 	fi
-	>/dev/null self_file 1
+	>/dev/null self_file 1 || return 1
 	dirname "$REPLY"
 }
 if [[ -n "${KSH_VERSION-}" ]]; then
@@ -179,9 +179,10 @@ alias @func_use_parent='
 
 	typeset Parent=''
 	if funcname -p $ParentLevel -q 2>/dev/null; then
-		Parent="$(funcname -p $ParentLevel)"
+		# TODO: these "|| :" might be a poor idea
+		Parent="$(funcname -p $ParentLevel)" || :
 	else
-		Parent="$(self_file "$ParentLevel")"
+		Parent="$(self_file "$ParentLevel")" || :
 	fi
 '
 
@@ -206,10 +207,11 @@ function stacktrace {
 		done
 
 	elif [[ -n ${ZSH_VERSION-} ]] && ((${#funcstack[@]})); then
-		while ((I < ${#funcstack[@]})); do
-			printf '\t%s\n' "${funcstack[I]}"
+		while ((I < ${#functrace[@]})); do
+			printf '\t%s: %s\n' "${funcfiletrace[I]}" "${functrace[I]}"
 			((++I))
 		done
+
 
 	elif ((${#FUNCNAME[@]})); then
 		while ((I < ${#FUNCNAME[@]})); do
