@@ -2,6 +2,10 @@ Copyright (C) 2025, Michael Ruigrok
 
 DO NOT DISTRIBUTE the software and any associated files (the "Software").
 
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to use or modify the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
 In addition, the following restrictions apply:
 
 1. The Software and any modifications made to it may not be used for the purpose of training or improving machine learning algorithms,
